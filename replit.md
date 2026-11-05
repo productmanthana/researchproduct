@@ -34,6 +34,7 @@ Independent research workspace for Indian engineering students and scholars, wit
 - Same agreed GPT-4.1 model and evidence checks across plans. Do not silently change models based on price tier.
 - Starter trial is bounded and lifetime to permit evaluation while payment setup is disconnected; no client-side paid-plan grants.
 - No prepaid data licences or large-scale vector infrastructure may be provisioned without separate approval. Current search is federated, not a locally imported 300M corpus.
+- The user explicitly chose live provider catalogues rather than hosting our own full catalogue. Complete broad discovery through provider APIs and cache/deduplicate retrieved records; do not turn catalogue hosting into a prerequisite.
 - Automated citation existence, quote and support checks reduce errors but cannot guarantee correctness. Clearly label metadata-only, abstract-only and selected-page evidence.
 
 ## Product
