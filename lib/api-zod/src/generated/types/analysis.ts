@@ -8,6 +8,7 @@ import type { AnalysisMode } from './analysisMode';
 import type { AnalysisSourcesItem } from './analysisSourcesItem';
 import type { Claim } from './claim';
 import type { ComparisonRow } from './comparisonRow';
+import type { DiscoveredPaper } from './discoveredPaper';
 
 export interface Analysis {
   mode?: AnalysisMode;
@@ -27,4 +28,6 @@ export interface Analysis {
   error: string;
   createdAt: string;
   comparisonRows?: ComparisonRow[];
+  stage?: string;
+  discoveredPapers?: DiscoveredPaper[];
 }

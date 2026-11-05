@@ -197,6 +197,7 @@ export type AnalysisSourcesItem = {
   url: string;
   evidenceLevel: string;
   verification?: string;
+  paperId?: string;
 };
 
 export type ComparisonCellStatus = typeof ComparisonCellStatus[keyof typeof ComparisonCellStatus];
@@ -234,6 +235,17 @@ export interface ComparisonRow {
   limitations: ComparisonCell;
 }
 
+export interface DiscoveredPaper {
+  id: string;
+  title: string;
+  abstract: string;
+  authors: string[];
+  /** @nullable */
+  year?: number | null;
+  url: string;
+  selected: boolean;
+}
+
 export interface Analysis {
   mode?: AnalysisMode;
   /** @nullable */
@@ -252,6 +264,8 @@ export interface Analysis {
   error: string;
   createdAt: string;
   comparisonRows?: ComparisonRow[];
+  stage?: string;
+  discoveredPapers?: DiscoveredPaper[];
 }
 
 export interface AnalysisUpdate {

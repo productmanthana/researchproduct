@@ -97,7 +97,7 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
           <label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
             <Checkbox checked={rights} onCheckedChange={(v) => setRights(v === true)} className="mt-0.5" data-testid="checkbox-rights" />
             <span>
-              I have the right to upload this file for my own study. I understand it will be stored privately and sent to OpenAI for analysis only when I run an analysis with it.
+              I have the right to upload this file for my own study.
             </span>
           </label>
           {busy && (

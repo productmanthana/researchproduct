@@ -1667,17 +1667,28 @@
         "properties": {
           "mode": {
             "type": "string",
-            "enum": ["ask", "research"]
+            "enum": [
+              "ask",
+              "research"
+            ]
           },
           "parentAnalysisId": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "conversationId": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "searchQueries": {
             "type": "array",
-            "items": {"type": "string"}
+            "items": {
+              "type": "string"
+            }
           },
           "id": {
             "type": "string"
@@ -1719,6 +1730,9 @@
                 },
                 "verification": {
                   "type": "string"
+                },
+                "paperId": {
+                  "type": "string"
                 }
               },
               "required": [
@@ -1745,6 +1759,15 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ComparisonRow"
+            }
+          },
+          "stage": {
+            "type": "string"
+          },
+          "discoveredPapers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscoveredPaper"
             }
           }
         },
@@ -2221,6 +2244,46 @@
           "results",
           "limitations"
         ]
+      },
+      "DiscoveredPaper": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "abstract",
+          "authors",
+          "url",
+          "selected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "abstract": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "selected": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

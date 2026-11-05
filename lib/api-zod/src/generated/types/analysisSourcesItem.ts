@@ -11,4 +11,5 @@ export type AnalysisSourcesItem = {
   url: string;
   evidenceLevel: string;
   verification?: string;
+  paperId?: string;
 };

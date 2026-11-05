@@ -243,7 +243,7 @@ function Documents() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted-foreground">Private to you. Files are sent to OpenAI only when you explicitly include them in an analysis, or tick "include linked PDFs" for papers they are linked to. Upload only files you have the right to use; delete them here at any time.</p>
+        <p className="max-w-xl text-sm text-muted-foreground">Private to you. Research uses selected files and PDFs linked to the selected papers automatically. Upload only files you have the right to use; delete them here at any time.</p>
         <DocumentUpload />
       </div>
       {docs.isLoading ? (

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetUsage, getGetUsageQueryKey, useGetAccount, getGetAccountQueryKey } from "@workspace/api-client-react";
-import { BookMarked, Compass, FlaskConical, FolderKanban, LineChart, LogOut, Menu, MessageSquareText, Plug, Receipt, X } from "lucide-react";
+import { BookMarked, Compass, FlaskConical, FolderKanban, Leaf, LineChart, LogOut, Menu, MessageSquareText, Plug, Receipt, X } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { UsageMeters } from "@/components/usage-meters";
 import { useSelection } from "@/lib/selection";
@@ -31,7 +31,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <Link href="/discover" className="px-5 pb-6 pt-6" onClick={onNavigate} data-testid="link-brand">
-        <Wordmark light />
+        {location==="/ask"?<span className="ev-brand"><Leaf/>evidora.</span>:<Wordmark light />}
       </Link>
       <nav className="flex-1 space-y-0.5 px-3">
         {NAV.map((n) => {
@@ -108,14 +108,16 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [location] = useLocation();
+  const studio = location === "/ask";
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className={`min-h-[100dvh] bg-background ${studio?"ev-shell":""}`}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-sidebar text-sidebar-foreground lg:block">
         <SidebarBody />
       </aside>
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-sidebar px-4 py-3 lg:hidden">
         <Link href="/discover" data-testid="link-brand-mobile">
-          <Wordmark light />
+          {studio?<span className="ev-brand"><Leaf/>evidora.</span>:<Wordmark light />}
         </Link>
         <button onClick={() => setOpen(true)} className="rounded p-2 text-sidebar-foreground" data-testid="button-menu">
           <Menu className="h-5 w-5" />
@@ -133,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
       <main className="lg:pl-60">
-        <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-10">{children}</div>
+        <div className={studio?"w-full":"mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-10"}>{children}</div>
       </main>
     </div>
   );

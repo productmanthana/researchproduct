@@ -1,4 +1,5 @@
 import { iso } from "./common";
 export const analysisView=(r:any)=>({id:r.id,kind:r.kind,question:r.question,status:r.status,content:r.result?.content??"",claims:r.result?.claims??[],sources:r.result?.sources??[],comparisonRows:r.result?.comparisonRows??[],warnings:r.result?.warnings??[],error:r.error??"",createdAt:iso(r.created_at),
   mode:r.input?.autoDiscover?"ask":"research",parentAnalysisId:r.input?.parentAnalysisId??null,
-  conversationId:r.input?.conversationId??null,searchQueries:r.input?.searchQueries??[]});
+  conversationId:r.input?.conversationId??null,searchQueries:r.input?.searchQueries??[],
+  stage:r.input?.stage??"",discoveredPapers:r.input?.discoveredPapers??[]});

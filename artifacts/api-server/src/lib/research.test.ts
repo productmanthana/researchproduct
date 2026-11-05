@@ -13,7 +13,8 @@ import { aiContext, paidOpenAI, priceMicros, EMBEDDING_MODEL, CHAT_MODEL } from 
 import { analysisSnapshot } from "./analysis-input";
 import { scholarlyTerms, doajTerms } from "./search-query";
 import { SourceUnavailable, sourceFailure } from "./source-registry";
-import { questionCandidates, conversationContext, reuseRequested } from "./ask-discovery";
+import { questionCandidates, conversationContext, reuseRequested, discoverySnapshot } from "./ask-discovery";
+import { analysisView } from "./analysis-view";
 const paper=(override:any={})=>makePaper({title:"A detailed study of graph neural networks",authors:["Ada Researcher"],year:2024,sources:["OpenAlex"],...override});
 after(()=>pool.end());
 test("Natural-language queries remove Lucene syntax and conversational filler",()=>{
@@ -37,6 +38,18 @@ test("Automatic selection interleaves query results and deduplicates shared DOIs
   assert.equal(merged.length,70);
   assert.equal(merged[1].doi,"10.1234/second-query");
   assert.equal(merged.filter(p=>p.doi==="10.1234/a0").length,1);
+  const sameRecord=questionCandidates([],[first,[{...first[0],doi:"10.1234/alternate"}]],200);
+  assert.equal(sameRecord.filter(p=>p.id===first[0].id).length,1);
+  const found=questionCandidates([], [first,second],200);
+  assert.equal(found.length,71);
+  const snapshot=discoverySnapshot(found,[found[1].id]);
+  assert.equal(snapshot.length,71);
+  assert.equal(snapshot.filter(p=>p.selected).length,1);
+  const view=analysisView({id:"test",created_at:new Date(),input:{autoDiscover:true,stage:"selecting",discoveredPapers:snapshot}});
+  assert.equal(view.stage,"selecting");
+  assert.equal(view.discoveredPapers.length,71);
+  assert.equal(view.sources.length,0); // Found is not the same as cited.
+  assert.deepEqual(analysisView({created_at:new Date(),input:{}}).discoveredPapers,[]);
 });
 test("Ask ancestry cannot cross owners and preserves the selected conversation context",async()=>{
   const owner=`ask-test-${randomUUID()}`,other=`ask-test-${randomUUID()}`,parent=randomUUID();

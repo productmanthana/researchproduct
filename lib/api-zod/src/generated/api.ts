@@ -280,7 +280,8 @@ export const GetSummaryResponse = zod.object({
   "title": zod.string(),
   "url": zod.string(),
   "evidenceLevel": zod.string(),
-  "verification": zod.string().optional()
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
@@ -343,6 +344,16 @@ export const GetSummaryResponse = zod.object({
 })),
   "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
 })).optional()
 }))
 })
@@ -671,7 +682,8 @@ export const ListAnalysesResponseItem = zod.object({
   "title": zod.string(),
   "url": zod.string(),
   "evidenceLevel": zod.string(),
-  "verification": zod.string().optional()
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
@@ -734,6 +746,16 @@ export const ListAnalysesResponseItem = zod.object({
 })),
   "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
 })).optional()
 })
 export const ListAnalysesResponse = zod.array(ListAnalysesResponseItem)
@@ -799,7 +821,8 @@ export const CreateAnalysisResponse = zod.object({
   "title": zod.string(),
   "url": zod.string(),
   "evidenceLevel": zod.string(),
-  "verification": zod.string().optional()
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
@@ -862,6 +885,16 @@ export const CreateAnalysisResponse = zod.object({
 })),
   "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
 })).optional()
 })
 
@@ -908,7 +941,8 @@ export const GetAnalysisResponse = zod.object({
   "title": zod.string(),
   "url": zod.string(),
   "evidenceLevel": zod.string(),
-  "verification": zod.string().optional()
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
@@ -971,6 +1005,16 @@ export const GetAnalysisResponse = zod.object({
 })),
   "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
 })).optional()
 })
 
@@ -1098,7 +1142,8 @@ export const UpdateAnalysisResponse = zod.object({
   "title": zod.string(),
   "url": zod.string(),
   "evidenceLevel": zod.string(),
-  "verification": zod.string().optional()
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
@@ -1161,6 +1206,16 @@ export const UpdateAnalysisResponse = zod.object({
 })),
   "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
 })).optional()
 })
 

@@ -18,6 +18,7 @@ export * from './comparisonCell';
 export * from './comparisonCellEvidenceItem';
 export * from './comparisonCellStatus';
 export * from './comparisonRow';
+export * from './discoveredPaper';
 export * from './document';
 export * from './documentLink';
 export * from './error';

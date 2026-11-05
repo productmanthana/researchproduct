@@ -165,7 +165,7 @@ export default function Home() {
             {[
               "Search queries live scholarly indexes. We do not host a private copy of the world's literature.",
               "AI output can be wrong. Quotes and page numbers are there so you can check every line.",
-              "Uploaded files are sent to OpenAI for analysis, only after you consent. They stay private to your account otherwise.",
+              "Uploaded files stay private to your account. Research uses the files you select and PDFs you link to the selected papers.",
               "When a source is partially down, you will see a warning on the results, not silently fewer papers.",
             ].map((t, i) => (
               <li key={i} className="flex gap-4 border-b pb-4">

@@ -37,7 +37,7 @@ import { selection, useSelection } from "@/lib/selection";
 import { ago, errMessage, evidenceTone } from "@/lib/format";
 
 const KINDS: { k: AnalysisInputKind; label: string; icon: typeof FileSearch; hint: string }[] = [
-  { k: "answer", label: "Evidence answer", icon: FileSearch, hint: "Up to 10 papers or PDFs. Semantic + keyword retrieval, with optional original-page vision checks." },
+  { k: "answer", label: "Evidence answer", icon: FileSearch, hint: "Up to 10 papers or PDFs. Answers grounded in the available evidence." },
   { k: "review", label: "Literature review", icon: Layers, hint: "Select 10 to 50 papers. Structured synthesis with citations." },
   { k: "image", label: "Figure reading", icon: FileImage, hint: "Needs a screenshot or PDF. Up to 3 relevant original page images per PDF are analysed." },
 ];
@@ -80,10 +80,7 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   const [kind, setKind] = useState<AnalysisInputKind>("answer");
   const [question, setQuestion] = useState(initialQuestion);
   const [pagesText, setPagesText] = useState("");
-  const [includeLinked, setIncludeLinked] = useState(false);
-  const [inspectFigures, setInspectFigures] = useState(true);
   const [docIds, setDocIds] = useState<string[]>([]);
-  const [consent, setConsent] = useState(false);
   const [picking, setPicking] = useState(false);
   const sel = useSelection();
   const docs = useListDocuments({ query: { queryKey: getListDocumentsQueryKey() } });
@@ -96,13 +93,11 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   const visibleDocs = kind === "answer" ? readyDocs.filter((d) => d.contentType === "application/pdf") : kind === "image" ? readyDocs : [];
   const chosenDocs = docIds.filter((id) => visibleDocs.some((d) => d.id === id));
   const paperIds = kind === "image" ? [] : sel.map((s) => s.id);
-  const consentInputs=JSON.stringify([kind,question,includeLinked,inspectFigures,chosenDocs,paperIds,pagesText]);
-  useEffect(()=>setConsent(false),[consentInputs]);
 
   const pageTokens = pagesText.split(/[\s,]+/).filter(Boolean);
   const pageNumbers = [...new Set(pageTokens.map(Number))];
   const pagesBad = kind === "image" && pageTokens.length > 0 && (pageNumbers.length > 3 || pageNumbers.some((n) => !Number.isInteger(n) || n < 1 || n > 50));
-  const linked = kind !== "image" && includeLinked;
+  const linked = kind !== "image";
 
   let problem: string | null = null;
   if (question.trim().length < 5) problem = "Write a question of at least 5 characters.";
@@ -111,7 +106,6 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   else if (kind === "review" && (paperIds.length < 10 || paperIds.length > 50)) problem = `Reviews need 10 to 50 papers. You have ${paperIds.length}.`;
   else if (kind === "image" && chosenDocs.length === 0) problem = "Choose at least one screenshot or PDF.";
   else if (pagesBad) problem = "Page numbers: up to 3 whole numbers between 1 and 50.";
-  else if (!consent) problem = "Confirm consent to send this request to OpenAI.";
 
   const u = usage.data;
   const left = u ? (kind === "answer" ? u.answersLimit - u.answersUsed : kind === "review" ? u.reviewsLimit - u.reviewsUsed : u.imagesLimit - u.imagesUsed) : null;
@@ -128,13 +122,12 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
           documentIds: chosenDocs.length ? chosenDocs : undefined,
           pageNumbers: kind === "image" && pageNumbers.length ? pageNumbers : undefined,
           includeLinkedDocuments: linked,
-          inspectFigures: kind !== "image" && inspectFigures,
+          inspectFigures: kind !== "image",
           aiConsent: true,
         },
       },
       {
         onSuccess: (a) => {
-          setConsent(false);
           qc.invalidateQueries({ queryKey: getListAnalysesQueryKey() });
           qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
           qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
@@ -222,36 +215,6 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
             <p className="mt-1 text-xs text-muted-foreground">Leave blank to let Evidora pick up to 3 relevant pages. Ignored for screenshots.</p>
           </div>
         )}
-
-        {kind !== "image" && (
-          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-            <Checkbox checked={includeLinked} onCheckedChange={(v) => setIncludeLinked(v === true)} className="mt-0.5" data-testid="checkbox-include-linked" />
-            <span>
-              Include my private PDFs linked to the selected papers.
-              <span className="block text-xs text-muted-foreground">Off by default. When on, linked PDFs are embedded and selected evidence is sent to OpenAI. Page images are included if visual inspection is enabled.</span>
-            </span>
-          </label>
-        )}
-
-        {kind !== "image" && (
-          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
-            <Checkbox checked={inspectFigures} onCheckedChange={(v) => {setInspectFigures(v === true);setConsent(false);}} className="mt-0.5" data-testid="checkbox-inspect-figures" />
-            <span>Inspect original PDF pages with vision.
-              <span className="block text-xs text-muted-foreground">Up to 3 relevant page images across this run, not every figure. Originals are retained in secure file storage; extracted text embeddings go into PostgreSQL + pgvector. Use Figure reading to choose specific pages.</span>
-            </span>
-          </label>
-        )}
-
-        <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] p-3 text-sm">
-          <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" data-testid="checkbox-ai-consent" />
-          <span>
-            I consent to OpenAI processing my question, selected paper metadata, abstracts and legally reusable PDF text for embeddings and evidence analysis
-            {chosenDocs.length > 0 ? (kind === "image" ? ", and the selected images or PDF page images" : ", and extracted text of the selected PDFs") : ""}
-            {linked ? ", and text of my linked private PDFs" : ""}.
-            {kind !== "image" && inspectFigures ? " This includes up to 3 original PDF page images for vision checks." : ""}
-            <span className="block text-xs text-muted-foreground">Output is machine-generated and can be wrong. Verify every claim against its quoted source before use.</span>
-          </span>
-        </label>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className={`text-xs ${problem ? "text-vermilion" : "text-muted-foreground"}`} data-testid="text-composer-status">
@@ -603,7 +566,7 @@ function ResearchInner() {
           )}
           <div className="rounded-md border bg-card p-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-ai-disclosure">
             <p className="mb-1 font-mono text-[10px] uppercase tracking-widest">AI and privacy</p>
-            Evidora searches providers live; it does not store the whole 300-million-record catalogue. For selected papers it tries licensed open-access PDFs (CC0, CC BY or CC BY-SA), then abstracts. Original licensed PDFs, extracted text, and selected page images are retained for reuse. Full-size OpenAI embeddings in PostgreSQL + pgvector and keyword ranking select up to 8 evidence pages per document. Optional vision inspects up to 3 original PDF pages per answer or review, not every figure; use Figure reading for specific pages. Files over 15 MB, over 50 pages, scans and restricted files may require an upload or abstract fallback. Selected PDFs' extracted text is sent to OpenAI for embeddings; only selected evidence is used for answers. Private files are processed only when selected or linked with your opt-in. Deleting a private document removes its stored embeddings and rendered pages; previous analysis results remain until deleted separately. Automated checks do not guarantee accuracy.
+            Answers use available source evidence. Paper-linked PDFs and selected uploads are used for the research you request; unrelated private files are not included. Evidence coverage varies by source. Check citations and limitations before relying on an answer.
           </div>
           <div>
             <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"><History className="h-3 w-3" /> History</p>
