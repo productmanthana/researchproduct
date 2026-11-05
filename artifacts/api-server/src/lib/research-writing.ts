@@ -4,7 +4,7 @@ type WrittenClaim = { text:string; section?:string; evidence:{sourceId:string}[]
 // Keep reproducibility information, but don't mistake infrastructure logs for
 // limitations of the scientific findings.
 export function isProcessingNotice(text:string) {
-  return /^(?:Search scope:|Earlier answer scope:|Weaviate |Where readable text|Inspected |Automatically selected |Reused the previous|A planned search|The Weaviate|Paper indexing|Possible preprint|AI-assisted draft|Edited by the user|Some or all selected papers|PDF text analysis|Visual analysis inspects|Claims that failed|No supported answer|\d+ retrieved records|(?:OpenAlex|Crossref|arXiv|dblp|DataCite|Europe PMC|DOAJ):)/i.test(text)
+  return /^(?:Research freshness:|Search scope:|Earlier answer scope:|Weaviate |Where readable text|Inspected |Automatically selected |Reused the previous|A planned search|The Weaviate|Paper indexing|Possible preprint|AI-assisted draft|Edited by the user|Some or all selected papers|PDF text analysis|Visual analysis inspects|Claims that failed|No supported answer|\d+ retrieved records|(?:OpenAlex|Crossref|arXiv|dblp|DataCite|Europe PMC|DOAJ):)/i.test(text)
     || /:\s*(?:No (?:PDF|resolvable)|Licensed PDF|Automatically retrieved|Automatic retrieval|Reused a retained|Full-text lookup|Cached |Using abstract|The (?:provider|paper|PDF)|Citation |Crossref |OpenAlex )/i.test(text)
     || /(?:could not be read|no readable text|citation metadata|DOI metadata|verification unavailable|exceeds.*(?:limit|size))/i.test(text);
 }
@@ -29,7 +29,7 @@ export function scientificLimitations(warnings:string[],sources:Citation[]) {
   return [...new Set(warnings.filter(w=>!isProcessingNotice(w)).map(w=>readableResearchText(w,sources).trim()).filter(Boolean))];
 }
 
-export function academicContent({kind,claims,sources,limitations=[]}:{kind:string;claims:WrittenClaim[];sources:Citation[];limitations?:string[]}) {
+export function academicContent({kind,claims,sources,limitations=[],currency=""}:{kind:string;claims:WrittenClaim[];sources:Citation[];limitations?:string[];currency?:string}) {
   const numbering=new Map(sources.map((s,i)=>[s.id,i+1]));
   const sections=kind==="review"
     ?["Introduction","Thematic findings","Comparative analysis","Research gaps","Conclusion"]
@@ -64,5 +64,5 @@ export function academicContent({kind,claims,sources,limitations=[]}:{kind:strin
   if(abstractOnly)limits.push("Some cited evidence is available only as abstracts. Unreported methods, datasets and numerical results could not be assessed from those sources.");
   if(limits.length)chunks.push(`## ${chunks.length+1}. Evidence limitations\n\n${[...new Set(limits)].join("\n\n")}`);
   if(!claims.length)return "# Answer could not be verified\n\nNo claims passed the source and evidence checks for this run. This does not mean that relevant research is absent. No scientific conclusion is drawn.\n\nYour answer allowance has been restored. You can retry or narrow the question to a specific method. Unverified draft conclusions and caveats are not presented as scientific findings.";
-  return `# ${kind==="review"?"Literature synthesis":kind==="image"?"Visual evidence analysis":"Research synthesis"}\n\n${chunks.join("\n\n")}`;
+  return `# ${kind==="review"?"Literature synthesis":kind==="image"?"Visual evidence analysis":"Research synthesis"}\n\n${currency?`${currency}\n\n`:""}${chunks.join("\n\n")}`;
 }

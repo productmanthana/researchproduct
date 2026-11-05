@@ -37,7 +37,7 @@ export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{an
       {filtered.slice(0,limit).map(p=><article key={p.id} className="ev-paper-row">
         <button className="ev-source" aria-pressed={active?.id===p.id} aria-expanded={active?.id===p.id} aria-controls={`evidence-${d.id}`} onClick={()=>onSelect(active?.id===p.id?null:p.id)}>
           <span className="ev-source-top"><span className="ev-number">{String(papers.indexOf(p)+1).padStart(2,"0")}</span><span className="ev-micro">{p.refs.length?"Cited":p.selected?"Selected for analysis":"Found · not analyzed"}</span><span>{p.refs.map(s=>`[${s.n}]`).join(" ")}</span></span>
-          <span className="ev-source-title">{p.title}</span><span className="ev-source-meta">{p.authors.slice(0,3).join(", ")}{p.year?` · ${p.year}`:""}</span>
+          <span className="ev-source-title">{p.title}</span><span className="ev-source-meta">{p.authors.slice(0,3).join(", ")}{"publicationDate" in p&&p.publicationDate?` · ${p.publicationDate}`:p.year?` · ${p.year} (year only)`:" · Publication date unconfirmed"}</span>
           {(p.publisher||p.doi)&&<span className="ev-source-meta">{p.publisher||"Publisher not confirmed"}{p.doi?` · DOI ${p.doi}`:""}</span>}
           {p.abstract&&<span className="ev-abstract">{p.abstract}</span>}
           {p.refs.length>0&&<span className="ev-source-meta">{[...new Set(p.refs.map(s=>s.evidenceLevel))].join(" · ")}</span>}

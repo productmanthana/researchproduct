@@ -1,4 +1,5 @@
 import { makePaper, clean, type Paper } from "./catalogue";
+import { publicationDate } from "./publication-currency";
 import { fetchSource } from "./source-registry";
 import { doajTerms } from "./search-query";
 const array=(v:any):any[]=>v==null?[]:Array.isArray(v)?v:[v];
@@ -16,7 +17,7 @@ export async function extraSearch(name:string,q:string,page:number):Promise<Sour
     const d=JSON.parse(await fetchSource(`https://api.datacite.org/dois?${new URLSearchParams({query:`(${q}) AND types.resourceTypeGeneral:Text`,"page[size]":"25","page[number]":String(page)})}`,name));
     return {total:d.meta?.total??0,papers:(d.data??[]).map((item:any)=>{
       const w=item.attributes;
-      return makePaper({title:clean(w.titles?.[0]?.title),authors:(w.creators??[]).map((a:any)=>clean(a.name)),year:Number(w.publicationYear)||0,doi:w.doi,
+      return makePaper({title:clean(w.titles?.[0]?.title),authors:(w.creators??[]).map((a:any)=>clean(a.name)),year:Number(w.publicationYear)||0,publicationDate:publicationDate((w.dates??[]).find((d:any)=>d.dateType==="Issued")?.date),doi:w.doi,
         abstract:clean(w.descriptions?.find((a:any)=>a.descriptionType==="Abstract")?.description),publisher:clean(w.publisher?.name??w.publisher),
         citations:w.citationCount??0,url:w.url||`https://doi.org/${w.doi}`,sources:[name],type:w.types?.resourceTypeGeneral,
         keywords:(w.subjects??[]).map((s:any)=>clean(s.subject)),license:w.rightsList?.[0]?.rights??"CC0 metadata; content licence separate"});
@@ -25,7 +26,7 @@ export async function extraSearch(name:string,q:string,page:number):Promise<Sour
   if(name==="Europe PMC") {
     const d=JSON.parse(await fetchSource(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?${new URLSearchParams({query:q,format:"json",resultType:"core",pageSize:"25",page:String(page)})}`,name));
     return {total:d.hitCount??0,papers:(d.resultList?.result??[]).map((w:any)=>makePaper({title:clean(w.title),
-      authors:(w.authorList?.author??[]).map((a:any)=>clean(a.fullName)),year:Number(w.pubYear)||0,doi:w.doi??"",abstract:clean(w.abstractText),
+      authors:(w.authorList?.author??[]).map((a:any)=>clean(a.fullName)),year:Number(w.pubYear)||0,publicationDate:publicationDate(w.firstPublicationDate),doi:w.doi??"",abstract:clean(w.abstractText),
       venue:clean(w.journalInfo?.journal?.title),citations:w.citedByCount??0,isOa:w.isOpenAccess==="Y",sources:[name],
       url:w.doi?`https://doi.org/${w.doi}`:`https://europepmc.org/article/${w.source}/${w.id}`,license:w.license??"Check original article licence",
       keywords:w.keywordList?.keyword??[],type:(w.pubTypeList?.pubType??[]).join(", ")}))};

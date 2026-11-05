@@ -6,6 +6,7 @@
  */
 
 export interface DiscoveredPaper {
+  publicationDate?: string;
   publisher?: string;
   doi?: string;
   id: string;

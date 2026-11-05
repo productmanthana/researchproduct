@@ -13,6 +13,8 @@ export interface Error {
 }
 
 export interface Paper {
+  /** Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known. */
+  publicationDate?: string;
   id: string;
   title: string;
   authors: string[];
@@ -236,6 +238,7 @@ export interface ComparisonRow {
 }
 
 export interface DiscoveredPaper {
+  publicationDate?: string;
   publisher?: string;
   doi?: string;
   id: string;

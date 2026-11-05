@@ -163,7 +163,7 @@ export function PaperRow({ paper, saved, index, compact }: { paper: Paper; saved
           </Link>
           <p className="mt-1 text-sm text-muted-foreground">
             {authorsShort(paper.authors)}
-            {paper.year ? <span className="font-mono"> &middot; {paper.year}</span> : null}
+            {paper.publicationDate||paper.year ? <span className="font-mono"> &middot; {paper.publicationDate??paper.year}{!paper.publicationDate?" (year only)":""}</span> : null}
             {paper.venue ? <span className="italic"> &middot; {paper.venue}</span> : null}
           </p>
           {!compact && paper.abstract && <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-foreground/80">{paper.abstract}</p>}

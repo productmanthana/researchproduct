@@ -1174,6 +1174,10 @@
       "Paper": {
         "type": "object",
         "properties": {
+          "publicationDate": {
+            "type": "string",
+            "description": "Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known."
+          },
           "id": {
             "type": "string"
           },
@@ -2256,6 +2260,9 @@
           "selected"
         ],
         "properties": {
+          "publicationDate": {
+            "type": "string"
+          },
           "publisher": {
             "type": "string"
           },

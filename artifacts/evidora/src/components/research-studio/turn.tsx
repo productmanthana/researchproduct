@@ -57,7 +57,7 @@ export function StudioTurn({initial,onRetry,retryDisabled}:{initial:Analysis;onR
               const paper=d.discoveredPapers?.find(p=>p.id===s.paperId);
               return <li key={s.id}><button className="ev-cite" onClick={()=>select(s.id)} aria-label={`Inspect reference ${i+1}`}>{i+1}</button><div>
                 <button className="ev-reference-title" onClick={()=>select(s.id)}>{s.title}</button>
-                <p>{paper?.authors.slice(0,4).join(", ")}{paper?.year?` (${paper.year})`:""}{paper?.publisher?` · ${paper.publisher}`:""}</p>
+                <p>{paper?.authors.slice(0,4).join(", ")}{paper?.publicationDate?` (${paper.publicationDate})`:paper?.year?` (${paper.year}; year only)`:""}{paper?.publisher?` · ${paper.publisher}`:""}</p>
                 {/^https?:\/\//i.test(s.url)&&<a href={s.url} target="_blank" rel="noopener noreferrer">{paper?.doi?`doi:${paper.doi}`:"View original source"}</a>}
               </div></li>;
             })}

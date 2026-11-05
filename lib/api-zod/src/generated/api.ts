@@ -38,6 +38,7 @@ export const SearchPapersQueryParams = zod.object({
 
 export const SearchPapersResponse = zod.object({
   "papers": zod.array(zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -78,6 +79,7 @@ export const GetPaperParams = zod.object({
 })
 
 export const GetPaperResponse = zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -111,6 +113,7 @@ export const GetRelatedPapersQueryParams = zod.object({
 
 export const GetRelatedPapersResponse = zod.object({
   "papers": zod.array(zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -347,6 +350,7 @@ export const GetSummaryResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
   "publisher": zod.string().optional(),
   "doi": zod.string().optional(),
   "id": zod.string(),
@@ -437,6 +441,7 @@ export const ListLibraryQueryParams = zod.object({
 export const ListLibraryResponseItem = zod.object({
   "id": zod.string(),
   "paper": zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -476,6 +481,7 @@ export const SavePaperBody = zod.object({
 export const SavePaperResponse = zod.object({
   "id": zod.string(),
   "paper": zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -521,6 +527,7 @@ export const UpdateLibraryItemBody = zod.object({
 export const UpdateLibraryItemResponse = zod.object({
   "id": zod.string(),
   "paper": zod.object({
+  "publicationDate": zod.string().optional().describe('Confirmed full publication date in YYYY-MM-DD format; absent when only a year or month is known.'),
   "id": zod.string(),
   "title": zod.string(),
   "authors": zod.array(zod.string()),
@@ -751,6 +758,7 @@ export const ListAnalysesResponseItem = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
   "publisher": zod.string().optional(),
   "doi": zod.string().optional(),
   "id": zod.string(),
@@ -892,6 +900,7 @@ export const CreateAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
   "publisher": zod.string().optional(),
   "doi": zod.string().optional(),
   "id": zod.string(),
@@ -1014,6 +1023,7 @@ export const GetAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
   "publisher": zod.string().optional(),
   "doi": zod.string().optional(),
   "id": zod.string(),
@@ -1217,6 +1227,7 @@ export const UpdateAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
   "publisher": zod.string().optional(),
   "doi": zod.string().optional(),
   "id": zod.string(),

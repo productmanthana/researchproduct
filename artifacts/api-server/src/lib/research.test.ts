@@ -15,6 +15,50 @@ import { validateDraftClaims } from "./claim-validation";
 import { recoverClaimDraft } from "./claim-recovery";
 import { jsonCall } from "./ai-json";
 import { Claim } from "./evidence";
+import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } from "./publication-currency";
+import { matchesSearchFocus } from "./search-focus";
+test("Date-sorted batches retain a topical floor instead of admitting unrelated newly published papers",()=>{
+  const q="wind turbine efficiency";
+  assert.equal(matchesSearchFocus(q,{title:"Stellar wind variability in OB stars",abstract:"Mass-loss determinations."}),false);
+  assert.equal(matchesSearchFocus(q,{title:"Battery-side efficiency of wireless robots",abstract:"Task offloading."}),false);
+  assert.equal(matchesSearchFocus(q,{title:"Pitch control for wind turbines",abstract:"A controller for improving output."}),true);
+});
+test("Publication dates preserve precision and use publication rather than indexing timestamps",()=>{
+  assert.equal(publicationDate("2026-11"),undefined);
+  assert.equal(publicationDate("2026-02-29"),undefined);
+  assert.equal(publicationDate("2024-02-29T12:34:56Z"),"2024-02-29");
+  assert.equal(dateParts([2026]),undefined);
+  assert.equal(dateParts([2026,11]),undefined);
+  const oa=fromOpenAlex({display_name:"New study",publication_year:2026,publication_date:"2026-11-04",updated_date:"2026-11-05"});
+  assert.equal(oa.publicationDate,"2026-11-04");
+  const cr=fromCrossref({title:["Earlier online paper"],published:{"date-parts":[[2026,11,1]]},"published-online":{"date-parts":[[2026,9,12]]},indexed:{"date-parts":[[2026,11,5]]}});
+  assert.equal(cr.publicationDate,"2026-09-12");
+  assert.equal(fromCrossref({title:["Year only"],published:{"date-parts":[[2026]]},indexed:{"date-parts":[[2026,11,5]]}}).publicationDate,undefined);
+});
+test("Recent-first retains older work, never calls year-only or forthcoming dates recent",()=>{
+  const now=new Date("2026-11-05T12:00:00Z");
+  const fresh={year:2026,publicationDate:"2026-11-04"};
+  const older={year:2012};
+  const yearOnly={year:2026};
+  const future={year:2027,publicationDate:"2027-01-01"};
+  assert.equal(freshness(fresh,now),"recent");
+  assert.equal(freshness(older,now),"older");
+  assert.equal(freshness(yearOnly,now),"unknown");
+  assert.equal(freshness(future,now),"forthcoming");
+  assert.equal(freshness({year:2027},now),"forthcoming");
+  const result=recentFirst([older,future,yearOnly,fresh],now);
+  assert.deepEqual(result,[fresh,yearOnly,older,future]);
+  assert.match(researchCurrency([older,yearOnly],now),/should not be described as a latest-research report/);
+  assert.match(researchCurrency([fresh,older],now),/1 cited source.*preceding 60 days; 1 are older/);
+});
+test("Historical answers show their own evidence currency without implying a new search or changing user edits",()=>{
+  const id=randomUUID(),source={id,paperId:id,title:"Background study",evidenceLevel:"Abstract only"};
+  const row={id:randomUUID(),kind:"answer",status:"completed",created_at:new Date("2024-01-02T12:00:00Z"),input:{discoveredPapers:[{id,year:2012}]},result:{formatVersion:2,content:"# Research synthesis\n\nA finding. [1]",claims:[],sources:[source],warnings:[]}};
+  assert.match(analysisView(row).content,/Evidence currency \(2024-01-02 UTC\)/);
+  assert.match(analysisView(row).content,/1 are older/);
+  const edited={...row,result:{...row.result,warnings:["Edited by the user."]}};
+  assert.equal(analysisView(edited).content,row.result.content);
+});
 test("Citation matching repairs only source-bound page metadata and never fabricated quotes or unknown sources",()=>{
   const source={id:randomUUID(),title:"Abstract",url:"https://example.org",text:"Adaptive pitch control reduces power fluctuations in the reported simulation.",evidenceLevel:"Abstract only",page:null};
   const good={text:"The abstract reports reduced power fluctuations with adaptive pitch control.",evidence:[{sourceId:source.id,quote:source.text,page:1}]};

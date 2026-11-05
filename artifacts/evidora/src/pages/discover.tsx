@@ -61,7 +61,7 @@ export default function Discover() {
   const [field, setField] = useState("");
   const [publisher, setPublisher] = useState("");
   const [oa, setOa] = useState(false);
-  const [sort, setSort] = useState("relevance");
+  const [sort, setSort] = useState("recent");
   const [page, setPage] = useState(1);
   const [srcs, setSrcs] = useState<string[]>([]);
   const [minCit, setMinCit] = useState("");
@@ -74,7 +74,7 @@ export default function Discover() {
   if (field) params.field = field;
   if (publisher) params.publisher = publisher;
   if (oa) params.oa = true;
-  if (sort !== "relevance") params.sort = sort;
+  params.sort = sort;
   if (srcs.length) params.sources = srcs.join(",");
   if (minCit && Number(minCit) > 0) params.minCitations = Math.floor(Number(minCit));
 
@@ -124,6 +124,7 @@ export default function Discover() {
         {" "}and get a cited answer without picking papers.
       </p>
 
+      {urlQ&&sort==="recent"&&<p className="mt-3 text-xs text-muted-foreground">Recent publications first; older research remains included. Exact dates are shown where available. Source catalogues may take time to index new papers.</p>}
       {showFilters && (
         <div className="mt-3 grid gap-3 rounded-md border bg-card p-4 animate-in fade-in slide-in-from-top-1 sm:grid-cols-2 lg:grid-cols-6" data-testid="panel-filters">
           <Input type="number" placeholder="Year" value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }} data-testid="input-filter-year" />
@@ -135,6 +136,7 @@ export default function Discover() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="recent">Recent first · older included</SelectItem>
               <SelectItem value="relevance">Relevance</SelectItem>
               <SelectItem value="citations">Most cited</SelectItem>
               <SelectItem value="year">Most recent</SelectItem>

@@ -50,6 +50,12 @@ The user wants processing options enabled by default and no repeated OpenAI-send
 
 **How to apply:** Keep the question-to-answer flow simple, without per-message consent checkboxes. Preserve source-selection boundaries, ownership checks, budget limits and truthful evidence limitations.
 
+Default freshness policy: “Recent first, allow older.”
+
+**Why:** The user chose this over excluding everything outside the last 60 days after noticing references from 2012–2022.
+
+**How to apply:** Prioritise relevant newer publications in discovery and selection, retain useful older evidence, and distinguish the report date from source publication dates. A year alone is not proof of publication in the last two months; indexing delays prevent guarantees of complete coverage through yesterday. Do not imply a fresh search when reusing historical papers.
+
 When usage limits are exhausted, the user wants this shown across the app, and clicking a restricted action should explain the limit rather than appear unresponsive.
 
 **Why:** They explicitly asked for “limit reached” feedback everywhere when attempting to click.
