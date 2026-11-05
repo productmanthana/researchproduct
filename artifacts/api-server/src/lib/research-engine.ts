@@ -8,6 +8,7 @@ import { jsonCall } from "./ai-json";
 import { Claim, validEvidence, type EvidenceSource } from "./evidence";
 import { buildComparison } from "./comparison";
 import { verifyCitations } from "./citation-verification";
+import { retrieveFullText } from "./open-full-text";
 
 // All plans use the same agreed model and evidence checks.
 const MODEL="gpt-4.1";
@@ -35,10 +36,22 @@ async function renderPdf(bytes:Buffer,pageNumbers:number[]) {
     return images;
   } finally {await task.destroy();}
 }
-export async function sourcesFor(job:any):Promise<EvidenceSource[]> {
+export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSource[]> {
   const sources:EvidenceSource[]=[];
+  const retrievalDeadline=Date.now()+90000;
   for(const id of job.input.paperIds??[]) {
     const p=await getPaper(id);
+    if(job.kind!=="image") {
+      const full=Date.now()<retrievalDeadline?await retrieveFullText(p):{notice:"Automatic retrieval time budget reached for this batch. Using abstract if available; analyse this paper separately to retry full text.",pages:undefined};
+      notices.push(`${p.title}: ${full.notice}`);
+      if(full.pages) {
+        for(const page of relevantPages(full.pages,job.question,8)) if(page.text.trim()) sources.push({
+          id:`${p.id}-oa-p${page.page}`,paperId:p.id,title:`${p.title} — page ${page.page}`,url:`${full.url}#page=${page.page}`,
+          evidenceLevel:`Retrieved PDF text (${full.license})`,text:page.text.slice(0,10000),page:page.page,
+        });
+        continue;
+      }
+    }
     if(p.abstract) sources.push({id:p.id,paperId:p.id,title:p.title,url:p.url,evidenceLevel:"Abstract only",text:p.abstract.slice(0,6500),page:null});
   }
   for(const id of job.input.documentIds??[]) {
@@ -61,7 +74,8 @@ export async function sourcesFor(job:any):Promise<EvidenceSource[]> {
 async function runAnalysis(job:any) {
   const papers=await Promise.all((job.input.paperIds??[]).map((id:string)=>getPaper(id)));
   const verification=await verifyCitations(papers);
-  const sources=(await sourcesFor(job)).filter(s=>!verification.get(s.paperId??s.id)?.includes("excluded")).map(s=>({...s,verification:s.paperId?verification.get(s.paperId):"Private uploaded evidence"}));
+  const retrievalNotices:string[]=[];
+  const sources=(await sourcesFor(job,retrievalNotices)).filter(s=>!verification.get(s.paperId??s.id)?.includes("excluded")).map(s=>({...s,verification:s.paperId?verification.get(s.paperId):"Private uploaded evidence"}));
   if(!sources.length) throw new HttpError(400,"No usable evidence remained after citation verification.");
   const comparison=job.kind==="review"?await buildComparison(papers,sources):{rows:[],inputTokens:0,outputTokens:0};
   const context=sources.map(({image,...s})=>s);
@@ -89,6 +103,7 @@ For each numbered claim determine whether the cited sources actually support the
     ...(supported.length ? [] : ["No supported answer was produced. Your allowance was restored."]),
     "AI-assisted draft. Check original sources before academic use; automated evidence checks do not guarantee correctness.",
     ...parsed.limitations,
+    ...retrievalNotices,
     ...[...verification.entries()].filter(([,v])=>v.includes("unavailable")||v.includes("excluded")).map(([id,v])=>`${papers.find(p=>p.id===id)?.title}: ${v}`),
     ...(sources.some(s=>s.evidenceLevel==="Abstract only")?["Some or all selected papers provide abstract-only evidence. Methods, datasets or results absent from those abstracts cannot be verified."]:[]),
     ...(sources.some(s=>s.evidenceLevel==="Selected PDF text")?["PDF text analysis does not inspect figures. Use image analysis to inspect original PDF pages or screenshots."]:[]),

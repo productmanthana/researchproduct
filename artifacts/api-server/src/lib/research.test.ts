@@ -6,8 +6,23 @@ import { titlesMatch } from "./citation-verification";
 import { validEvidence } from "./evidence";
 import { CreateAnalysisBody, LinkDocumentBody } from "@workspace/api-zod";
 import { exportResearch } from "./exports";
+import { publicIPv4, reusableLicense, downloadPublicPdf, retrieveFullText } from "./open-full-text";
 const paper=(override:any={})=>makePaper({title:"A detailed study of graph neural networks",authors:["Ada Researcher"],year:2024,sources:["OpenAlex"],...override});
 after(()=>pool.end());
+test("Full-text retrieval requires reuse rights and blocks private networks",async()=>{
+  for(const license of ["cc0","cc-by","cc-by-sa-4.0"])assert.equal(reusableLicense(license),true);
+  for(const license of ["cc-by-nc","cc-by-nd","unknown",null])assert.equal(reusableLicense(license),false);
+  for(const address of ["127.0.0.1","10.1.2.3","169.254.169.254","192.168.0.1","100.64.0.1"])assert.equal(publicIPv4(address),false);
+  await assert.rejects(downloadPublicPdf("https://127.0.0.1/test.pdf"));
+  await assert.rejects(downloadPublicPdf("http://example.com/test.pdf"));
+  await assert.rejects(downloadPublicPdf("https://[::1]/test.pdf"));
+});
+test("Live licensed PDF retrieval extracts source pages",{skip:process.env.EVIDORA_LIVE_TEST!=="1"},async()=>{
+  const result=await retrieveFullText(paper({doi:"10.1371/journal.pone.0000308"}));
+  assert.ok(result.pages?.some(p=>p.text.length>40),result.notice);
+  assert.ok(result.url?.startsWith("https://"));
+  assert.ok(reusableLicense(result.license));
+});
 test("DOIs normalize and duplicates retain provenance and abstracts",()=>{
   const result=deduplicate([paper({doi:"https://doi.org/10.1000/TEST"}),paper({doi:"10.1000/test",abstract:"Verified abstract",sources:["Crossref"]})]);
   assert.equal(result.papers.length,1);assert.equal(result.removed,1);

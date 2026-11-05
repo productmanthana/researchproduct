@@ -45,6 +45,8 @@ Paid upgrades are deliberately disabled. Prices: Student ₹499 (20/1/10), Resea
 
 Live discovery queries OpenAlex (authenticated), Crossref, arXiv, dblp, DataCite, Europe PMC and DOAJ, with per-provider totals and explicit partial-result warnings. OpenAlex aggregation supplies institutions, India share and keyword comparisons. Reviews include editable, evidence-checked per-paper extraction and CSL IEEE/APA exports. Linked private PDFs require explicit per-run consent.
 
+Paper answers and reviews attempt automatic PDF retrieval from fresh OpenAlex locations with CC0, CC BY or CC BY-SA reuse licences. Downloads are transient, capped at 15 MB/50 pages, use public IPv4-only pinned DNS resolution with redirect checks, and supply up to 8 relevant text pages. Retrieval does not inspect figures or bypass paywalls; explicit result notices explain abstract fallback or upload needs. The user requested automatic legal full text so uploads are only needed when retrieval cannot supply evidence.
+
 External dependencies still required for optional CORE/Semantic Scholar commercial access, Unpaywall contact configuration, OpenCitations token and publisher full-text licences. Institution administration and Phase 2 writing/thesis tools remain outside Phase 1. Full-corpus hosting is intentionally excluded by the user's choice of live provider catalogues.
 
 ## User preferences

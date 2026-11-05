@@ -39,7 +39,7 @@ All six cells use the same format. Use {"text":"Not reported in available eviden
     }
     for(const p of batch) {
       const own=evidence.filter(s=>s.paperId===p.id||s.id===p.id);
-      const row:any={paperId:p.id,title:p.title,evidenceLevel:own.some(s=>s.evidenceLevel==="Selected PDF text")?"Selected PDF text":p.abstract?"Abstract only":"Metadata only"};
+      const row:any={paperId:p.id,title:p.title,evidenceLevel:own.find(s=>s.evidenceLevel.includes("PDF"))?.evidenceLevel??(p.abstract?"Abstract only":"Metadata only")};
       for(const field of comparisonFields) {
         const index=candidates.findIndex(c=>c.paperId===p.id&&c.field===field);
         row[field]=index>=0&&approved.has(index)

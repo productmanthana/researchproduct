@@ -36,11 +36,7 @@ router.post("/analyses",requireUser,async(req,res)=>{
   if(b.kind==="image" && docs.length>3) throw new HttpError(400,"Visual analysis accepts at most 3 files. Disable linked PDFs or reduce your selection.");
   if(b.pageNumbers?.length && b.kind!=="image") throw new HttpError(400,"Page selection applies to visual analysis only.");
   if(b.pageNumbers?.length && docs.some(d=>d.content_type==="application/pdf"&&b.pageNumbers!.some(n=>n>d.page_count))) throw new HttpError(400,"A selected page is outside one of your PDFs. Select valid pages or analyse the files separately.");
-  if(b.kind==="review") {
-    const papers=await Promise.all(paperIds.map(getPaper));
-    const readable=papers.filter(p=>p.abstract||docs.some(d=>d.paper_id===p.id&&d.pages.some((page:any)=>page.text.trim()))).length;
-    if(readable<10) throw new HttpError(400,`Only ${readable} selected papers have readable evidence. Select at least 10 papers with abstracts, or link their PDFs and enable linked documents.`);
-  }
+  // Readability is checked by the worker after lawful full-text retrieval.
   const client=await pool.connect();
   try {
     await client.query("BEGIN");
