@@ -109,7 +109,8 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
 
   const u = usage.data;
   const left = u ? (kind === "answer" ? u.answersLimit - u.answersUsed : kind === "review" ? u.reviewsLimit - u.reviewsUsed : u.imagesLimit - u.imagesUsed) : null;
-  if (!problem && left !== null && left <= 0) problem = `No ${kind} runs left this ${u?.period === "starter" ? "trial" : "period"}.`;
+  const unlimited = u && (kind === "answer" ? u.answersLimit : kind === "review" ? u.reviewsLimit : u.imagesLimit) < 0;
+  if (!problem && !unlimited && left !== null && left <= 0) problem = `No ${kind} runs left this ${u?.period === "starter" ? "trial" : "period"}.`;
 
   const submit = () => {
     if (problem) return;

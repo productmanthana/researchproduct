@@ -62,7 +62,7 @@ function AskInner() {
   const parent = thread ? [...thread.turns].reverse().find((t) => t.status === "completed") : undefined;
 
   const u = usage.data;
-  const left = u ? u.answersLimit - u.answersUsed : null;
+  const left = u ? u.answersLimit < 0 ? Infinity : u.answersLimit - u.answersUsed : null;
   let problem: string | null = null;
   if (question.trim().length < 5) problem = "Write a question of at least 5 characters.";
   else if (question.length > 2000) problem = "Keep the question under 2000 characters.";

@@ -8,6 +8,22 @@ import { CreateAnalysisBody, LinkDocumentBody } from "@workspace/api-zod";
 import { exportResearch } from "./exports";
 import { publicIPv4, reusableLicense, downloadPublicPdf, retrieveFullText } from "./open-full-text";
 import { randomUUID } from "node:crypto";
+import { allowanceReached, entitlement } from "./common";
+test("Unlimited entitlement bypasses only request-count limits and leaves trials unchanged",async()=>{
+  const owner=`quota-test-${randomUUID()}`,other=`quota-test-${randomUUID()}`;
+  try{
+    await pool.query("INSERT INTO research_accounts(id,plan) VALUES($1,'unlimited'),($2,'trial')",[owner,other]);
+    const un=await entitlement(owner),trialPlan=await entitlement(other);
+    assert.equal(un.id,"unlimited");
+    for(const key of ["answers","reviews","images"] as const){
+      assert.equal(un[key],-1);
+      assert.equal(allowanceReached(1000000,un[key]),false);
+    }
+    assert.equal(trialPlan.answers,3);
+    assert.equal(allowanceReached(3,trialPlan.answers),true);
+    assert.equal(allowanceReached(2,trialPlan.answers),false);
+  }finally{await pool.query("DELETE FROM research_accounts WHERE id=ANY($1::text[])",[[owner,other]]);}
+});
 import { chunkPages, rankPages, selectEvidencePages, retrievalContext } from "./semantic-retrieval";
 import { aiContext, paidOpenAI, priceMicros, EMBEDDING_MODEL, CHAT_MODEL } from "./ai-budget";
 import { analysisSnapshot } from "./analysis-input";

@@ -25,8 +25,13 @@ export const plans = [
   { id: "pro", name: "Faculty / Pro", priceInr: 1999, answers: 150, reviews: 6, images: 60 },
 ];
 export const trial = { id: "trial", name: "Starter trial", priceInr: 0, answers: 3, reviews: 1, images: 2 };
+// Internal account entitlement only, never sold or assignable through the public API.
+// Negative limits mean unlimited request counts, not an exemption from AI spend caps.
+const unlimited = { id: "unlimited", name: "Unlimited", priceInr: 0, answers: -1, reviews: -1, images: -1 };
+export const allowanceReached = (used:number,limit:number) => limit >= 0 && used >= limit;
 export async function entitlement(owner: string, executor: Pick<typeof pool, "query"> = pool) {
   const { rows } = await executor.query("SELECT plan FROM research_accounts WHERE id=$1", [owner]);
+  if(rows[0]?.plan==="unlimited")return unlimited;
   return plans.find(p => p.id === rows[0]?.plan) ?? trial;
 }
 export async function usage(owner: string, executor: Pick<typeof pool, "query"> = pool) {

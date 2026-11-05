@@ -3,7 +3,7 @@ import { Router } from "express";
 import { pool } from "@workspace/db";
 import { CreateAnalysisBody, UpdateAnalysisBody, ExportAnalysisQueryParams } from "@workspace/api-zod";
 import { exportResearch } from "../lib/exports";
-import { requireUser, uid, routeId, usage, HttpError } from "../lib/common";
+import { requireUser, uid, routeId, usage, HttpError, allowanceReached } from "../lib/common";
 import { analysisView } from "../lib/analysis-view";
 import { ownedDocument } from "../lib/documents";
 import { getPaper } from "../lib/catalogue";
@@ -48,7 +48,7 @@ router.post("/analyses",requireUser,async(req,res)=>{
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))",[owner]);
     const u=await usage(owner,client),key=b.kind==="answer"?"answers":b.kind==="review"?"reviews":"images";
-    if(u[`${key}Used`]>=u[`${key}Limit`]) throw new HttpError(429,"You have reached your allowance. Paid upgrades are not connected yet.");
+    if(allowanceReached(u[`${key}Used`],u[`${key}Limit`])) throw new HttpError(429,"You have reached your allowance. Paid upgrades are not connected yet.");
     const active=await client.query("SELECT id FROM research_analyses WHERE owner_id=$1 AND status IN ('queued','running')",[owner]);
     if(active.rowCount) throw new HttpError(409,"Wait for your current analysis to finish before starting another.");
     const id=randomUUID();

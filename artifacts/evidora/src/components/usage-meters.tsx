@@ -1,14 +1,15 @@
 import type { Usage } from "@workspace/api-client-react";
 
 function Meter({ label, used, limit, dark }: { label: string; used: number; limit: number; dark?: boolean }) {
-  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 100;
-  const out = used >= limit;
+  const unlimited = limit < 0;
+  const pct = unlimited ? 0 : limit > 0 ? Math.min(100, (used / limit) * 100) : 100;
+  const out = !unlimited && used >= limit;
   return (
     <div data-testid={`meter-${label.toLowerCase()}`}>
       <div className="flex items-baseline justify-between text-xs">
         <span className={dark ? "text-[hsl(40_30%_80%)]" : "text-muted-foreground"}>{label}</span>
         <span className={`font-mono ${out ? "text-vermilion" : ""}`}>
-          {used}/{limit}
+          {unlimited ? `${used} · Unlimited` : `${used}/${limit}`}
         </span>
       </div>
       <div className={`mt-1 h-1.5 overflow-hidden rounded-full ${dark ? "bg-[hsl(214_35%_28%)]" : "bg-muted"}`}>
