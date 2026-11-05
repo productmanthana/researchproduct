@@ -47,6 +47,7 @@ Not yet delivered: full-corpus ingestion/vector retrieval, additional source int
 ## User preferences
 
 - Build our own software; do not use PaperQA2 or a ready-made research assistant.
+- The user wants the full app ready, not a starter version with major requirements deferred. Do not present partial catalogue coverage or unverified workflows as completion.
 - Broad coverage without duplicate paper records; preserve distinct preprint/published versions.
 - Analyse screenshots and scientific visuals, preserve private originals, and prioritize accuracy with lower operating cost.
 - User declined the payment integration; continue without it. Do not add a different payment provider or activate charges silently.
