@@ -14,6 +14,12 @@ The user wants Weaviate on a separate Evidora-only cluster, not merely an Evidor
 
 **How to apply:** Confirm the supplied endpoint belongs to the isolated cluster before writes or migration. Do not modify other products' collections or silently substitute collection-level isolation.
 
+The user approved finding papers from title-and-abstract vectors first, then retrieving and analysing the relevant PDFs on demand, including discovery of paywalled papers through available metadata.
+
+**Why:** They want broader research discovery without downloading or processing every full paper upfront.
+
+**How to apply:** Grow the public metadata index alongside live provider search. Keep abstracts distinct from verified full-text evidence, preserve source IDs, and never describe incremental indexing as complete coverage of hundreds of millions of papers.
+
 Keep failed-run allowance refunds separate from AI spending. Ambiguous timeouts may already have been billed, so retain conservative cost reservations instead of silently refunding money estimates.
 
 **Why:** Otherwise retries and interrupted analyses can bypass the service budget despite apparently correct per-user quotas.

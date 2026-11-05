@@ -4,7 +4,7 @@ import { pool } from "@workspace/db";
 import { paidOpenAI, EMBEDDING_MODEL } from "./ai-budget";
 
 type Page = { page: number; text: string };
-export const retrievalContext = new AsyncLocalStorage<{ query?: Promise<number[]> }>();
+export const retrievalContext = new AsyncLocalStorage<{ query?: Promise<number[]>; paperQueries?: Map<string,Promise<number[]>> }>();
 export const digest = (text: string) => createHash("sha256").update(text).digest("hex");
 export function chunkPages(pages: Page[]) {
   return pages.flatMap(p => {
@@ -16,7 +16,7 @@ export function chunkPages(pages: Page[]) {
     return result;
   });
 }
-async function embed(texts: string[]) {
+export async function embed(texts: string[]) {
   const result = await paidOpenAI("embeddings", {
     model: EMBEDDING_MODEL, dimensions: 3072, input: texts, encoding_format: "float",
   }, texts.reduce((n, t) => n + Buffer.byteLength(t), 0) + 64);

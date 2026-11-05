@@ -7,6 +7,8 @@ try {
   await build({entryPoints:[new URL("./src/lib/research.test.ts",import.meta.url).pathname],outfile:output.pathname,bundle:true,platform:"node",format:"esm",
     loader:{".csl":"text"},packages:"external",
     plugins:[{name:"workspace",setup(b){b.onResolve({filter:/^[^./]/},args=>{
+      // Preserve conditional ESM exports; resolving with require selects the CJS build.
+      if(args.path==="@weaviate/node")return {path:args.path,external:true};
       const require=createRequire(args.importer||import.meta.url);
       return {path:require.resolve(args.path),external:!args.path.startsWith("@workspace/")&&args.path!=="fast-xml-parser"};
     });}}],

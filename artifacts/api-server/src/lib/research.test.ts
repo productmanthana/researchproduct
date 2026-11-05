@@ -15,8 +15,49 @@ import { scholarlyTerms, doajTerms } from "./search-query";
 import { SourceUnavailable, sourceFailure } from "./source-registry";
 import { questionCandidates, conversationContext, reuseRequested, discoverySnapshot } from "./ask-discovery";
 import { analysisView } from "./analysis-view";
+import { paperIndexDocument, initializePaperIndex, closePaperIndex, indexPublicPapers, PAPER_COLLECTION } from "./weaviate-paper-index";
 const paper=(override:any={})=>makePaper({title:"A detailed study of graph neural networks",authors:["Ada Researcher"],year:2024,sources:["OpenAlex"],...override});
 after(()=>pool.end());
+test("Public paper index keeps stable source IDs and excludes non-catalogue fields",()=>{
+  const p=paper({doi:"10.1234/vector-link",pdfUrl:"https://example.org/paper.pdf"});
+  const a=paperIndexDocument({...p,privateText:"must not leave this process"} as any);
+  const b=paperIndexDocument({...p,pdfUrl:"https://example.org/updated.pdf"});
+  assert.equal(a.id,p.id);
+  assert.equal(a.properties.paperId,p.id);
+  assert.equal(a.properties.doi,p.doi);
+  assert.equal(a.properties.pdfUrl,p.pdfUrl);
+  assert.equal(a.properties.contentHash,b.properties.contentHash); // Link changes do not require paid re-embedding.
+  assert.notEqual(a.properties.contentHash,paperIndexDocument({...p,abstract:"New scientific evidence."}).properties.contentHash);
+  assert.equal(JSON.parse(a.properties.record).privateText,undefined);
+});
+test("Live isolated Weaviate collection is ready without modifying other collections",{skip:!process.env.LIVE_WEAVIATE_TEST},async()=>{
+  try{
+    const client=await initializePaperIndex();
+    assert.equal(await client.isReady(),true);
+    const config=await client.collections.use(PAPER_COLLECTION).config.get();
+    assert.equal(config.name,PAPER_COLLECTION);
+    assert.match(config.description??"",/public scholarly metadata only/);
+    const collection=client.collections.use(PAPER_COLLECTION);
+    const sample=await collection.query.fetchObjects({limit:3,includeVector:true,returnProperties:["record","paperId","contentHash"]});
+    if(sample.objects.length){
+      const records=sample.objects.map(o=>JSON.parse(String(o.properties.record)));
+      for(const o of sample.objects){
+        assert.equal(o.uuid,o.properties.paperId);
+        assert.equal(o.vectors.paper.length,3072);
+      }
+      // No AI context is installed: a paid embedding request here would fail.
+      const reuse=await indexPublicPapers(records);
+      assert.equal(reuse.inserted,0);
+      assert.equal(reuse.cached,records.length);
+      const hit=await collection.query.hybrid(records[0].title,{
+        vector:sample.objects[0].vectors.paper as number[],targetVector:"paper",
+        queryProperties:["title","abstract"],alpha:0.65,limit:3,
+      });
+      assert.ok(hit.objects.some(o=>o.uuid===records[0].id));
+      console.log(`Verified ${sample.objects.length} linked 3072-dimensional records, zero-charge reuse, and a hybrid-search match.`);
+    }
+  }finally{await closePaperIndex();}
+});
 test("Natural-language queries remove Lucene syntax and conversational filler",()=>{
   assert.equal(scholarlyTerms("What are the best methods to improve wind turbine efficiency?"),"wind turbine efficiency");
   assert.equal(scholarlyTerms('wind turbine efficiency? (test) +*'),"wind turbine efficiency test");

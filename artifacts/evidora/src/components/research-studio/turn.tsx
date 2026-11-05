@@ -6,7 +6,7 @@ import { ErrorState } from "@/components/states";
 import { EvidencePanel } from "./evidence-panel";
 
 const done=(s:string)=>s==="completed"||s==="failed";
-const stageText:Record<string,string>={planning:"Research Scout · Planning the search",searching:"Research Scout · Searching scholarly catalogues",selecting:"Research Scout · Selecting relevant papers",reading:"Evidence Analyst · Retrieving and reading evidence",writing:"Synthesis Writer · Drafting an evidence-based answer",checking:"Citation Reviewer · Checking claims against evidence"};
+const stageText:Record<string,string>={planning:"Research Scout · Planning the search",searching:"Research Scout · Searching scholarly catalogues",indexing:"Research Scout · Indexing and ranking paper records",selecting:"Research Scout · Selecting relevant papers",reading:"Evidence Analyst · Retrieving and reading evidence",writing:"Synthesis Writer · Drafting an evidence-based answer",checking:"Citation Reviewer · Checking claims against evidence"};
 
 export function StudioTurn({initial,onRetry,retryDisabled}:{initial:Analysis;onRetry:(q:string)=>void;retryDisabled:boolean}) {
   const qc=useQueryClient();
