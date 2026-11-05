@@ -1,0 +1,204 @@
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useSearch } from "wouter";
+import { useUser } from "@clerk/react";
+import { useSearchPapers, getSearchPapersQueryKey, useGetSummary, getGetSummaryQueryKey, type SearchPapersParams } from "@workspace/api-client-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Compass, Search, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PaperRow, useSavedIds } from "@/components/paper-row";
+import { EmptyState, ErrorState, PageHeader, RowSkeleton } from "@/components/states";
+import { selection, useSelection } from "@/lib/selection";
+import { num } from "@/lib/format";
+
+function DeskStrip() {
+  const { isSignedIn } = useUser();
+  const s = useGetSummary({ query: { enabled: !!isSignedIn, queryKey: getGetSummaryQueryKey() } });
+  if (!isSignedIn || !s.data) return null;
+  const items = [
+    { k: "Saved papers", v: s.data.savedPapers, href: "/library" },
+    { k: "Projects", v: s.data.projects, href: "/projects" },
+    { k: "Documents", v: s.data.documents, href: "/library" },
+    { k: "Analyses", v: s.data.analyses, href: "/research" },
+  ];
+  return (
+    <div className="rise mb-8 grid grid-cols-2 gap-px overflow-hidden rounded-md border bg-border md:grid-cols-4" data-testid="section-summary">
+      {items.map((i) => (
+        <Link key={i.k} href={i.href} className="group bg-card px-4 py-3 transition-colors hover:bg-[hsl(var(--accent)/0.3)]" data-testid={`link-summary-${i.k.split(" ")[0].toLowerCase()}`}>
+          <p className="font-display text-2xl font-semibold">{num(i.v)}</p>
+          <p className="flex items-center justify-between text-xs text-muted-foreground">
+            {i.k} <ArrowRight className="h-3 w-3 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+          </p>
+        </Link>
+      ))}
+      {s.data.recentAnalyses.length > 0 && (
+        <div className="col-span-2 bg-card px-4 py-3 md:col-span-4">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Recent analyses</p>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {s.data.recentAnalyses.slice(0, 4).map((a) => (
+              <Link key={a.id} href={`/research?a=${a.id}`} className="max-w-xs truncate rounded border px-2 py-1 text-xs hover:border-primary" data-testid={`link-recent-analysis-${a.id}`}>
+                {a.question}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Discover() {
+  const search = useSearch();
+  const [, setLocation] = useLocation();
+  const urlQ = new URLSearchParams(search).get("q") ?? "";
+  const [input, setInput] = useState(urlQ);
+  const [showFilters, setShowFilters] = useState(false);
+  const [year, setYear] = useState("");
+  const [venue, setVenue] = useState("");
+  const [field, setField] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [oa, setOa] = useState(false);
+  const [sort, setSort] = useState("relevance");
+  const [page, setPage] = useState(1);
+  const saved = useSavedIds();
+  const sel = useSelection();
+
+  const params: SearchPapersParams = { q: urlQ, page };
+  if (year) params.year = Number(year);
+  if (venue) params.venue = venue;
+  if (field) params.field = field;
+  if (publisher) params.publisher = publisher;
+  if (oa) params.oa = true;
+  if (sort !== "relevance") params.sort = sort;
+
+  const res = useSearchPapers(params, { query: { enabled: urlQ.length > 1, queryKey: getSearchPapersQueryKey(params) } });
+  const activeFilters = [year && `Year ${year}`, venue && venue, field && field, publisher && publisher, oa && "Open access"].filter(Boolean) as string[];
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setLocation(`/discover?q=${encodeURIComponent(input.trim())}`);
+  };
+  const clearFilters = () => {
+    setYear("");
+    setVenue("");
+    setField("");
+    setPublisher("");
+    setOa(false);
+    setPage(1);
+  };
+
+  return (
+    <>
+      <PageHeader kicker="Scholarly search" title="Discover" />
+      <DeskStrip />
+      <form onSubmit={submit} className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Topic, method, material, or DOI" className="h-11 bg-card pl-9 text-base" data-testid="input-discover-search" />
+        </div>
+        <Button type="button" variant="outline" className="h-11 gap-2" onClick={() => setShowFilters((v) => !v)} data-testid="button-toggle-filters">
+          <SlidersHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
+          {activeFilters.length > 0 && <span className="rounded bg-vermilion px-1.5 font-mono text-[10px] text-white">{activeFilters.length}</span>}
+        </Button>
+        <Button type="submit" className="h-11 px-6" data-testid="button-discover-search">
+          Search
+        </Button>
+      </form>
+
+      {showFilters && (
+        <div className="mt-3 grid gap-3 rounded-md border bg-card p-4 animate-in fade-in slide-in-from-top-1 sm:grid-cols-2 lg:grid-cols-6" data-testid="panel-filters">
+          <Input type="number" placeholder="Year" value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }} data-testid="input-filter-year" />
+          <Input placeholder="Venue" value={venue} onChange={(e) => { setVenue(e.target.value); setPage(1); }} data-testid="input-filter-venue" />
+          <Input placeholder="Field" value={field} onChange={(e) => { setField(e.target.value); setPage(1); }} data-testid="input-filter-field" />
+          <Input placeholder="Publisher" value={publisher} onChange={(e) => { setPublisher(e.target.value); setPage(1); }} data-testid="input-filter-publisher" />
+          <Select value={sort} onValueChange={(v) => { setSort(v); setPage(1); }}>
+            <SelectTrigger data-testid="select-sort">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="relevance">Relevance</SelectItem>
+              <SelectItem value="citations">Most cited</SelectItem>
+              <SelectItem value="year">Most recent</SelectItem>
+            </SelectContent>
+          </Select>
+          <label className="flex items-center justify-between gap-2 rounded-md border px-3 text-sm">
+            Open access only
+            <Switch checked={oa} onCheckedChange={(v) => { setOa(v); setPage(1); }} data-testid="switch-filter-oa" />
+          </label>
+        </div>
+      )}
+      {activeFilters.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          {activeFilters.map((f) => (
+            <span key={f} className="rounded-full border bg-card px-2.5 py-1">{f}</span>
+          ))}
+          <button onClick={clearFilters} className="text-muted-foreground underline hover:text-foreground" data-testid="button-clear-filters">Clear</button>
+        </div>
+      )}
+
+      <div className="mt-8">
+        {!urlQ ? (
+          <EmptyState icon={<Compass className="h-5 w-5" />} title="Start with a question you actually have" body="Search across open scholarly indexes. Select papers as you go, then send them to Research for a cited answer or review." />
+        ) : res.isLoading ? (
+          <RowSkeleton rows={6} />
+        ) : res.isError ? (
+          <ErrorState error={res.error} onRetry={() => res.refetch()} title="Search failed" />
+        ) : res.data ? (
+          <>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-sm">
+                <span className="font-mono">{num(res.data.total)}</span> <span className="text-muted-foreground">unique papers on this page for</span> <span className="mark font-medium">{urlQ}</span>
+              </p>
+              <p className="font-mono text-xs text-muted-foreground" data-testid="text-duplicates">
+                page {res.data.page} &middot; {res.data.duplicatesRemoved} duplicates merged
+              </p>
+            </div>
+            {res.data.warnings.map((w) => (
+              <p key={w} className="mb-3 flex items-center gap-2 rounded border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] px-3 py-2 text-sm" data-testid="text-search-warning">
+                <TriangleAlert className="h-4 w-4 shrink-0 text-[hsl(30_70%_35%)]" /> {w}
+              </p>
+            ))}
+            {res.data.papers.length === 0 ? (
+              <EmptyState icon={<Search className="h-5 w-5" />} title="Nothing matched" body="Loosen filters or try synonyms. Engineering terms vary a lot between communities." />
+            ) : (
+              <>
+                <div className="mb-2 flex justify-end">
+                  <button onClick={() => selection.addMany(res.data!.papers.map((p) => ({ id: p.id, title: p.title })))} className="text-xs text-primary hover:underline" data-testid="button-select-page">
+                    Select all on this page
+                  </button>
+                </div>
+                <div className="divide-y overflow-hidden rounded-md border">
+                  {res.data.papers.map((p, i) => <PaperRow key={p.id} paper={p} saved={saved.has(p.id)} index={(page - 1) * res.data!.papers.length + i + 1} />)}
+                </div>
+                <div className="mt-5 flex items-center justify-between">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} data-testid="button-prev-page">
+                    <ChevronLeft className="mr-1 h-4 w-4" /> Previous
+                  </Button>
+                  <span className="font-mono text-xs text-muted-foreground">Page {page}</span>
+                  <Button variant="outline" size="sm" disabled={res.data.papers.length === 0} onClick={() => setPage((p) => p + 1)} data-testid="button-next-page">
+                    Next <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      {sel.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 z-40 flex w-[min(640px,calc(100%-2rem))] -translate-x-1/2 items-center gap-3 rounded-lg bg-sidebar px-4 py-3 text-sidebar-foreground shadow-2xl animate-in slide-in-from-bottom-4 lg:ml-30" data-testid="tray-selection">
+          <span className="flex h-7 min-w-7 items-center justify-center rounded bg-vermilion px-1.5 font-mono text-sm text-white">{sel.length}</span>
+          <span className="flex-1 text-sm">papers selected for analysis</span>
+          <button onClick={() => selection.clear()} className="rounded p-1.5 hover:bg-sidebar-accent" title="Clear selection" data-testid="button-clear-selection">
+            <X className="h-4 w-4" />
+          </button>
+          <Link href="/research" className="press rounded-md bg-turmeric px-3 py-1.5 text-sm font-medium text-[hsl(216_42%_13%)]" data-testid="link-analyse-selection">
+            Analyse
+          </Link>
+        </div>
+      )}
+    </>
+  );
+}

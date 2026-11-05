@@ -1,0 +1,1 @@
+- [Dependency generation quirks](dependency-generation.md) — Orval export collisions and Vite cache invalidation after React version changes.

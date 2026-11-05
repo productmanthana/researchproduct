@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { processNextAnalysis } from "./lib/research-engine";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  setInterval(() => { void processNextAnalysis().catch(() => logger.error("Research worker database unavailable")); }, 2000).unref();
 });

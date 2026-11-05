@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Evidora Research"
+description = "An independent research workspace for Indian engineering students and scholars: deduplicated scholarly search, private projects and documents, cited research answers, screenshot analysis and transparent INR usage plans."
+version = "1.0.0"
+id = "artifacts/evidora"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19817
+
+[services.development]
+run = "pnpm --filter @workspace/evidora run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/evidora", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/evidora/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19817"
+BASE_PATH = "/"

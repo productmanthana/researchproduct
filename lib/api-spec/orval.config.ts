@@ -30,6 +30,7 @@ export default defineConfig({
       clean: true,
       prettier: true,
       override: {
+        query: { version: 5 },
         fetch: {
           includeHttpResponseReturnType: false,
         },
@@ -41,6 +42,7 @@ export default defineConfig({
     },
   },
   zod: {
+    hooks: { afterAllFilesWrite: "node ./fix-zod-exports.mjs" },
     input: {
       target: "./openapi.yaml",
       override: {

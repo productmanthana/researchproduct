@@ -1,6 +1,6 @@
-# [Project name]
+# Evidora Research
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Independent research workspace for Indian engineering students and scholars, with cited AI analysis and private document storage. Evidora is a working name, not a trademark-cleared company name.
 
 ## Run & Operate
 
@@ -22,23 +22,41 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/evidora` — React UI, Clerk sign-in and private workspace.
+- `artifacts/api-server/src/routes` — catalogue, projects/library, document upload and analysis APIs.
+- `artifacts/api-server/src/lib/research-engine.ts` — bounded job worker and evidence-checking pipeline.
+- `lib/api-spec/openapi.yaml` — API contract (JSON syntax, valid YAML); regenerate after changes.
+- `lib/db/src/schema/research.ts` — PostgreSQL schema; user file bytes belong only in App Storage.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Use the existing pnpm Express/React architecture rather than introducing a second Next/FastAPI deployment for the initial release.
+- Same agreed GPT-4.1 model and evidence checks across plans. Do not silently change models based on price tier.
+- Starter trial is bounded and lifetime to permit evaluation while payment setup is disconnected; no client-side paid-plan grants.
+- No prepaid data licences or large-scale vector infrastructure may be provisioned without separate approval. Current search is federated, not a locally imported 300M corpus.
+- Automated citation existence, quote and support checks reduce errors but cannot guarantee correctness. Clearly label metadata-only, abstract-only and selected-page evidence.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Live search adapters for OpenAlex, Crossref and arXiv, conservative deduplication, private projects, notes/tags, PDF and image uploads, queued cited answers/reviews/image analysis, editable drafts, source-linked claims and DOCX/Markdown exports. Topic summaries describe only returned results.
+
+Paid upgrades are deliberately disabled. Prices: Student ₹499 (20/1/10), Researcher ₹999 (60/3/30), Faculty/Pro ₹1,999 (150/6/60): answers/reviews/images per month. Starter allowance is 3/1/2 lifetime.
+
+Not yet delivered: full-corpus ingestion/vector retrieval, additional source integrations, publisher licences, institution administration and institution/India-share analytics, comprehensive structured method/dataset/result extraction, full journal-style formatting. Phase 2 writing/thesis tools remain out of scope.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Build our own software; do not use PaperQA2 or a ready-made research assistant.
+- Broad coverage without duplicate paper records; preserve distinct preprint/published versions.
+- Analyse screenshots and scientific visuals, preserve private originals, and prioritize accuracy with lower operating cost.
+- User declined the payment integration; continue without it. Do not add a different payment provider or activate charges silently.
+- The name must be completely different from VYAAS AI.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- OpenAlex anonymous search was returning 429 during initial development; render partial-source warnings, never replace failures with fictional results.
+- `lib/api-spec/fix-zod-exports.mjs` keeps generated server validators from colliding with similarly named query parameter interfaces.
+- Public discovery requires no sign-in; private routes must keep Clerk owner checks. Never remove authentication to preview private screens.
 
 ## Pointers
 
