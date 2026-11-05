@@ -37,7 +37,7 @@ import { selection, useSelection } from "@/lib/selection";
 import { ago, errMessage, evidenceTone } from "@/lib/format";
 
 const KINDS: { k: AnalysisInputKind; label: string; icon: typeof FileSearch; hint: string }[] = [
-  { k: "answer", label: "Evidence answer", icon: FileSearch, hint: "Up to 10 papers or PDFs. Reads PDF text only, not figures." },
+  { k: "answer", label: "Evidence answer", icon: FileSearch, hint: "Up to 10 papers or PDFs. Semantic + keyword retrieval, with optional original-page vision checks." },
   { k: "review", label: "Literature review", icon: Layers, hint: "Select 10 to 50 papers. Structured synthesis with citations." },
   { k: "image", label: "Figure reading", icon: FileImage, hint: "Needs a screenshot or PDF. Up to 3 relevant original page images per PDF are analysed." },
 ];
@@ -81,6 +81,7 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   const [question, setQuestion] = useState(initialQuestion);
   const [pagesText, setPagesText] = useState("");
   const [includeLinked, setIncludeLinked] = useState(false);
+  const [inspectFigures, setInspectFigures] = useState(true);
   const [docIds, setDocIds] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -95,6 +96,8 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   const visibleDocs = kind === "answer" ? readyDocs.filter((d) => d.contentType === "application/pdf") : kind === "image" ? readyDocs : [];
   const chosenDocs = docIds.filter((id) => visibleDocs.some((d) => d.id === id));
   const paperIds = kind === "image" ? [] : sel.map((s) => s.id);
+  const consentInputs=JSON.stringify([kind,question,includeLinked,inspectFigures,chosenDocs,paperIds,pagesText]);
+  useEffect(()=>setConsent(false),[consentInputs]);
 
   const pageTokens = pagesText.split(/[\s,]+/).filter(Boolean);
   const pageNumbers = [...new Set(pageTokens.map(Number))];
@@ -125,6 +128,7 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
           documentIds: chosenDocs.length ? chosenDocs : undefined,
           pageNumbers: kind === "image" && pageNumbers.length ? pageNumbers : undefined,
           includeLinkedDocuments: linked,
+          inspectFigures: kind !== "image" && inspectFigures,
           aiConsent: true,
         },
       },
@@ -187,7 +191,7 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
         {kind !== "review" && (
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{kind === "answer" ? "Your PDFs (text only)" : "Screenshots and PDFs"}</p>
+              <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">{kind === "answer" ? "Your PDFs" : "Screenshots and PDFs"}</p>
               <DocumentUpload label="Upload" />
             </div>
             {docs.isLoading ? (
@@ -224,7 +228,16 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
             <Checkbox checked={includeLinked} onCheckedChange={(v) => setIncludeLinked(v === true)} className="mt-0.5" data-testid="checkbox-include-linked" />
             <span>
               Include my private PDFs linked to the selected papers.
-              <span className="block text-xs text-muted-foreground">Off by default. When on, text from PDFs you linked in Library is sent to OpenAI along with the paper metadata.</span>
+              <span className="block text-xs text-muted-foreground">Off by default. When on, linked PDFs are embedded and selected evidence is sent to OpenAI. Page images are included if visual inspection is enabled.</span>
+            </span>
+          </label>
+        )}
+
+        {kind !== "image" && (
+          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Checkbox checked={inspectFigures} onCheckedChange={(v) => {setInspectFigures(v === true);setConsent(false);}} className="mt-0.5" data-testid="checkbox-inspect-figures" />
+            <span>Inspect original PDF pages with vision.
+              <span className="block text-xs text-muted-foreground">Up to 3 relevant page images across this run, not every figure. Originals are retained in secure file storage; extracted text embeddings go into PostgreSQL + pgvector. Use Figure reading to choose specific pages.</span>
             </span>
           </label>
         )}
@@ -232,9 +245,10 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
         <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] p-3 text-sm">
           <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" data-testid="checkbox-ai-consent" />
           <span>
-            I consent to sending this request to OpenAI: my question, selected paper metadata, abstracts and automatically retrieved, legally reusable PDF text
+            I consent to OpenAI processing my question, selected paper metadata, abstracts and legally reusable PDF text for embeddings and evidence analysis
             {chosenDocs.length > 0 ? (kind === "image" ? ", and the selected images or PDF page images" : ", and extracted text of the selected PDFs") : ""}
             {linked ? ", and text of my linked private PDFs" : ""}.
+            {kind !== "image" && inspectFigures ? " This includes up to 3 original PDF page images for vision checks." : ""}
             <span className="block text-xs text-muted-foreground">Output is machine-generated and can be wrong. Verify every claim against its quoted source before use.</span>
           </span>
         </label>
@@ -589,7 +603,7 @@ function ResearchInner() {
           )}
           <div className="rounded-md border bg-card p-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-ai-disclosure">
             <p className="mb-1 font-mono text-[10px] uppercase tracking-widest">AI and privacy</p>
-            For paper answers and reviews, Evidora first tries licensed open-access PDFs (CC0, CC BY or CC BY-SA), then available abstracts. It reads up to 8 relevant text pages per retrieved PDF, not its figures. Results show which evidence was used and when an upload is needed. Downloads are processed temporarily, not added to your private library. Files over 15 MB, over 50 pages, scanned-only PDFs and restricted files require a supported upload or abstract fallback. Nothing is sent to OpenAI without your consent per run. Private PDFs stay in your account unless you select them or opt in to linked PDFs. Check quotes and pages before using generated text.
+            Evidora searches providers live; it does not store the whole 300-million-record catalogue. For selected papers it tries licensed open-access PDFs (CC0, CC BY or CC BY-SA), then abstracts. Original licensed PDFs, extracted text, and selected page images are retained for reuse. Full-size OpenAI embeddings in PostgreSQL + pgvector and keyword ranking select up to 8 evidence pages per document. Optional vision inspects up to 3 original PDF pages per answer or review, not every figure; use Figure reading for specific pages. Files over 15 MB, over 50 pages, scans and restricted files may require an upload or abstract fallback. Selected PDFs' extracted text is sent to OpenAI for embeddings; only selected evidence is used for answers. Private files are processed only when selected or linked with your opt-in. Deleting a private document removes its stored embeddings and rendered pages; previous analysis results remain until deleted separately. Automated checks do not guarantee accuracy.
           </div>
           <div>
             <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"><History className="h-3 w-3" /> History</p>

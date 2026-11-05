@@ -1588,6 +1588,10 @@
           "includeLinkedDocuments": {
             "type": "boolean"
           },
+          "inspectFigures": {
+            "type": "boolean",
+            "description": "Inspect and retain up to three original PDF page images per answer or review."
+          },
           "pageNumbers": {
             "type": "array",
             "maxItems": 3,
@@ -1812,6 +1816,21 @@
           },
           "paymentsEnabled": {
             "type": "boolean"
+          },
+          "aiEstimatedInr": {
+            "type": "number"
+          },
+          "aiMonthlyLimitInr": {
+            "type": "number"
+          },
+          "aiServiceRemainingInr": {
+            "type": "number"
+          },
+          "operatingBudgetInr": {
+            "type": "number"
+          },
+          "costPeriod": {
+            "type": "string"
           }
         },
         "required": [

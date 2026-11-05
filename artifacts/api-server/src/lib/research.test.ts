@@ -7,8 +7,61 @@ import { validEvidence } from "./evidence";
 import { CreateAnalysisBody, LinkDocumentBody } from "@workspace/api-zod";
 import { exportResearch } from "./exports";
 import { publicIPv4, reusableLicense, downloadPublicPdf, retrieveFullText } from "./open-full-text";
+import { randomUUID } from "node:crypto";
+import { chunkPages, rankPages, selectEvidencePages, retrievalContext } from "./semantic-retrieval";
+import { aiContext, paidOpenAI, priceMicros, EMBEDDING_MODEL, CHAT_MODEL } from "./ai-budget";
+import { analysisSnapshot } from "./analysis-input";
 const paper=(override:any={})=>makePaper({title:"A detailed study of graph neural networks",authors:["Ada Researcher"],year:2024,sources:["OpenAlex"],...override});
 after(()=>pool.end());
+test("Retrieval chunks preserve page attribution and overlap; fusion does not reward duplicate chunks",()=>{
+  const chunks=chunkPages([{page:7,text:"a".repeat(8000)},{page:8,text:""}]);
+  assert.equal(chunks.length,3);assert.ok(chunks.every(c=>c.page===7&&c.text.length<=4000));
+  const rows=[...Array.from({length:30},()=>({page:1,semantic:0.4,lexical:0})),{page:2,semantic:0.1,lexical:2}];
+  assert.deepEqual(rankPages(rows,2),[2,1]);
+  assert.equal(priceMicros(CHAT_MODEL,1000000,1000000),950000000);
+  assert.equal(priceMicros(EMBEDDING_MODEL,1000000),12350000);
+  assert.throws(()=>priceMicros("unpriced",1));
+});
+test("Embedding cache is scoped, reused, and deleted with private documents; uncertain spend remains charged",async()=>{
+  const owner=`retrieval-test-${randomUUID()}`,other=`retrieval-test-${randomUUID()}`,doc=randomUUID(),otherDoc=randomUUID();
+  const originalFetch=globalThis.fetch;
+  let calls=0;
+  const vector=Array.from({length:3072},(_,i)=>i===0?1:0);
+  const analysisId=randomUUID();
+  try {
+    await pool.query("INSERT INTO research_accounts(id) VALUES($1),($2)",[owner,other]);
+    for(const [id,account] of [[doc,owner],[otherDoc,other]])
+      await pool.query("INSERT INTO research_documents(id,owner_id,name,content_type,size,object_path,status) VALUES($1,$2,'Test','application/pdf',1,'/objects/test','ready')",[id,account]);
+    globalThis.fetch=async(_url,options)=>{
+      calls++;
+      const body=JSON.parse(options!.body as string);
+      return new Response(JSON.stringify({data:body.input.map((_:string,index:number)=>({index,embedding:vector})),usage:{prompt_tokens:10,total_tokens:10}}),{status:200,headers:{"content-type":"application/json"}});
+    };
+    const run=()=>aiContext.run({owner,analysisId},()=>retrievalContext.run({},()=>selectEvidencePages(owner,doc,[{page:1,text:"Wind turbine efficiency was measured."}],"wind efficiency",2,doc)));
+    assert.equal((await run())[0].page,1);
+    assert.equal(calls,2); // document chunks + query
+    await run();assert.equal(calls,3); // second job only embeds the new query
+    const privateRows=await pool.query("SELECT * FROM research_evidence_chunks WHERE document_id=$1 AND scope=$2",[doc,other]);
+    assert.equal(privateRows.rowCount,0);
+    await pool.query("DELETE FROM research_documents WHERE id=$1",[doc]);
+    assert.equal((await pool.query("SELECT id FROM research_evidence_chunks WHERE document_id=$1",[doc])).rowCount,0);
+    globalThis.fetch=async()=>{calls++;throw new Error("Test network ambiguity");};
+    await assert.rejects(aiContext.run({owner,analysisId},()=>paidOpenAI("embeddings",{model:EMBEDDING_MODEL,input:["test"]},100)));
+    const uncertain=await pool.query("SELECT status,amount_micros FROM research_ai_spend WHERE owner_id=$1 AND status='uncertain'",[owner]);
+    assert.equal(uncertain.rowCount,1);assert.ok(uncertain.rows[0].amount_micros>0);
+    globalThis.fetch=async()=>{calls++;return new Response("Rejected",{status:401});};
+    await assert.rejects(aiContext.run({owner,analysisId},()=>paidOpenAI("embeddings",{model:EMBEDDING_MODEL,input:["test"]},100)));
+    assert.equal((await pool.query("SELECT amount_micros FROM research_ai_spend WHERE owner_id=$1 AND status='rejected'",[owner])).rows[0].amount_micros,0);
+    const before=calls;
+    await assert.rejects(aiContext.run({owner,analysisId},()=>paidOpenAI("embeddings",{model:EMBEDDING_MODEL,input:["test"]},2000000000)),/monthly AI budget limit/);
+    assert.equal(calls,before);
+  }finally{
+    globalThis.fetch=originalFetch;
+    await pool.query("DELETE FROM research_ai_spend WHERE owner_id=ANY($1::text[])",[[owner,other]]);
+    await pool.query("DELETE FROM research_documents WHERE owner_id=ANY($1::text[])",[[owner,other]]);
+    await pool.query("DELETE FROM research_accounts WHERE id=ANY($1::text[])",[[owner,other]]);
+  }
+});
 test("Full-text retrieval requires reuse rights and blocks private networks",async()=>{
   for(const license of ["cc0","cc-by","cc-by-sa-4.0"])assert.equal(reusableLicense(license),true);
   for(const license of ["cc-by-nc","cc-by-nd","unknown",null])assert.equal(reusableLicense(license),false);
@@ -54,6 +107,10 @@ test("AI consent is mandatory and document links support explicit unlink",()=>{
   assert.equal(CreateAnalysisBody.safeParse({kind:"answer",question:"What does this show?",aiConsent:false}).success,false);
   assert.equal(CreateAnalysisBody.safeParse({kind:"image",question:"What does this show?",aiConsent:true,pageNumbers:[0]}).success,false);
   assert.equal(LinkDocumentBody.parse({paperId:null}).paperId,null);
+  const parsed=CreateAnalysisBody.parse({kind:"answer",question:"What does this show?",aiConsent:true,inspectFigures:true});
+  assert.equal(analysisSnapshot(parsed,[],["private-pdf"]).inspectFigures,true);
+  assert.equal(analysisSnapshot({...parsed,inspectFigures:false},[],["private-pdf"]).inspectFigures,false);
+  assert.equal(analysisSnapshot({...parsed,inspectFigures:undefined},[],["private-pdf"]).inspectFigures,false);
 });
 test("Cached weaker metadata cannot erase an abstract or source provenance",async()=>{
   const id=paper({doi:"10.99999/evidora-regression-only"}).id;

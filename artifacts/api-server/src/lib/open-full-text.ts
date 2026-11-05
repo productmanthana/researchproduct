@@ -60,9 +60,10 @@ export async function retrieveFullText(paper:Paper) {
     for(const location of candidates.slice(0,3)){
       if(urls.has(location.pdf_url))continue;urls.add(location.pdf_url);
       try {
-        const pages=await extractPages(await downloadPublicPdf(location.pdf_url));
+        const bytes=await downloadPublicPdf(location.pdf_url);
+        const pages=await extractPages(bytes);
         if(!pages.some(p=>p.text.trim().length>40))continue;
-        return {pages,url:location.pdf_url,license:String(location.license),notice:"Automatically retrieved licensed PDF; selected text pages only. Figures were not visually inspected."};
+        return {pages,bytes,url:location.pdf_url,license:String(location.license),notice:"Automatically retrieved licensed PDF. Selected evidence pages are used; figure inspection depends on your run settings."};
       }catch{/* Try another licensed location; never bypass access controls. */}
     }
     return {notice:candidates.length?"Licensed PDF could not be read (access, size, scan or page limit). Using abstract if available; upload your copy for further analysis.":"No PDF with a supported reuse licence was found. Using abstract if available; upload a copy you have rights to analyse."};

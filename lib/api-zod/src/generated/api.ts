@@ -220,7 +220,12 @@ export const GetUsageResponse = zod.object({
   "answersLimit": zod.number().int(),
   "reviewsLimit": zod.number().int(),
   "imagesLimit": zod.number().int(),
-  "paymentsEnabled": zod.boolean()
+  "paymentsEnabled": zod.boolean(),
+  "aiEstimatedInr": zod.number().optional(),
+  "aiMonthlyLimitInr": zod.number().optional(),
+  "aiServiceRemainingInr": zod.number().optional(),
+  "operatingBudgetInr": zod.number().optional(),
+  "costPeriod": zod.string().optional()
 })
 
 
@@ -741,6 +746,7 @@ export const CreateAnalysisBody = zod.object({
   "paperIds": zod.array(zod.string()).optional(),
   "documentIds": zod.array(zod.string()).optional(),
   "includeLinkedDocuments": zod.boolean().optional(),
+  "inspectFigures": zod.boolean().optional().describe('Inspect and retain up to three original PDF page images per answer or review.'),
   "pageNumbers": zod.array(zod.number().int().min(1).max(createAnalysisBodyPageNumbersItemMax)).max(createAnalysisBodyPageNumbersMax).optional(),
   "aiConsent": zod.literal(true)
 })

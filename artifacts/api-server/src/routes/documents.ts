@@ -5,6 +5,7 @@ import { RequestDocumentUploadBody, LinkDocumentBody } from "@workspace/api-zod"
 import { getPaper } from "../lib/catalogue";
 import { requireUser, uid, routeId, HttpError } from "../lib/common";
 import { storage, documentView, ownedDocument, readDocument, extractPages } from "../lib/documents";
+import { ObjectNotFoundError } from "../lib/objectStorage";
 const router=Router();
 router.get("/documents",requireUser,async(req,res)=>{
   const {rows}=await pool.query("SELECT * FROM research_documents WHERE owner_id=$1 ORDER BY created_at DESC",[uid(req)]);
@@ -68,7 +69,12 @@ router.delete("/documents/:id",requireUser,async(req,res)=>{
   if(row.status==="processing") throw new HttpError(409,"Wait for document processing to finish before deleting.");
   const active=await pool.query("SELECT id FROM research_analyses WHERE owner_id=$1 AND status IN ('queued','running') AND input->'documentIds' ? $2",[uid(req),row.id]);
   if(active.rowCount) throw new HttpError(409,"Wait for the analysis using this document to finish.");
-  try { const file=await storage.getObjectEntityFile(row.object_path); await file.delete({ignoreNotFound:true}); } catch(e) { if(row.status==="ready") throw e; }
+  const assets=await pool.query("SELECT object_path FROM research_page_assets WHERE document_id=$1",[row.id]);
+  for(const asset of assets.rows) {
+    try {const file=await storage.getObjectEntityFile(asset.object_path);await file.delete({ignoreNotFound:true});}
+    catch(e) {if(!(e instanceof ObjectNotFoundError))throw e;}
+  }
+  try { const file=await storage.getObjectEntityFile(row.object_path); await file.delete({ignoreNotFound:true}); } catch(e) { if(row.status==="ready"&&!(e instanceof ObjectNotFoundError)) throw e; }
   await pool.query("DELETE FROM research_documents WHERE id=$1 AND owner_id=$2",[row.id,uid(req)]);
   res.json({status:"deleted"});
 });

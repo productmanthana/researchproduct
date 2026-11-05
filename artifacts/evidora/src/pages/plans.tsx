@@ -8,12 +8,31 @@ import { inr } from "@/lib/format";
 export default function Plans() {
   const { isSignedIn } = useUser();
   const plans = useGetPlans({ query: { queryKey: getGetPlansQueryKey() } });
-  const usage = useGetUsage({ query: { enabled: !!isSignedIn, queryKey: getGetUsageQueryKey() } });
+  const usage = useGetUsage({ query: { enabled: !!isSignedIn, queryKey: getGetUsageQueryKey(), refetchInterval: 30000 } });
   const u = usage.data;
 
   return (
     <>
       <PageHeader kicker="Pricing in INR" title="Plans and usage" />
+      {u && u.aiEstimatedInr !== undefined && (
+        <section className="mb-6 rounded-lg border bg-card p-6" data-testid="section-ai-costs">
+          <h2 className="text-xl font-semibold">AI spending safeguards</h2>
+          <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+            <div><dt className="text-muted-foreground">Your estimated AI usage</dt><dd className="mt-1 text-xl font-semibold">{new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(u.aiEstimatedInr)}</dd></div>
+            <div><dt className="text-muted-foreground">Service-wide AI monthly cap</dt><dd className="mt-1 text-xl font-semibold">{inr(u.aiMonthlyLimitInr ?? 18000)}</dd></div>
+            <div><dt className="text-muted-foreground">Service AI budget available</dt><dd className="mt-1 text-xl font-semibold">{inr(u.aiServiceRemainingInr ?? 0)}</dd></div>
+          </dl>
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+            {u.costPeriod} (UTC). Direct OpenAI usage includes embeddings, generation and verification, including work in unsuccessful runs.
+            Costs are estimates at ₹95/USD using GPT-4.1 $2/$8 per million input/output tokens and text-embedding-3-large $0.13 per million input tokens.
+            Pending or uncertain requests retain a conservative reservation. No automatic paid retries.
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            Operating target: ₹30,000/month excluding Replit. Allocation: ₹18,000 AI, ₹5,000 storage/providers/processing and ₹7,000 tax/FX/contingency.
+            The AI cap is enforced by this app; external bills and storage are not capped by it. These are shared service budgets, not per-user allowances or subscription charges.
+          </p>
+        </section>
+      )}
       {u && (
         <section className="mb-10 grid gap-6 rounded-lg border bg-card p-6 md:grid-cols-[1fr_320px]" data-testid="section-usage">
           <div>

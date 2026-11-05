@@ -8,6 +8,7 @@ import { analysisView } from "../lib/analysis-view";
 import { ownedDocument } from "../lib/documents";
 import { getPaper } from "../lib/catalogue";
 import { comparisonFields } from "../lib/comparison";
+import { analysisSnapshot } from "../lib/analysis-input";
 const router=Router();
 async function ownedAnalysis(id:string,owner:string) {
   const {rows}=await pool.query("SELECT * FROM research_analyses WHERE id=$1 AND owner_id=$2",[id,owner]);
@@ -47,7 +48,7 @@ router.post("/analyses",requireUser,async(req,res)=>{
     if(active.rowCount) throw new HttpError(409,"Wait for your current analysis to finish before starting another.");
     const id=randomUUID();
     await client.query("INSERT INTO research_usage(id,owner_id,period,kind) VALUES($1,$2,$3,$4)",[id,owner,u.period,b.kind]);
-    const {rows}=await client.query("INSERT INTO research_analyses(id,owner_id,kind,question,input) VALUES($1,$2,$3,$4,$5) RETURNING *",[id,owner,b.kind,b.question,JSON.stringify({paperIds,documentIds,pageNumbers:[...new Set(b.pageNumbers??[])],aiConsent:true})]);
+    const {rows}=await client.query("INSERT INTO research_analyses(id,owner_id,kind,question,input) VALUES($1,$2,$3,$4,$5) RETURNING *",[id,owner,b.kind,b.question,JSON.stringify(analysisSnapshot(b,paperIds,documentIds))]);
     await client.query("COMMIT");
     res.json(analysisView(rows[0]));
   } catch(e) {await client.query("ROLLBACK");throw e;} finally {client.release();}

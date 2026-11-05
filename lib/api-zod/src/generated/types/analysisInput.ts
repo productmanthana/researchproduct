@@ -16,6 +16,8 @@ export interface AnalysisInput {
   paperIds?: string[];
   documentIds?: string[];
   includeLinkedDocuments?: boolean;
+  /** Inspect and retain up to three original PDF page images per answer or review. */
+  inspectFigures?: boolean;
   /**
      * @maxItems 3
      * @items.minimum 1

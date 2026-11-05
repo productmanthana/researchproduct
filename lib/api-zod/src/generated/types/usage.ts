@@ -15,4 +15,9 @@ export interface Usage {
   reviewsLimit: number;
   imagesLimit: number;
   paymentsEnabled: boolean;
+  aiEstimatedInr?: number;
+  aiMonthlyLimitInr?: number;
+  aiServiceRemainingInr?: number;
+  operatingBudgetInr?: number;
+  costPeriod?: string;
 }

@@ -2,6 +2,7 @@ import type { Request, RequestHandler } from "express";
 import { getAuth } from "@clerk/express";
 import { pool } from "@workspace/db";
 import { z } from "zod";
+import { spending } from "./ai-budget";
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -34,5 +35,5 @@ export async function usage(owner: string, executor: Pick<typeof pool, "query"> 
   const period = plan.id === "trial" ? "starter" : new Date().toISOString().slice(0, 7);
   const { rows } = await executor.query("SELECT kind,count(*)::int AS n FROM research_usage WHERE owner_id=$1 AND period=$2 AND status IN ('reserved','completed') GROUP BY kind", [owner, period]);
   const count = (kind: string) => rows.find(r => r.kind === kind)?.n ?? 0;
-  return { plan: plan.id, period, answersUsed: count("answer"), reviewsUsed: count("review"), imagesUsed: count("image"), answersLimit: plan.answers, reviewsLimit: plan.reviews, imagesLimit: plan.images, paymentsEnabled: false };
+  return { plan: plan.id, period, answersUsed: count("answer"), reviewsUsed: count("review"), imagesUsed: count("image"), answersLimit: plan.answers, reviewsLimit: plan.reviews, imagesLimit: plan.images, paymentsEnabled: false, ...await spending(owner,executor) };
 }

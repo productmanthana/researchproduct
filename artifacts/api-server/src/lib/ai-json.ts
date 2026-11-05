@@ -1,10 +1,15 @@
-import { openai } from "@workspace/integrations-openai-ai-server";
-import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
+import { paidOpenAI, CHAT_MODEL } from "./ai-budget";
 export async function jsonCall(system:string,body:any[]) {
-  const [response]=await batchProcess([0],()=>openai.chat.completions.create({
-    model:"gpt-4.1",max_completion_tokens:8192,response_format:{type:"json_object"},
+  const textSize = system.length + body.filter(p=>p.type==="text").reduce((n,p)=>n+p.text.length,0);
+  const images = body.filter(p=>p.type==="image_url").length;
+  // UTF-8 byte count bounds text tokens conservatively; image reserve covers
+  // high-detail 1600px page renders and the 15MB screenshot upload limit.
+  const inputReserve = Buffer.byteLength(system)+body.filter(p=>p.type==="text").reduce((n,p)=>n+Buffer.byteLength(p.text),0)+images*16000+1024;
+  if(textSize>800000) throw new Error("Evidence context exceeds safe analysis size");
+  const response=await paidOpenAI("chat/completions",{
+    model:CHAT_MODEL,max_completion_tokens:8192,response_format:{type:"json_object"},
     messages:[{role:"system",content:system},{role:"user",content:body}],
-  },{timeout:180000,maxRetries:0}),{concurrency:1,retries:2});
+  },inputReserve,8192);
   if(!response || response.choices[0]?.finish_reason!=="stop") throw new Error("Incomplete model response");
   return {value:JSON.parse(response.choices[0]?.message.content??"{}"),usage:response.usage};
 }
