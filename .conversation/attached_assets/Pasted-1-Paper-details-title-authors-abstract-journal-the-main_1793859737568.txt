@@ -1,0 +1,42 @@
+1. Paper details (title, authors, abstract, journal): the main catalogue
+
+Source	Size	Licence	Commercial OK?
+OpenAlex ⭐ main base	~300M+ papers	CC0	✅ Yes
+Crossref public data file	Nearly 180 million records, 208 GB compressed, free download	Mostly free to reuse, but some limits apply to abstracts	✅ Yes (check abstracts)
+OpenAIRE Graph	Over 200 million publications	CC BY 4.0	✅ Yes, with credit
+CORE	449 million searchable papers, 57 million full texts	Commercial API use is allowed under its terms, but some uses need a licence	⚠️ Ask CORE
+DOAJ (open-access journals)	Over 20,000 journals, more than 10 million articles	Article metadata is CC0	✅ Yes
+dblp (computer science)	About 8.8 million CS publications	CC0	✅ Yes
+
+2. Full papers (complete text): for AI reading
+
+Source	Size	Licence	Commercial OK?
+Semantic Scholar S2ORC ⭐	About 12 million full-text papers	ODC-By 1.0, which allows commercial use with attribution	✅ Yes, with credit
+OpenAlex Content	Over 50 million cached open-access PDFs	Bulk sync needs a paid plan	✅ Paid sync
+arXiv ⭐ (CS/engineering)	All arXiv papers	Metadata is CC0; each article file has its own rights	⚠️ Metadata yes; full text per paper licence
+PubMed Central	More than 2.75 million full-text articles	Has a separate commercial-use collection (CC BY/CC0 only)	✅ Use the “comm_use” set only
+Internet Archive Scholar	More than 25 million open-access papers	Mixed	⚠️ Check per paper
+TechRxiv (IEEE preprints)	EE/CS preprints	Author chooses CC BY, CC BY-SA, CC BY-NC-SA or CC0	⚠️ Filter to CC BY/CC0 only
+
+3. Citation links (who cites whom): for trend and gap analysis
+
+Source	Size	Licence
+OpenCitations ⭐	More than 2.2 billion citations, CC0	✅ Free for any use
+Internet Archive Refcat	Over 1.3 billion citations, CC0	✅ Free for any use
+
+4. India-specific: your edge over AnswerThis
+
+Source	Size	Note
+Shodhganga (Indian PhD theses)	4.75+ lakh theses from 700+ universities, as of July 2023	⚠️ Open to read, but ask INFLIBNET before commercial use. A partnership would be powerful for the thesis feature
+
+Recommended free stack
+
+Layer	Use
+Main catalogue	OpenAlex + Crossref + OpenAIRE (merge on DOI)
+Engineering/CS boost	dblp + arXiv + TechRxiv (CC BY/CC0 only)
+Full text for AI	S2ORC + arXiv + PMC comm_use + DOAJ journals
+Citations / trends	OpenCitations
+Theses (India)	Shodhganga (after INFLIBNET permission)
+Paid gaps	User uploads → later Springer/IEEE licences
+
+Result: about 300M+ papers searchable and about 15–20 million full texts for AI to read, all legally, at ₹0 data cost.

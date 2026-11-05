@@ -1,0 +1,69 @@
+Build "[Product Name]" — an AI research copilot for Indian engineering students (B.E./M.Tech), PhD scholars and professors. It helps them find papers, see where a research area stands today, build literature surveys, write theses and journal papers, and format them for Springer, Elsevier and IEEE. Owner company: VYAAS AI.
+
+BUILD IN PHASES. Build ONLY Phase 1 now, then stop and show me. Do not start Phase 2 until I say so.
+
+=== TECH STACK ===
+- Frontend: Next.js (App Router) + TypeScript + Tailwind + shadcn/ui. Clean, academic, mobile-friendly.
+- Backend: Python FastAPI (separate service) for data connectors, PDF parsing and AI pipelines.
+- Database: PostgreSQL (Replit DB). Use SQLAlchemy + Alembic migrations.
+- Vector search: Weaviate Cloud (client v4). Embed title + abstract (+ full-text chunks when we legally have them).
+- Storage: Replit Object Storage for user-uploaded PDFs (private per user).
+- LLM: Anthropic Claude API for synthesis and writing. Embeddings: a sentence-transformer model or an embeddings API (make it configurable).
+- Auth: email + Google login. Roles: student, scholar, faculty, institution_admin, super_admin.
+- Multi-tenant: every record carries institution_id (null for individual users). Colleges can buy seats later.
+- Payments (Phase 3): Razorpay, INR pricing.
+
+=== SECRETS (read from environment, never hard-code) ===
+ANTHROPIC_API_KEY, OPENALEX_API_KEY, SEMANTIC_SCHOLAR_API_KEY, CORE_API_KEY, UNPAYWALL_EMAIL, CROSSREF_MAILTO, WEAVIATE_URL, WEAVIATE_API_KEY, DATABASE_URL, RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
+
+=== DATA CONNECTORS (one Python module each, common interface) ===
+Each connector returns a normalized Paper object: id, doi, title, abstract (nullable), authors[], year, venue, publisher, type, citation_count, references[], is_open_access, oa_pdf_url, license, source, source_url.
+Deduplicate across sources by DOI first, then by normalized title + year.
+1. OpenAlex (primary) — https://api.openalex.org/works (search, filters, cited_by, topics). Requires api_key. Cache results; respect the daily budget.
+2. Crossref — https://api.crossref.org/works (DOI metadata, references). Send mailto for the polite pool.
+3. Semantic Scholar Graph API — https://api.semanticscholar.org/graph/v1 (search, TLDR, citations, recommendations). Show "Data from Semantic Scholar" attribution wherever S2 data is displayed.
+4. arXiv — http://export.arxiv.org/api/query (CS/EE/physics preprints). Always link back to arXiv for full text. Max 1 request every 3 seconds.
+5. CORE — https://api.core.ac.uk/v3 (open-access full texts).
+6. Unpaywall — https://api.unpaywall.org/v2/{doi}?email=... (find a legal free PDF for a DOI).
+7. OpenCitations — https://opencitations.net/index/api/v2 (citation links, CC0).
+8. DOAJ — https://doaj.org/api (open-access journals list; used for journal checks).
+9. dblp — https://dblp.org/search/publ/api (computer science papers, CC0).
+Add a source registry table (name, licence, commercial_ok, attribution_text, rate_limit) and make every connector check it.
+
+=== NON-NEGOTIABLE RULES ===
+1. NEVER invent a citation. Every reference the AI writes must map to a Paper row with a real DOI or source ID returned by a connector. After generation, run a citation verifier that re-checks each DOI against Crossref/OpenAlex; remove or flag anything that fails.
+2. Every AI sentence that makes a factual claim carries an inline citation the user can click to open the source.
+3. Never host or serve paywalled PDFs. Only store full text when the licence allows (CC0, CC BY, CC BY-SA; arXiv per-paper licence; PMC commercial-use subset). Otherwise show metadata + a link to the publisher.
+4. User-uploaded PDFs are private to that user (or their project team) and never added to the shared index.
+5. When a paper has no abstract (common for paywalled Springer/Elsevier papers), still show it in search using title, keywords and citations, with a button "Upload your PDF" and a "View on publisher site" link.
+6. Add an AI-use disclosure line to every exported paper/thesis draft. Position the tool as a writing assistant; the researcher is the author.
+7. Log every external API call (source, endpoint, latency, status) for cost and rate-limit monitoring.
+
+=== PHASE 1 (build now) ===
+A. Smart Search: one search box; query OpenAlex + Semantic Scholar + arXiv in parallel; merge, dedupe, rank; filters (year, open access, venue, publisher, citation count, field); result cards with title, authors, venue, year, citations, OA badge, abstract or "abstract not available".
+B. Paper page: metadata, abstract, TLDR (S2), references, cited-by, "similar papers", legal PDF link via Unpaywall/CORE, "Save to project".
+C. Projects & Library: users create projects (e.g. "M.Tech thesis – crop disease detection"), save papers, tag, add notes, upload PDFs. Parse uploaded PDFs (PyMuPDF) into sections and chunks; embed chunks into Weaviate with project_id filter.
+D. Topic Landscape: for a topic, show publications per year (line chart), top authors, top institutions, top venues, rising keywords (last 3 years vs before), and India's share. Data from OpenAlex group_by.
+E. Literature Survey Builder: user selects 10–50 papers from a project; AI extracts for each: problem, method, dataset, metrics, results, limitations (from abstract, OA full text or uploaded PDF). Output 1: an editable comparison table. Output 2: a structured survey draft (introduction, thematic sections, comparison, research gaps, conclusion) with inline verified citations.
+F. Export: DOCX and Markdown, with references in IEEE or APA style.
+
+=== PHASE 2 (later) ===
+G. Research Gap Finder: cluster recent papers (embeddings + topic labels), surface under-explored combinations and repeated "future work" statements.
+H. Paper Writer: IMRaD drafting with section-by-section assistance, rewrite/expand/shorten, citation insertion from the project library only.
+I. Journal Format Engine: one-click formatting into Springer Nature (sn-jnl LaTeX + Word), Elsevier (elsarticle), IEEE (IEEEtran), plus MDPI/Wiley/T&F. Handles section order, abstract word limit, keywords, declarations (funding, conflicts, data availability, AI use) and reference style. Export LaTeX zip (Overleaf-ready), DOCX, PDF.
+J. Thesis Builder: university templates (VTU first, then Anna University, JNTU), chapter structure, front matter, certificate pages, list of figures/tables, reference management.
+K. Journal Finder: suggest journals by matching manuscript abstract to journal scopes; show open-access status (DOAJ), APC, publisher, quartile; warn about predatory/discontinued journals.
+L. Integrity Check: citation verification report, self-similarity check against the user's own sources, AI-disclosure statement.
+
+=== PHASE 3 (later) ===
+M. Plans and billing via Razorpay (INR): Free (limited searches/surveys), Student ₹299/month, Pro ₹999/month, Institution annual licence (seat-based) with admin dashboard (usage, research output metrics for NAAC/NIRF).
+N. Admin panel: users, institutions, usage, API cost per source, flagged content.
+O. Optional languages: Kannada and Hindi explanations of papers for students.
+
+=== QUALITY BAR ===
+- Clean folder structure, typed code, .env.example, README with setup steps.
+- Basic tests for each connector and for the citation verifier.
+- Graceful handling of rate limits (retry with backoff, cache in Postgres for 7 days).
+- Fast UI: show results as each source returns; skeleton loaders.
+
+Start with Phase 1. First show me the folder structure and database schema, then build.
