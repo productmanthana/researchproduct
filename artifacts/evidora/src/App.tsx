@@ -20,7 +20,16 @@ import Landscape from "@/pages/landscape";
 import Plans from "@/pages/plans";
 import Sources from "@/pages/sources";
 
-const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } } });
+const queryClient = new QueryClient({ defaultOptions: { queries: {
+  refetchOnWindowFocus: true,
+  refetchOnReconnect: true,
+  retry: (failures, error) => {
+    const status = (error as { status?: number }).status;
+    if (status && status < 500) return false;
+    return failures < (error instanceof TypeError ? 4 : 2);
+  },
+  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+} } });
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,

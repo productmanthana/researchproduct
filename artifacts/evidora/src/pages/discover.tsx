@@ -83,6 +83,10 @@ export default function Discover() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (input.trim() === urlQ && page === 1) {
+      void res.refetch();
+      return;
+    }
     setPage(1);
     setLocation(`/discover?q=${encodeURIComponent(input.trim())}`);
   };

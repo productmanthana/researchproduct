@@ -36,7 +36,7 @@ export async function fetchSource(endpoint:string,source:string,options:{headers
     const start=Date.now();
     let status=0;
     try {
-      const response=await fetch(endpoint,{headers:{"User-Agent":"EvidoraResearch/1.0 (scholarly discovery)",...options.headers},signal:AbortSignal.timeout(12000)});
+      const response=await fetch(endpoint,{headers:{"User-Agent":"EvidoraResearch/1.0 (scholarly discovery)",...options.headers},signal:AbortSignal.timeout(8000)});
       status=response.status;
       await pool.query("UPDATE research_sources SET last_status=$2,last_checked=now() WHERE name=$1",[source,status]);
       if(!response.ok) {
@@ -53,6 +53,9 @@ export async function fetchSource(endpoint:string,source:string,options:{headers
       if(text.length>8_000_000) throw new Error(`${source} response too large`);
       return text;
     } catch(error) {
+      // A slow optional provider must not hold every healthy provider's results
+      // through a second full timeout.
+      if(error instanceof Error && ["TimeoutError","AbortError"].includes(error.name)) throw error;
       if(attempt===1 || status>=400) throw error;
     } finally {
       // Query strings may contain API keys or private research queries; never log them.
