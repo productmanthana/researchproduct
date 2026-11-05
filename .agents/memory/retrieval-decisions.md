@@ -8,6 +8,12 @@ The user chose live provider catalogue search, not downloading the complete cata
 
 **How to apply:** Describe provider search coverage separately from locally retained evidence. Never claim the complete catalogue has been downloaded, embedded, or visually analysed.
 
+The user wants Weaviate on a separate Evidora-only cluster, not merely an Evidora collection within their other products' cluster.
+
+**Why:** They explicitly selected “Separate cluster” because other products also use Weaviate.
+
+**How to apply:** Confirm the supplied endpoint belongs to the isolated cluster before writes or migration. Do not modify other products' collections or silently substitute collection-level isolation.
+
 Keep failed-run allowance refunds separate from AI spending. Ambiguous timeouts may already have been billed, so retain conservative cost reservations instead of silently refunding money estimates.
 
 **Why:** Otherwise retries and interrupted analyses can bypass the service budget despite apparently correct per-user quotas.
