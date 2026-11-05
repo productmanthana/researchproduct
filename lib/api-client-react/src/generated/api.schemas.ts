@@ -147,6 +147,9 @@ export const AnalysisInputKind = {
 } as const;
 
 export interface AnalysisInput {
+  /** Automatically find and select relevant papers for a direct research question. */
+  autoDiscover?: boolean;
+  parentAnalysisId?: string;
   kind: AnalysisInputKind;
   /**
      * @minLength 5
@@ -179,6 +182,14 @@ export interface Claim {
   evidence: ClaimEvidenceItem[];
   section?: string;
 }
+
+export type AnalysisMode = typeof AnalysisMode[keyof typeof AnalysisMode];
+
+
+export const AnalysisMode = {
+  ask: 'ask',
+  research: 'research',
+} as const;
 
 export type AnalysisSourcesItem = {
   id: string;
@@ -224,6 +235,12 @@ export interface ComparisonRow {
 }
 
 export interface Analysis {
+  mode?: AnalysisMode;
+  /** @nullable */
+  parentAnalysisId?: string | null;
+  /** @nullable */
+  conversationId?: string | null;
+  searchQueries?: string[];
   id: string;
   kind: string;
   question: string;

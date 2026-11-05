@@ -23,9 +23,14 @@ router.post("/analyses",requireUser,async(req,res)=>{
   const b=CreateAnalysisBody.parse(req.body),owner=uid(req);
   const paperIds=[...new Set(b.paperIds??[])];
   let documentIds=[...new Set(b.documentIds??[])];
+  if(b.autoDiscover && (b.kind!=="answer" || paperIds.length || documentIds.length || b.includeLinkedDocuments))
+    throw new HttpError(400,"Ask automatically selects public scholarly evidence. Use Research to select papers or private documents.");
+  if(b.parentAnalysisId && !b.autoDiscover) throw new HttpError(400,"Follow-up questions belong in Ask.");
+  const parent=b.parentAnalysisId?await ownedAnalysis(b.parentAnalysisId,owner):null;
+  if(parent && (parent.status!=="completed" || !parent.input?.autoDiscover)) throw new HttpError(400,"Choose a completed Ask answer for a follow-up.");
   if(paperIds.length>(b.kind==="review"?50:10) || documentIds.length>3) throw new HttpError(400,"Select up to 10 papers (50 for a review) and 3 documents.");
   if(b.kind==="review" && paperIds.length<10) throw new HttpError(400,"Select 10–50 papers for a literature review.");
-  if(!paperIds.length && !documentIds.length) throw new HttpError(400,"Select papers or upload documents to supply evidence.");
+  if(!b.autoDiscover && !paperIds.length && !documentIds.length) throw new HttpError(400,"Select papers or upload documents to supply evidence.");
   for(const id of paperIds) await getPaper(id);
   if(b.includeLinkedDocuments && paperIds.length) {
     const linked=await pool.query("SELECT DISTINCT ON (paper_id) id FROM research_documents WHERE owner_id=$1 AND paper_id=ANY($2::text[]) AND status='ready' AND content_type='application/pdf' ORDER BY paper_id,created_at DESC",[owner,paperIds]);
@@ -48,7 +53,8 @@ router.post("/analyses",requireUser,async(req,res)=>{
     if(active.rowCount) throw new HttpError(409,"Wait for your current analysis to finish before starting another.");
     const id=randomUUID();
     await client.query("INSERT INTO research_usage(id,owner_id,period,kind) VALUES($1,$2,$3,$4)",[id,owner,u.period,b.kind]);
-    const {rows}=await client.query("INSERT INTO research_analyses(id,owner_id,kind,question,input) VALUES($1,$2,$3,$4,$5) RETURNING *",[id,owner,b.kind,b.question,JSON.stringify(analysisSnapshot(b,paperIds,documentIds))]);
+    const snapshot={...analysisSnapshot(b,paperIds,documentIds),conversationId:b.autoDiscover?(parent?.input?.conversationId??parent?.id??id):null};
+    const {rows}=await client.query("INSERT INTO research_analyses(id,owner_id,kind,question,input) VALUES($1,$2,$3,$4,$5) RETURNING *",[id,owner,b.kind,b.question,JSON.stringify(snapshot)]);
     await client.query("COMMIT");
     res.json(analysisView(rows[0]));
   } catch(e) {await client.query("ROLLBACK");throw e;} finally {client.release();}

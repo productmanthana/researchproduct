@@ -1560,6 +1560,14 @@
       "AnalysisInput": {
         "type": "object",
         "properties": {
+          "autoDiscover": {
+            "type": "boolean",
+            "description": "Automatically find and select relevant papers for a direct research question."
+          },
+          "parentAnalysisId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -1657,6 +1665,20 @@
       "Analysis": {
         "type": "object",
         "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["ask", "research"]
+          },
+          "parentAnalysisId": {
+            "type": ["string", "null"]
+          },
+          "conversationId": {
+            "type": ["string", "null"]
+          },
+          "searchQueries": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
           "id": {
             "type": "string"
           },

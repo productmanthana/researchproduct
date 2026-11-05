@@ -19,3 +19,9 @@ Use direct OpenAI for embeddings; the Replit OpenAI proxy did not support the em
 **Why:** Treating the proxy as supporting every OpenAI endpoint would leave semantic search broken, and mixing billing sources obscures the user's operating budget.
 
 **How to apply:** Recheck current integration capabilities before changing providers. Keep credentials in Secrets and never print them.
+
+An explicit request to use the same papers must constrain follow-up discovery, even if a planner thinks additional searches would improve the answer.
+
+**Why:** A real follow-up test asked for the same papers, but the planner expanded the search and cited a new paper. Better evidence does not justify silently changing the requested evidence scope.
+
+**How to apply:** Enforce explicit reuse restrictions outside the LLM plan. When the selected papers cannot support the requested comparison, disclose insufficient evidence instead of expanding the scope without permission.

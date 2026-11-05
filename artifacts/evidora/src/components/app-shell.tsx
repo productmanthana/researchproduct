@@ -2,13 +2,14 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetUsage, getGetUsageQueryKey, useGetAccount, getGetAccountQueryKey } from "@workspace/api-client-react";
-import { BookMarked, Compass, FlaskConical, FolderKanban, LineChart, LogOut, Menu, Plug, Receipt, X } from "lucide-react";
+import { BookMarked, Compass, FlaskConical, FolderKanban, LineChart, LogOut, Menu, MessageSquareText, Plug, Receipt, X } from "lucide-react";
 import { Wordmark } from "@/components/brand";
 import { UsageMeters } from "@/components/usage-meters";
 import { useSelection } from "@/lib/selection";
 
 const NAV = [
   { href: "/discover", label: "Discover", icon: Compass },
+  { href: "/ask", label: "Ask", icon: MessageSquareText },
   { href: "/research", label: "Research", icon: FlaskConical },
   { href: "/library", label: "Library", icon: BookMarked },
   { href: "/projects", label: "Projects", icon: FolderKanban },

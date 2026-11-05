@@ -23,11 +23,27 @@ export async function initialiseRegistry() {
     [s.name,s.licenseNote,!s.permission||process.env[s.permission]==="true",s.name==="Semantic Scholar"?"Data from Semantic Scholar":`Data from ${s.name}`,s.interval]);
 }
 const nextRequest=new Map<string,number>();
+export class SourceUnavailable extends Error {
+  constructor(public reason:"challenge"|"timeout"|"rate"|"network"|"response",public status=503) {super(reason);}
+}
+const cooldowns=new Map<string,{until:number;error:SourceUnavailable}>();
+export function sourceFailure(error:unknown) {
+  if(error instanceof SourceUnavailable) {
+    if(error.reason==="challenge")return "The provider returned a bot-check page instead of API data. Waiting before retrying.";
+    if(error.reason==="timeout")return "The provider did not respond within the time limit. Waiting before retrying.";
+    if(error.reason==="rate")return "The provider rate limit was reached. Waiting before retrying.";
+    if(error.reason==="network")return "The provider could not be reached from this server. Waiting before retrying.";
+    return `The provider API returned HTTP ${error.status}.`;
+  }
+  return "The provider response could not be read.";
+}
 export async function fetchSource(endpoint:string,source:string,options:{headers?:Record<string,string>}={}) {
   const definition=sourceDefinitions.find(s=>s.name===source);
   if(!definition||!configured(definition)) throw new Error(`${source} requires configuration`);
   const {rows}=await pool.query("SELECT enabled,commercial_ok FROM research_sources WHERE name=$1",[source]);
   if(!rows[0]?.enabled||!rows[0].commercial_ok) throw new Error(`${source} is disabled`);
+  const cooldown=cooldowns.get(source);
+  if(cooldown&&cooldown.until>Date.now())throw cooldown.error;
   for(let attempt=0;attempt<2;attempt++) {
     const wait=Math.max(0,(nextRequest.get(source)??0)-Date.now());
     if(wait>15000) throw new Error(`${source} is busy; retry later`);
@@ -43,20 +59,26 @@ export async function fetchSource(endpoint:string,source:string,options:{headers
         if(attempt===0&&[429,502,503,504].includes(status)) {
           const retry=Number(response.headers.get("retry-after"));
           // Do not occupy a request worker waiting for a daily budget reset.
-          if(retry>5) throw new Error(`${source} budget exhausted`);
+          if(retry>5) throw new SourceUnavailable("rate",status);
           await new Promise(r=>setTimeout(r,Math.max(1000,(retry||1)*1000)));
           continue;
         }
-        throw new Error(`${source} returned ${status}`);
+        throw new SourceUnavailable(status===429?"rate":"response",status);
       }
       const text=await response.text();
       if(text.length>8_000_000) throw new Error(`${source} response too large`);
+      if(status===202||/^\s*(<!doctype\s+html|<html)/i.test(text))throw new SourceUnavailable("challenge",status);
+      cooldowns.delete(source);
       return text;
     } catch(error) {
       // A slow optional provider must not hold every healthy provider's results
       // through a second full timeout.
-      if(error instanceof Error && ["TimeoutError","AbortError"].includes(error.name)) throw error;
-      if(attempt===1 || status>=400) throw error;
+      if(error instanceof SourceUnavailable || (error instanceof Error && ["TimeoutError","AbortError"].includes(error.name)) || attempt===1 || status>=400) {
+        const failure=error instanceof SourceUnavailable?error:new SourceUnavailable(error instanceof Error&&["TimeoutError","AbortError"].includes(error.name)?"timeout":"network",status||503);
+        cooldowns.set(source,{until:Date.now()+(failure.reason==="challenge"?15*60_000:60_000),error:failure});
+        await pool.query("UPDATE research_sources SET last_status=$2,last_checked=now() WHERE name=$1",[source,failure.status]);
+        throw failure;
+      }
     } finally {
       // Query strings may contain API keys or private research queries; never log them.
       logger.info({source,endpoint:new URL(endpoint).pathname,status,latencyMs:Date.now()-start},"Catalogue request");

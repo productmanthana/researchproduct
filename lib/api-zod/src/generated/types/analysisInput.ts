@@ -7,6 +7,9 @@
 import type { AnalysisInputKind } from './analysisInputKind';
 
 export interface AnalysisInput {
+  /** Automatically find and select relevant papers for a direct research question. */
+  autoDiscover?: boolean;
+  parentAnalysisId?: string;
   kind: AnalysisInputKind;
   /**
      * @minLength 5

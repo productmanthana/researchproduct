@@ -8,5 +8,7 @@ export function analysisSnapshot(input: z.infer<typeof CreateAnalysisBody>, pape
     pageNumbers: [...new Set(input.pageNumbers ?? [])],
     inspectFigures: input.inspectFigures === true,
     aiConsent: input.aiConsent,
+    autoDiscover: input.autoDiscover === true,
+    parentAnalysisId: input.parentAnalysisId ?? null,
   };
 }

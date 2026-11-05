@@ -1,5 +1,6 @@
 import { makePaper, clean, type Paper } from "./catalogue";
 import { fetchSource } from "./source-registry";
+import { doajTerms } from "./search-query";
 const array=(v:any):any[]=>v==null?[]:Array.isArray(v)?v:[v];
 export type SourceResult={papers:Paper[];total:number};
 export async function extraSearch(name:string,q:string,page:number):Promise<SourceResult> {
@@ -30,7 +31,7 @@ export async function extraSearch(name:string,q:string,page:number):Promise<Sour
       keywords:w.keywordList?.keyword??[],type:(w.pubTypeList?.pubType??[]).join(", ")}))};
   }
   if(name==="DOAJ") {
-    const d=JSON.parse(await fetchSource(`https://doaj.org/api/search/articles/${encodeURIComponent(q)}?page=${page}&pageSize=25`,name));
+    const d=JSON.parse(await fetchSource(`https://doaj.org/api/search/articles/${encodeURIComponent(doajTerms(q))}?page=${page}&pageSize=25`,name));
     return {total:d.total??0,papers:(d.results??[]).map((item:any)=>{
       const w=item.bibjson??{},doi=w.identifier?.find((i:any)=>i.type==="doi")?.id??"";
       return makePaper({title:clean(w.title),authors:(w.author??[]).map((a:any)=>clean(a.name)),year:Number(w.year)||0,doi,

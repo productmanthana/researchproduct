@@ -118,6 +118,11 @@ export default function Discover() {
           Search
         </Button>
       </form>
+      <p className="mt-2 text-xs text-muted-foreground" data-testid="text-ask-hint">
+        Have a full research question?{" "}
+        <Link href={`/ask${input.trim() ? `?q=${encodeURIComponent(input.trim())}` : ""}`} className="font-medium text-primary underline" data-testid="link-ask-question">Ask it directly</Link>
+        {" "}and get a cited answer without picking papers.
+      </p>
 
       {showFilters && (
         <div className="mt-3 grid gap-3 rounded-md border bg-card p-4 animate-in fade-in slide-in-from-top-1 sm:grid-cols-2 lg:grid-cols-6" data-testid="panel-filters">

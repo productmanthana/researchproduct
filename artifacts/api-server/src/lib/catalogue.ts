@@ -6,6 +6,8 @@ import { z } from "zod";
 import { HttpError } from "./common";
 import { fetchSource, sourceDefinitions, configured } from "./source-registry";
 import { extraSearch, type SourceResult } from "./extra-sources";
+import { scholarlyTerms } from "./search-query";
+import { sourceFailure } from "./source-registry";
 
 export type Paper = z.infer<typeof GetPaperResponse>;
 type RecordData = Record<string, any>;
@@ -86,10 +88,10 @@ export function deduplicate(papers: Paper[]) {
   return { papers:result, removed:papers.length-result.length };
 }
 export async function search(input: SearchInput) {
-  const q = input.q.trim().slice(0,300);
+  const q = scholarlyTerms(input.q);
   if(q.length<2) throw new HttpError(400,"Enter at least two characters.");
   const page = Math.min(400,Math.max(1,input.page ?? 1));
-  const key = "federated-v2:"+JSON.stringify({...input,q,page});
+  const key = "federated-v3:"+JSON.stringify({...input,q,page});
   const cached = await pool.query("SELECT data FROM research_search_cache WHERE key=$1 AND expires_at>now()",[key]);
   if(cached.rows[0]) return cached.rows[0].data;
   const filters = [input.year ? `from_publication_date:${input.year}-01-01`:"",input.oa?"is_oa:true":"",input.minCitations?`cited_by_count:>${input.minCitations-1}`:""].filter(Boolean);
@@ -105,7 +107,7 @@ export async function search(input: SearchInput) {
   const connectors:Record<string,()=>Promise<SourceResult>>={
     OpenAlex:()=>openAlex(`works?${oaQuery}`).then(d => ({papers:(d.results ?? []).map(fromOpenAlex),total:d.meta?.count??0})),
     Crossref:()=>fetchSource(`https://api.crossref.org/works?${crQuery}`,"Crossref").then(t=>{const d=JSON.parse(t).message;return {papers:(d.items??[]).map(fromCrossref),total:d["total-results"]??0};}),
-    arXiv:()=>fetchSource(`https://export.arxiv.org/api/query?${new URLSearchParams({search_query:`all:${q.replace(/[^\p{L}\p{N} -]/gu," ")}`,start:String((page-1)*15),max_results:"15",sortBy:input.sort==="year"?"submittedDate":"relevance",sortOrder:"descending"})}`,"arXiv")
+    arXiv:()=>fetchSource(`https://export.arxiv.org/api/query?${new URLSearchParams({search_query:q.split(/\s+/).map(t=>`all:"${t}"`).join(" AND "),start:String((page-1)*15),max_results:"15",sortBy:input.sort==="year"?"submittedDate":"relevance",sortOrder:"descending"})}`,"arXiv")
       .then(t=>{
         const d = new XMLParser({ignoreAttributes:false}).parse(t).feed;
         const entries = Array.isArray(d?.entry) ? d.entry : d?.entry ? [d.entry] : [];
@@ -124,9 +126,9 @@ export async function search(input: SearchInput) {
   const names=input.sources?input.sources.split(",").map(n=>n.trim()).filter((n,i,a)=>a.indexOf(n)===i):Object.keys(connectors);
   if(!names.length||names.some(n=>!connectors[n])) throw new HttpError(400,"Select an enabled discovery source.");
   const jobs = await Promise.allSettled(names.map(name=>connectors[name]()));
-  const warnings = jobs.flatMap((r,i)=>r.status==="rejected"?[`${names[i]} is currently unavailable; these results are partial.`]:[]);
+  const warnings = jobs.flatMap((r,i)=>r.status==="rejected"?[`${names[i]}: ${sourceFailure(r.reason)} Results are partial; this provider is not included.`]:[]);
   // A provider can return HTTP 200/202 containing an HTML challenge rather than usable API data.
-  await Promise.all(jobs.map((r,i)=>r.status==="rejected"?pool.query("UPDATE research_sources SET last_status=503,last_checked=now() WHERE name=$1",[names[i]]):Promise.resolve()));
+  await Promise.all(jobs.map((r,i)=>r.status==="rejected"?pool.query("UPDATE research_sources SET last_status=CASE WHEN last_status IN (0,200) THEN 502 ELSE last_status END,last_checked=now() WHERE name=$1",[names[i]]):Promise.resolve()));
   if(jobs.every(r=>r.status==="rejected")) throw new HttpError(503,"Research sources are temporarily unavailable. Please try again.");
   const all = jobs.flatMap(r=>r.status==="fulfilled"?r.value.papers:[]);
   const deduped = deduplicate(all);
@@ -141,7 +143,7 @@ export async function search(input: SearchInput) {
   const sourceCounts=jobs.map((r,i)=>({name:names[i],total:r.status==="fulfilled"?r.value.total:0,status:r.status==="fulfilled"?"ok":"error"}));
   const hasMore=page<400&&jobs.some((r,i)=>r.status==="fulfilled"&&r.value.total>page*(names[i]==="arXiv"?15:25));
   const data = {papers,total:papers.length,page,warnings,duplicatesRemoved:deduped.removed,sourceCounts,hasMore,
-    scopeNotice:"Live provider catalogues, not a hosted full-text collection. Provider totals overlap and are not added together. Deduplication and ranking apply to each retrieved batch; venue, publisher and field filters narrow that batch. Citation counts vary by provider."};
-  await pool.query("INSERT INTO research_search_cache(key,data,expires_at) VALUES($1,$2,now()+$3::interval) ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data,expires_at=EXCLUDED.expires_at",[key,JSON.stringify(data),warnings.length?"5 minutes":"7 days"]);
+    scopeNotice:`Live provider catalogues, not a hosted full-text collection. Search terms used: "${q}". Provider totals overlap and are not added together. Deduplication and ranking apply to each retrieved batch; venue, publisher and field filters narrow that batch. Citation counts vary by provider.`};
+  await pool.query("INSERT INTO research_search_cache(key,data,expires_at) VALUES($1,$2,now()+$3::interval) ON CONFLICT(key) DO UPDATE SET data=EXCLUDED.data,expires_at=EXCLUDED.expires_at",[key,JSON.stringify(data),warnings.length?"1 minute":"7 days"]);
   return data;
 }

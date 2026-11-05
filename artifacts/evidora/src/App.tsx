@@ -19,6 +19,7 @@ import Research from "@/pages/research";
 import Landscape from "@/pages/landscape";
 import Plans from "@/pages/plans";
 import Sources from "@/pages/sources";
+import Ask from "@/pages/ask";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: {
   refetchOnWindowFocus: true,
@@ -186,6 +187,7 @@ function Router() {
       <Route path="/papers/:id"><Shelled><PaperPage /></Shelled></Route>
       <Route path="/library"><Shelled><Library /></Shelled></Route>
       <Route path="/projects"><Shelled><Projects /></Shelled></Route>
+      <Route path="/ask"><Shelled><Ask /></Shelled></Route>
       <Route path="/research"><Shelled><Research /></Shelled></Route>
       <Route path="/landscape"><Shelled><Landscape /></Shelled></Route>
       <Route path="/plans"><Shelled><Plans /></Shelled></Route>

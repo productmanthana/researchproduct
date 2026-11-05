@@ -11,6 +11,7 @@ import { verifyCitations } from "./citation-verification";
 import { cachedFullText, retainPageImage } from "./evidence-assets";
 import { selectEvidencePages, retrievalContext, digest } from "./semantic-retrieval";
 import { aiContext } from "./ai-budget";
+import { discoverForQuestion } from "./ask-discovery";
 
 // All plans use the same agreed model and evidence checks.
 const MODEL="gpt-4.1";
@@ -81,6 +82,7 @@ export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSo
   return sources;
 }
 async function runAnalysis(job:any) {
+  await discoverForQuestion(job);
   const papers=await Promise.all((job.input.paperIds??[]).map((id:string)=>getPaper(id)));
   const verification=await verifyCitations(papers);
   const retrievalNotices:string[]=[];
@@ -119,6 +121,7 @@ For each numbered claim determine whether the cited sources actually support the
     supported=candidates.filter((_,i)=>indices.includes(i)); checkUsage=checked.usage;
   }
   const warnings=[
+    ...(job.input.discoveryWarnings??[]),
     "Where readable text was available, evidence pages were ranked using full-size OpenAI embeddings plus keyword search and reciprocal-rank fusion. This searches selected material, not a locally stored 300-million-paper corpus. Bounded passages, not entire papers, are supplied to answer generation.",
     ...(job.input.inspectFigures&&job.kind!=="image"?[`Inspected ${sources.filter(s=>s.image).length} original PDF page image(s), up to 3 per run. Other figures were not inspected.`]:[]),
     ...(supported.length ? [] : ["No supported answer was produced. Your allowance was restored."]),

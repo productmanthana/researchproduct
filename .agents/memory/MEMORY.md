@@ -2,3 +2,4 @@
 - [Full-text verification](full-text-verification.md) — metadata availability is not proof of a retrievable, readable, reusable PDF.
 - [Operating budget](operating-budget.md) — ₹30,000/month including OpenAI; quality and accuracy prioritized; Replit excluded from comparisons.
 - [Retrieval and spending decisions](retrieval-decisions.md) — live catalogue choice, selected-paper vectors, and why refunded allowances must not erase AI spending.
+- [Provider query contracts](provider-queries.md) — conversational punctuation is not safe query syntax; HTTP success can still be an upstream bot challenge.

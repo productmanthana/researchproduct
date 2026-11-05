@@ -4,11 +4,18 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { AnalysisMode } from './analysisMode';
 import type { AnalysisSourcesItem } from './analysisSourcesItem';
 import type { Claim } from './claim';
 import type { ComparisonRow } from './comparisonRow';
 
 export interface Analysis {
+  mode?: AnalysisMode;
+  /** @nullable */
+  parentAnalysisId?: string | null;
+  /** @nullable */
+  conversationId?: string | null;
+  searchQueries?: string[];
   id: string;
   kind: string;
   question: string;

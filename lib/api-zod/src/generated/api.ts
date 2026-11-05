@@ -257,6 +257,10 @@ export const GetSummaryResponse = zod.object({
   "createdAt": zod.string()
 })),
   "recentAnalyses": zod.array(zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
   "id": zod.string(),
   "kind": zod.string(),
   "question": zod.string(),
@@ -644,6 +648,10 @@ export const listAnalysesResponseComparisonRowsItemLimitationsTextMax = 2000;
 
 
 export const ListAnalysesResponseItem = zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
   "id": zod.string(),
   "kind": zod.string(),
   "question": zod.string(),
@@ -741,6 +749,8 @@ export const createAnalysisBodyPageNumbersMax = 3;
 
 
 export const CreateAnalysisBody = zod.object({
+  "autoDiscover": zod.boolean().optional().describe('Automatically find and select relevant papers for a direct research question.'),
+  "parentAnalysisId": zod.string().uuid().optional(),
   "kind": zod.enum(['answer', 'review', 'image']),
   "question": zod.string().min(createAnalysisBodyQuestionMin).max(createAnalysisBodyQuestionMax),
   "paperIds": zod.array(zod.string()).optional(),
@@ -766,6 +776,10 @@ export const createAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
 
 
 export const CreateAnalysisResponse = zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
   "id": zod.string(),
   "kind": zod.string(),
   "question": zod.string(),
@@ -871,6 +885,10 @@ export const getAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
 
 
 export const GetAnalysisResponse = zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
   "id": zod.string(),
   "kind": zod.string(),
   "question": zod.string(),
@@ -1057,6 +1075,10 @@ export const updateAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
 
 
 export const UpdateAnalysisResponse = zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
   "id": zod.string(),
   "kind": zod.string(),
   "question": zod.string(),

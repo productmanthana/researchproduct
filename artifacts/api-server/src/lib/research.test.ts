@@ -11,8 +11,48 @@ import { randomUUID } from "node:crypto";
 import { chunkPages, rankPages, selectEvidencePages, retrievalContext } from "./semantic-retrieval";
 import { aiContext, paidOpenAI, priceMicros, EMBEDDING_MODEL, CHAT_MODEL } from "./ai-budget";
 import { analysisSnapshot } from "./analysis-input";
+import { scholarlyTerms, doajTerms } from "./search-query";
+import { SourceUnavailable, sourceFailure } from "./source-registry";
+import { questionCandidates, conversationContext, reuseRequested } from "./ask-discovery";
 const paper=(override:any={})=>makePaper({title:"A detailed study of graph neural networks",authors:["Ada Researcher"],year:2024,sources:["OpenAlex"],...override});
 after(()=>pool.end());
+test("Natural-language queries remove Lucene syntax and conversational filler",()=>{
+  assert.equal(scholarlyTerms("What are the best methods to improve wind turbine efficiency?"),"wind turbine efficiency");
+  assert.equal(scholarlyTerms('wind turbine efficiency? (test) +*'),"wind turbine efficiency test");
+  assert.equal(scholarlyTerms("finite element methods"),"finite element methods");
+  assert.equal(scholarlyTerms("https://doi.org/10.1371/journal.pone.0000308"),"10.1371/journal.pone.0000308");
+  assert.equal(doajTerms("doi:10.1371/journal.pone.0000308"),"10 1371 journal pone 0000308");
+  assert.match(sourceFailure(new SourceUnavailable("challenge",202)),/bot-check/);
+  assert.match(sourceFailure(new SourceUnavailable("timeout")),/time limit/);
+  assert.match(sourceFailure(new Error("credentials must not surface")),/could not be read/);
+  assert.equal(reuseRequested("Compare two of those methods using the same papers."),true);
+  assert.equal(reuseRequested("Use only the existing sources."),true);
+  assert.equal(reuseRequested("Compare them without searching again."),true);
+  assert.equal(reuseRequested("Find newer studies on blade optimization."),false);
+});
+test("Automatic selection interleaves query results and deduplicates shared DOIs",()=>{
+  const first=Array.from({length:70},(_,i)=>paper({doi:`10.1234/a${i}`}));
+  const second=[paper({doi:"10.1234/second-query"}),first[0]];
+  const merged=questionCandidates([], [first,second]);
+  assert.equal(merged.length,70);
+  assert.equal(merged[1].doi,"10.1234/second-query");
+  assert.equal(merged.filter(p=>p.doi==="10.1234/a0").length,1);
+});
+test("Ask ancestry cannot cross owners and preserves the selected conversation context",async()=>{
+  const owner=`ask-test-${randomUUID()}`,other=`ask-test-${randomUUID()}`,parent=randomUUID();
+  try{
+    await pool.query("INSERT INTO research_accounts(id) VALUES($1),($2)",[owner,other]);
+    await pool.query(`INSERT INTO research_analyses(id,owner_id,kind,question,status,input,result)
+      VALUES($1,$2,'answer','Wind turbine efficiency','completed',$3,$4)`,[parent,owner,JSON.stringify({autoDiscover:true,paperIds:["source-a"],conversationId:parent}),JSON.stringify({content:"A verified prior answer."})]);
+    const context=await conversationContext({owner_id:owner,input:{parentAnalysisId:parent}});
+    assert.equal(context.history[0].question,"Wind turbine efficiency");
+    assert.deepEqual(context.previous.input.paperIds,["source-a"]);
+    await assert.rejects(conversationContext({owner_id:other,input:{parentAnalysisId:parent}}),/previous answer is unavailable/);
+  }finally{
+    await pool.query("DELETE FROM research_analyses WHERE id=$1",[parent]);
+    await pool.query("DELETE FROM research_accounts WHERE id=ANY($1::text[])",[[owner,other]]);
+  }
+});
 test("Retrieval chunks preserve page attribution and overlap; fusion does not reward duplicate chunks",()=>{
   const chunks=chunkPages([{page:7,text:"a".repeat(8000)},{page:8,text:""}]);
   assert.equal(chunks.length,3);assert.ok(chunks.every(c=>c.page===7&&c.text.length<=4000));
@@ -111,6 +151,9 @@ test("AI consent is mandatory and document links support explicit unlink",()=>{
   assert.equal(analysisSnapshot(parsed,[],["private-pdf"]).inspectFigures,true);
   assert.equal(analysisSnapshot({...parsed,inspectFigures:false},[],["private-pdf"]).inspectFigures,false);
   assert.equal(analysisSnapshot({...parsed,inspectFigures:undefined},[],["private-pdf"]).inspectFigures,false);
+  const ask=CreateAnalysisBody.parse({kind:"answer",question:"Which methods work?",autoDiscover:true,parentAnalysisId:randomUUID(),aiConsent:true});
+  assert.equal(analysisSnapshot(ask,[],[]).autoDiscover,true);
+  assert.equal(analysisSnapshot(ask,[],[]).parentAnalysisId,ask.parentAnalysisId);
 });
 test("Cached weaker metadata cannot erase an abstract or source provenance",async()=>{
   const id=paper({doi:"10.99999/evidora-regression-only"}).id;
