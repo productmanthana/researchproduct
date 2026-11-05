@@ -63,6 +63,6 @@ export function academicContent({kind,claims,sources,limitations=[]}:{kind:strin
   const abstractOnly=sources.some(s=>(s as any).evidenceLevel==="Abstract only");
   if(abstractOnly)limits.push("Some cited evidence is available only as abstracts. Unreported methods, datasets and numerical results could not be assessed from those sources.");
   if(limits.length)chunks.push(`## ${chunks.length+1}. Evidence limitations\n\n${[...new Set(limits)].join("\n\n")}`);
-  if(!claims.length)return "# Insufficient verified evidence\n\nThe retrieved material did not support an answer that passed the evidence checks. No scientific conclusion is drawn.\n\n"+chunks.join("\n\n");
+  if(!claims.length)return "# Answer could not be verified\n\nNo claims passed the source and evidence checks for this run. This does not mean that relevant research is absent. No scientific conclusion is drawn.\n\nYour answer allowance has been restored. You can retry or narrow the question to a specific method. Unverified draft conclusions and caveats are not presented as scientific findings.";
   return `# ${kind==="review"?"Literature synthesis":kind==="image"?"Visual evidence analysis":"Research synthesis"}\n\n${chunks.join("\n\n")}`;
 }

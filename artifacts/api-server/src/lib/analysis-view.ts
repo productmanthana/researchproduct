@@ -11,7 +11,8 @@ export function analysisView(r:any) {
     &&/^# (?:Research answer|Literature review|Visual evidence analysis)\b/.test(r.result?.content??"");
   // Upgrade the presentation of generated legacy answers without altering their
   // verified claims, stored content, or any user-edited draft.
-  const content=generatedLegacy?academicContent({kind:r.kind,claims:r.result.claims,sources,limitations:r.result.warnings??[]}):r.result?.content??"";
+  const emptyGenerated=r.status==="completed"&&!edited&&Array.isArray(r.result?.claims)&&!r.result.claims.length&&/^# (?:Insufficient verified evidence|Answer could not be verified)\b/.test(r.result?.content??"");
+  const content=generatedLegacy||emptyGenerated?academicContent({kind:r.kind,claims:r.result.claims,sources,limitations:r.result.warnings??[]}):r.result?.content??"";
   return {id:r.id,kind:r.kind,question:r.question,status:r.status,content,claims:r.result?.claims??[],sources,comparisonRows:r.result?.comparisonRows??[],warnings:[...new Set([...legacy,...(r.input?.discoveryWarnings??[]),...(r.result?.warnings??[])])].map(w=>readableResearchText(String(w),sources)),error:r.error??"",createdAt:iso(r.created_at),
   mode:r.input?.autoDiscover?"ask":"research",parentAnalysisId:r.input?.parentAnalysisId??null,
   conversationId:r.input?.conversationId??null,searchQueries:r.input?.searchQueries??[],
