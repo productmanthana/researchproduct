@@ -1,5 +1,19 @@
 import { iso } from "./common";
-export const analysisView=(r:any)=>({id:r.id,kind:r.kind,question:r.question,status:r.status,content:r.result?.content??"",claims:r.result?.claims??[],sources:r.result?.sources??[],comparisonRows:r.result?.comparisonRows??[],warnings:r.result?.warnings??[],error:r.error??"",createdAt:iso(r.created_at),
+import { paperScopeFromQuestion, hasPaperScope, scopeDescription } from "./paper-scope";
+import { academicContent, readableResearchText } from "./research-writing";
+export function analysisView(r:any) {
+  const scope=paperScopeFromQuestion(r.question??"");
+  const legacy=r.input?.autoDiscover&&!r.input?.scopeFiltersApplied&&hasPaperScope(scope)&&r.status==="completed"
+    ?[`Earlier answer scope: This saved answer predates enforced publisher/year filtering. Its papers may not meet your ${scopeDescription(scope)} request. Run the question again for a restricted search.`]:[];
+  const sources=r.result?.sources??[];
+  const edited=(r.result?.warnings??[]).some((w:string)=>w.startsWith("Edited by the user"));
+  const generatedLegacy=r.status==="completed"&&!r.result?.formatVersion&&!edited&&r.result?.claims?.length
+    &&/^# (?:Research answer|Literature review|Visual evidence analysis)\b/.test(r.result?.content??"");
+  // Upgrade the presentation of generated legacy answers without altering their
+  // verified claims, stored content, or any user-edited draft.
+  const content=generatedLegacy?academicContent({kind:r.kind,claims:r.result.claims,sources,limitations:r.result.warnings??[]}):r.result?.content??"";
+  return {id:r.id,kind:r.kind,question:r.question,status:r.status,content,claims:r.result?.claims??[],sources,comparisonRows:r.result?.comparisonRows??[],warnings:[...new Set([...legacy,...(r.input?.discoveryWarnings??[]),...(r.result?.warnings??[])])].map(w=>readableResearchText(String(w),sources)),error:r.error??"",createdAt:iso(r.created_at),
   mode:r.input?.autoDiscover?"ask":"research",parentAnalysisId:r.input?.parentAnalysisId??null,
   conversationId:r.input?.conversationId??null,searchQueries:r.input?.searchQueries??[],
-  stage:r.input?.stage??"",discoveredPapers:r.input?.discoveredPapers??[]});
+  stage:r.input?.stage??"",discoveredPapers:r.input?.discoveredPapers??[]};
+}

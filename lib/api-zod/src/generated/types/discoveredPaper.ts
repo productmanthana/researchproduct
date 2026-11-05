@@ -6,6 +6,8 @@
  */
 
 export interface DiscoveredPaper {
+  publisher?: string;
+  doi?: string;
   id: string;
   title: string;
   abstract: string;

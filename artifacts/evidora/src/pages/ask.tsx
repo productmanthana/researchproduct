@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { errMessage } from "@/lib/format";
 import { StudioTurn } from "@/components/research-studio/turn";
 import "@/components/research-studio/studio.css";
+import { usageLimitMessage } from "@/lib/usage-limits";
 const isDone = (s?: string) => s === "completed" || s === "failed";
 
 type Thread = { id: string; turns: Analysis[]; updatedAt: string };
@@ -63,14 +64,20 @@ function AskInner() {
 
   const u = usage.data;
   const left = u ? u.answersLimit < 0 ? Infinity : u.answersLimit - u.answersUsed : null;
+  const limitMessage = usageLimitMessage(u, "answer");
   let problem: string | null = null;
   if (question.trim().length < 5) problem = "Write a question of at least 5 characters.";
   else if (question.length > 2000) problem = "Keep the question under 2000 characters.";
   else if (ownActive) problem = "Wait for the current answer to finish.";
-  else if (left !== null && left <= 0) problem = `No answers left this ${u?.period === "starter" ? "trial" : "period"}.`;
+  if (limitMessage) problem = limitMessage;
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
+    if (limitMessage) {
+      toast({ title: "Limit reached", description: limitMessage, variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      return;
+    }
     if (problem || create.isPending) return;
     try {
       const a = await create.mutateAsync({
@@ -84,6 +91,7 @@ function AskInner() {
       setLocation(`/ask?t=${encodeURIComponent(a.conversationId || a.id)}`);
     } catch (err) {
       toast({ title: "Couldn't send question", description: errMessage(err), variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
     }
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -111,7 +119,7 @@ function AskInner() {
     <section className="ev-follow" aria-label="Ask a question"><div className="ev-follow-top"><span className="ev-number">03</span><p>{thread?"Keep the question moving.":"Start with your question."}</p></div>
     <form className="ev-composer" onSubmit={submit}><label className="ev-micro" htmlFor="studio-question">{thread?"Follow-up question":"Research question"}</label>
     <Textarea id="studio-question" value={question} onChange={e=>setQuestion(e.target.value)} onKeyDown={onKey} maxLength={2000} placeholder={thread?"Compare these methods using the same papers…":"Ask about a topic, method or research finding…"} data-testid="input-ask-question"/>
-    <div className="ev-composer-bottom"><p className="ev-status" role="status" data-testid="text-ask-status">{problem??"Ready. "+(left===null?"":left+" answers left.")}</p><button type="submit" className="ev-send" disabled={!!problem||create.isPending||list.isLoading||usage.isLoading} data-testid="button-ask-send"><ArrowUp/>{create.isPending?"Sending…":thread?"Ask follow-up":"Ask"}</button></div>
+    <div className="ev-composer-bottom"><p id="ask-limit-status" className="ev-status" role="status" data-testid="text-ask-status">{problem??"Ready. "+(left===null?"":left===Infinity?"Unlimited answers.":left+" answers left.")}</p><button type="submit" className="ev-send" title={limitMessage??undefined} aria-describedby="ask-limit-status" disabled={(!!problem&&!limitMessage)||create.isPending||list.isLoading||usage.isLoading} data-testid="button-ask-send"><ArrowUp/>{create.isPending?"Sending…":limitMessage?"Limit reached":thread?"Ask follow-up":"Ask"}</button></div>
     </form><p className="ev-composer-note">Ctrl / ⌘ + Enter to send · AI-assisted answers need original-source review.</p></section>
   </div></div>;
 }

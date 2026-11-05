@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
+import { usageLimitMessage } from "@/lib/usage-limits";
+import { AcademicAnswer } from "@/components/academic-answer";
 import {
   useCreateAnalysis,
   useGetAnalysis,
@@ -108,11 +110,17 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
   else if (pagesBad) problem = "Page numbers: up to 3 whole numbers between 1 and 50.";
 
   const u = usage.data;
-  const left = u ? (kind === "answer" ? u.answersLimit - u.answersUsed : kind === "review" ? u.reviewsLimit - u.reviewsUsed : u.imagesLimit - u.imagesUsed) : null;
-  const unlimited = u && (kind === "answer" ? u.answersLimit : kind === "review" ? u.reviewsLimit : u.imagesLimit) < 0;
-  if (!problem && !unlimited && left !== null && left <= 0) problem = `No ${kind} runs left this ${u?.period === "starter" ? "trial" : "period"}.`;
+  const allowance = u ? kind === "answer" ? [u.answersUsed,u.answersLimit] : kind === "review" ? [u.reviewsUsed,u.reviewsLimit] : [u.imagesUsed,u.imagesLimit] : null;
+  const left = allowance ? allowance[1] < 0 ? Infinity : allowance[1]-allowance[0] : null;
+  const limitMessage = usageLimitMessage(u, kind);
+  if (limitMessage) problem = limitMessage;
 
   const submit = () => {
+    if (limitMessage) {
+      toast({ title: "Limit reached", description: limitMessage, variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      return;
+    }
     if (problem) return;
     create.mutate(
       {
@@ -135,7 +143,10 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
           toast({ title: "Analysis queued" });
           onCreated(a.id);
         },
-        onError: (e) => toast({ title: "Couldn't start analysis", description: errMessage(e), variant: "destructive" }),
+        onError: (e) => {
+          toast({ title: "Couldn't start analysis", description: errMessage(e), variant: "destructive" });
+          void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+        },
       },
     );
   };
@@ -219,10 +230,10 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className={`text-xs ${problem ? "text-vermilion" : "text-muted-foreground"}`} data-testid="text-composer-status">
-            {problem ?? `Ready. ${left !== null ? `${left} ${kind} run${left === 1 ? "" : "s"} left.` : ""}`}
+            {problem ?? `Ready. ${left===Infinity ? "Unlimited analyses." : left !== null ? `${left} ${kind} run${left === 1 ? "" : "s"} left.` : ""}`}
           </p>
-          <Button onClick={submit} disabled={!!problem || create.isPending} className="press bg-vermilion px-6 text-white hover:bg-[hsl(8_74%_44%)]" data-testid="button-run-analysis">
-            {create.isPending ? "Queuing..." : "Run analysis"}
+          <Button onClick={submit} title={limitMessage??undefined} disabled={(!!problem&&!limitMessage) || create.isPending || usage.isLoading} className="press bg-vermilion px-6 text-white hover:bg-[hsl(8_74%_44%)]" data-testid="button-run-analysis">
+            {create.isPending ? "Queuing..." : limitMessage ? "Limit reached" : "Run analysis"}
           </Button>
         </div>
       </div>
@@ -380,12 +391,12 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
       </header>
 
       {d.warnings.length > 0 && (
-        <div className="border-b border-[hsl(var(--vermilion)/0.3)] bg-[hsl(var(--vermilion)/0.06)] px-5 py-4" data-testid="section-warnings">
-          <p className="flex items-center gap-2 text-sm font-semibold text-vermilion"><AlertTriangle className="h-4 w-4" /> Read before relying on this</p>
+        <details className="border-b px-5 py-4" data-testid="section-warnings">
+          <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">Search, retrieval &amp; verification details</summary>
           <ul className="mt-2 space-y-1 text-sm">
             {d.warnings.map((w) => <li key={w} className="flex gap-2"><span className="text-vermilion">&ndash;</span>{w}</li>)}
           </ul>
-        </div>
+        </details>
       )}
 
       {!isDone(d.status) ? (
@@ -418,10 +429,10 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
               )}
             </>
           ) : (
-            <div className="max-w-none whitespace-pre-wrap text-[15px] leading-[1.75]" data-testid="text-analysis-content">{(d.content || "No content returned.").split(/(\[\d+\])/g).map((part,i)=>{
+            <div data-testid="text-analysis-content"><AcademicAnswer content={d.content || "No content returned."} inline={text=>text.split(/(\[\d+\])/g).map((part,i)=>{
               const match=part.match(/^\[(\d+)\]$/),source=match?d.sources[Number(match[1])-1]:undefined;
               return source?.url?<a key={i} href={source.url} target="_blank" rel="noreferrer" title={source.title} className="font-semibold text-primary underline">{part}</a>:part;
-            })}</div>
+            })}/><p className="mt-5 text-xs text-muted-foreground">{d.sources.some(s=>s.evidenceLevel==="Abstract only")?"Includes abstract-only evidence. ":""}AI-assisted synthesis; verify original sources before academic use.</p></div>
           )}
 
           {(d.claims.length > 0 || (rows?.length ?? 0) > 0) && (

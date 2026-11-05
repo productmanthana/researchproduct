@@ -48,7 +48,8 @@ router.post("/analyses",requireUser,async(req,res)=>{
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))",[owner]);
     const u=await usage(owner,client),key=b.kind==="answer"?"answers":b.kind==="review"?"reviews":"images";
-    if(allowanceReached(u[`${key}Used`],u[`${key}Limit`])) throw new HttpError(429,"You have reached your allowance. Paid upgrades are not connected yet.");
+    if(u.aiServiceRemainingInr<=0)throw new HttpError(429,"Service AI budget limit reached. New AI analyses are paused until the monthly budget resets. No answer allowance was charged.");
+    if(allowanceReached(u[`${key}Used`],u[`${key}Limit`])) throw new HttpError(429,`${key==="answers"?"Answer":key==="reviews"?"Literature review":"Image analysis"} limit reached. ${u.period==="starter"?"Your one-time trial allowance is used up.":"Your monthly allowance is used up."} See Plans & usage for details.`);
     const active=await client.query("SELECT id FROM research_analyses WHERE owner_id=$1 AND status IN ('queued','running')",[owner]);
     if(active.rowCount) throw new HttpError(409,"Wait for your current analysis to finish before starting another.");
     const id=randomUUID();

@@ -9,6 +9,68 @@ import { exportResearch } from "./exports";
 import { publicIPv4, reusableLicense, downloadPublicPdf, retrieveFullText } from "./open-full-text";
 import { randomUUID } from "node:crypto";
 import { allowanceReached, entitlement } from "./common";
+import { paperScopeFromQuestion, matchesPaperScope, publisherName } from "./paper-scope";
+import { academicContent, scientificLimitations, readableResearchText } from "./research-writing";
+test("Academic synthesis separates scientific limitations from infrastructure and preserves citation numbering",()=>{
+  const id=randomUUID(),other=randomUUID();
+  const sources=[{id:`${id}-oa-p2`,paperId:id,title:"IEEE study",evidenceLevel:"Selected PDF text"}];
+  const warnings=["Weaviate retained 42 records.","Where readable text was available, evidence pages were ranked using full-size OpenAI embeddings.","Paper: Reused a retained licensed PDF and its extracted text.",`Only simulations were available (see ${id}-oa-p2).`,`A comparison was not reported (${other}).`];
+  const claims=[{text:"Simulation evidence supports the controller.",section:"Overview",evidence:[{sourceId:sources[0].id},{sourceId:sources[0].id}]},{text:"Real-world validation was not reported.",section:"Conclusion",evidence:[{sourceId:sources[0].id}]}];
+  const text=academicContent({kind:"answer",claims,sources,limitations:warnings});
+  assert.match(text,/# Research synthesis/);
+  assert.match(text,/## 1\. Overview/);
+  assert.match(text,/## 2\. Conclusion/);
+  assert.match(text,/Only simulations were available \(see \[1\]\)|Only simulations were available \(\[1\]\)/);
+  assert.doesNotMatch(text,/Weaviate|embeddings|retained licensed|[0-9a-f]{8}-[0-9a-f]{4}|\[1\] \[1\]/);
+  assert.equal(scientificLimitations(warnings,sources).length,2);
+  assert.equal(readableResearchText(id,sources),"[1]");
+  assert.doesNotMatch(text,/Critical discussion|No verified findings available/);
+});
+test("Legacy presentation upgrades preserve claims and stored text, and never reformat user-edited drafts",()=>{
+  const sourceId=randomUUID();
+  const result={content:"# Research answer\n\n## Findings\n\nA verified claim. [1]\n\n## Evidence and limitations\n\n- Weaviate retained 42 records.",claims:[{text:"A verified claim.",section:"Findings",evidence:[{sourceId}]}],sources:[{id:sourceId,title:"A study",evidenceLevel:"Abstract only"}],warnings:["Weaviate retained 42 records."]};
+  const row={id:randomUUID(),kind:"answer",status:"completed",question:"Research question",created_at:new Date(),input:{},result};
+  const original=JSON.stringify(row);
+  const view=analysisView(row);
+  assert.match(view.content,/## 1\. Evidence-based findings/);
+  assert.match(view.content,/Some cited evidence is available only as abstracts/);
+  assert.doesNotMatch(view.content,/Weaviate/);
+  assert.ok(view.warnings.some(w=>w.includes("Weaviate")));
+  assert.equal(JSON.stringify(row),original);
+  assert.deepEqual(view.claims,result.claims);
+  assert.equal(analysisView({...row,result:{...result,warnings:[...result.warnings,"Edited by the user. Changes have not been checked against sources."]}}).content,result.content);
+  assert.match(academicContent({kind:"answer",claims:[],sources:[]}),/No scientific conclusion is drawn/);
+});
+test("IEEE publication scope excludes MDPI, old dates, unknown publishers and IEEE mentions in abstracts",()=>{
+  const scope=paperScopeFromQuestion("What methods improve wind turbine efficiency using AI-based pitch control? Focus on IEEE publications from 2020 onward. Cite each finding.");
+  assert.deepEqual(scope,{publishers:["IEEE"],fromYear:2020});
+  const ieee=paper({doi:"10.1109/real.2024.1",publisher:"",year:2024});
+  const mdpi=paper({doi:"10.3390/pr14071084",publisher:"IEEE",year:2026,abstract:"We cite IEEE studies."});
+  assert.equal(matchesPaperScope(ieee,scope),true);
+  assert.equal(publisherName(mdpi),"MDPI");
+  assert.equal(matchesPaperScope(mdpi,scope),false);
+  assert.equal(matchesPaperScope({...ieee,year:2019},scope),false);
+  assert.equal(matchesPaperScope({...ieee,year:0},scope),false);
+  assert.equal(matchesPaperScope({...ieee,doi:"",publisher:"",abstract:"IEEE pitch control."},scope),false);
+  assert.equal(matchesPaperScope({...ieee,doi:"",publisher:"Institute of Electrical and Electronics Engineers (IEEE)"},scope),true);
+  const warmIndex=[mdpi,ieee,{...ieee,id:randomUUID(),year:2018}];
+  assert.deepEqual(questionCandidates([], [warmIndex]).filter(p=>matchesPaperScope(p,scope)).map(p=>p.id),[ieee.id]);
+});
+test("Publisher unions and year ranges preserve mixed-source requests",()=>{
+  const scope=paperScopeFromQuestion("Compare methods reported in Springer Nature and Elsevier publications between 2020 and 2024.");
+  assert.deepEqual(scope,{publishers:["Springer Nature","Elsevier"],fromYear:2020,toYear:2024});
+  assert.equal(matchesPaperScope(paper({doi:"10.1007/s123",year:2022}),scope),true);
+  assert.equal(matchesPaperScope(paper({doi:"10.1016/j.example",year:2025}),scope),false);
+  assert.equal(paperScopeFromQuestion("IEEE standards discussed in research papers").publishers.length,0);
+  assert.equal(paperScopeFromQuestion("Research from IEEE, Springer Nature, Elsevier and open-access journals.").publishers.length,0);
+});
+test("Historical restricted answers are flagged rather than silently rewritten",()=>{
+  const base={id:randomUUID(),created_at:new Date(),question:"Focus on IEEE publications from 2020 onward.",status:"completed",input:{autoDiscover:true},result:{content:"Saved original answer.",warnings:[]}};
+  const old=analysisView(base);
+  assert.equal(old.content,"Saved original answer.");
+  assert.match(old.warnings.join(" "),/predates enforced publisher\/year filtering/);
+  assert.equal(analysisView({...base,input:{...base.input,scopeFiltersApplied:true}}).warnings.length,0);
+});
 test("Unlimited entitlement bypasses only request-count limits and leaves trials unchanged",async()=>{
   const owner=`quota-test-${randomUUID()}`,other=`quota-test-${randomUUID()}`;
   try{

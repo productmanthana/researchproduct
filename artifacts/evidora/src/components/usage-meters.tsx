@@ -18,6 +18,7 @@ function Meter({ label, used, limit, dark }: { label: string; used: number; limi
           style={{ width: "100%", transform: `scaleX(${pct / 100})` }}
         />
       </div>
+      {out && <p className="mt-1 text-xs text-vermilion">Limit reached</p>}
     </div>
   );
 }

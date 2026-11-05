@@ -11,7 +11,7 @@ import { sourceFailure } from "./source-registry";
 
 export type Paper = z.infer<typeof GetPaperResponse>;
 type RecordData = Record<string, any>;
-export type SearchInput = { q: string; year?: number; oa?: boolean; page?: number; sort?: string; venue?: string; publisher?: string; field?: string; minCitations?:number; sources?:string };
+export type SearchInput = { q: string; year?: number; oa?: boolean; page?: number; sort?: string; venue?: string; publisher?: string; field?: string; minCitations?:number; sources?:string; doiPrefix?:string };
 export const clean = (value: unknown) => String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 const url = (value: unknown) => { try { const u = new URL(String(value)); return u.protocol === "https:" || u.protocol === "http:" ? u.href : ""; } catch { return ""; } };
 const doiKey = (v: string) => v.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "").replace(/^doi:\s*/i, "").trim().toLowerCase();
@@ -100,7 +100,8 @@ export async function search(input: SearchInput) {
   if(input.sort==="citations") oaQuery.set("sort","cited_by_count:desc");
   if(input.sort==="year") oaQuery.set("sort","publication_date:desc");
   const crQuery = new URLSearchParams({query:q,rows:"25",offset:String((page-1)*25)});
-  if(input.year) crQuery.set("filter",`from-pub-date:${input.year}-01-01`);
+  const crFilters=[input.year?`from-pub-date:${input.year}-01-01`:"",input.doiPrefix?`prefix:${input.doiPrefix}`:""].filter(Boolean);
+  if(crFilters.length) crQuery.set("filter",crFilters.join(","));
   if(process.env.CROSSREF_MAILTO) crQuery.set("mailto",process.env.CROSSREF_MAILTO);
   if(input.sort==="citations") crQuery.set("sort","is-referenced-by-count");
   if(input.sort==="year") crQuery.set("sort","published");

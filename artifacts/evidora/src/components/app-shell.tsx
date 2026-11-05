@@ -6,6 +6,7 @@ import { BookMarked, Compass, FlaskConical, FolderKanban, Leaf, LineChart, LogOu
 import { Wordmark } from "@/components/brand";
 import { UsageMeters } from "@/components/usage-meters";
 import { useSelection } from "@/lib/selection";
+import { allUsageLimitMessages } from "@/lib/usage-limits";
 
 const NAV = [
   { href: "/discover", label: "Discover", icon: Compass },
@@ -109,6 +110,9 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [location] = useLocation();
+  const { isSignedIn } = useUser();
+  const usage = useGetUsage({ query: { enabled: !!isSignedIn, queryKey: getGetUsageQueryKey(), refetchInterval: 30000 } });
+  const limitMessages = allUsageLimitMessages(usage.data);
   const studio = location === "/ask";
   return (
     <div className={`min-h-[100dvh] bg-background ${studio?"ev-shell":""}`}>
@@ -135,6 +139,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       )}
       <main className="lg:pl-60">
+        {limitMessages.length > 0 && <div role="status" className="border-b border-vermilion/25 bg-vermilion/5 px-5 py-3 text-sm" data-testid="notice-usage-limits">
+          {limitMessages.map(message => <p key={message}>{message}</p>)}
+          <Link href="/plans" className="mt-1 inline-block font-medium underline">View Plans &amp; usage</Link>
+        </div>}
         <div className={studio?"w-full":"mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-10"}>{children}</div>
       </main>
     </div>

@@ -347,6 +347,8 @@ export const GetSummaryResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "abstract": zod.string(),
@@ -749,6 +751,8 @@ export const ListAnalysesResponseItem = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "abstract": zod.string(),
@@ -888,6 +892,8 @@ export const CreateAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "abstract": zod.string(),
@@ -1008,6 +1014,8 @@ export const GetAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "abstract": zod.string(),
@@ -1209,6 +1217,8 @@ export const UpdateAnalysisResponse = zod.object({
 })).optional(),
   "stage": zod.string().optional(),
   "discoveredPapers": zod.array(zod.object({
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
   "id": zod.string(),
   "title": zod.string(),
   "abstract": zod.string(),

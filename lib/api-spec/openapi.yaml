@@ -2256,6 +2256,12 @@
           "selected"
         ],
         "properties": {
+          "publisher": {
+            "type": "string"
+          },
+          "doi": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },

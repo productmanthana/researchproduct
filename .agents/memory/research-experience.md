@@ -14,6 +14,24 @@ The user wants numbered citations, a polished research interface, and research-r
 
 **How to apply:** Keep citations connected to their sources and research-role labels tied to actual processing. Design previews must not be presented as functioning new agents or measured speed improvements.
 
+Show the named research roles in a processing progress bar, including names such as “Literature Survey Agent,” rather than only a text processing notice.
+
+**Why:** The user explicitly requested agent names in a processing bar.
+
+**How to apply:** Drive the active role from reported backend stages, not timed simulations; distinguish workflow position from estimated completion time and omit skipped discovery roles for same-paper follow-ups.
+
+Publisher-specific requests such as “focus on IEEE publications from 2020 onward” are hard evidence restrictions, not just ranking preferences.
+
+**Why:** The user flagged an MDPI paper in the evidence list for that IEEE-specific question.
+
+**How to apply:** Restrict discovered, selected and cited papers consistently; exclude missing required publisher/year metadata instead of silently broadening the request. Keep historical answers intact and clearly flag answers generated before filtering was enforced.
+
+Research answers should read as professional academic syntheses: organised evidence-based paragraphs, numbered citations, references and concise scientific limitations—not lists of internal processing notices.
+
+**Why:** The user requested university-quality research writing after seeing embedding, database and internal-ID details mixed into the answer.
+
+**How to apply:** Separate reproducibility/processing notes from the scientific narrative. Follow clear claim–evidence–analysis structure without implying Harvard endorsement, inventing research methods, or padding unsupported sections. Preserve verified claims and user-edited drafts when improving older presentations.
+
 The user approved the ivory/teal Research Studio design and asked to use it, with as many papers as practical shown on the right.
 
 **Why:** They said “I think this is best design use it but right side show as much as papers.”
@@ -31,3 +49,9 @@ The user wants processing options enabled by default and no repeated OpenAI-send
 **Why:** They explicitly asked to remove these controls and make the available processing automatic.
 
 **How to apply:** Keep the question-to-answer flow simple, without per-message consent checkboxes. Preserve source-selection boundaries, ownership checks, budget limits and truthful evidence limitations.
+
+When usage limits are exhausted, the user wants this shown across the app, and clicking a restricted action should explain the limit rather than appear unresponsive.
+
+**Why:** They explicitly asked for “limit reached” feedback everywhere when attempting to click.
+
+**How to apply:** Distinguish account allowances from the shared service AI budget, preserve unlimited-account exemptions only for account quotas, and keep viewing saved research available.

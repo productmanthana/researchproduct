@@ -9,7 +9,7 @@ export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{an
   const papers=useMemo(()=>{
     const found=(d.discoveredPapers??[]).map(p=>({...p,refs:d.sources.map((s,i)=>({...s,n:i+1})).filter(s=>s.paperId===p.id||s.id===p.id||s.id.startsWith(`${p.id}-oa-p`))}));
     const known=new Set(found.flatMap(p=>p.refs.map(s=>s.id)));
-    const all=[...found,...d.sources.filter(s=>!known.has(s.id)).map(s=>({id:s.id,title:s.title,abstract:"",authors:[] as string[],year:null,url:s.url,selected:true,refs:[{...s,n:d.sources.indexOf(s)+1}]}))];
+    const all=[...found,...d.sources.filter(s=>!known.has(s.id)).map(s=>({id:s.id,title:s.title,abstract:"",authors:[] as string[],year:null,url:s.url,publisher:"",doi:"",selected:true,refs:[{...s,n:d.sources.indexOf(s)+1}]}))];
     return [...new Map(all.map(p=>[p.id,p])).values()];
   },[d.discoveredPapers,d.sources]);
   const filtered=papers.filter(p=>(filter==="all"||filter==="selected"&&p.selected||filter==="cited"&&p.refs.length>0)&&`${p.title} ${p.abstract} ${p.authors.join(" ")}`.toLowerCase().includes(query.toLowerCase()));
@@ -29,6 +29,7 @@ export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{an
   return <aside className="ev-evidence" aria-label="Research papers" data-testid={`section-sources-${d.id}`}>
     <div className="ev-evidence-head"><h2>The evidence</h2><span className="ev-count" data-testid="paper-count">{papers.length} papers</span></div>
     <p className="ev-evidence-sub">{papers.filter(p=>p.selected).length} selected · {papers.filter(p=>p.refs.length).length} cited<br/>Found papers are not necessarily read or used. Numbers in brackets refer to answer citations.</p>
+    {d.warnings.filter(w=>w.startsWith("Search scope:")||w.startsWith("Earlier answer scope:")).map(w=><p key={w} className="ev-scope-banner" role="status">{w}</p>)}
     {!d.discoveredPapers?.length&&d.status==="completed"&&<p className="ev-evidence-sub">This older answer contains cited evidence only; its original search results were not saved.</p>}
     <label className="ev-search"><Search/><input aria-label="Search research papers" value={query} placeholder="Search titles, authors, abstracts…" onChange={e=>{setQuery(e.target.value);setLimit(20);}}/></label>
     <select className="ev-filter" aria-label="Filter research papers" value={filter} onChange={e=>{setFilter(e.target.value);setLimit(20);}}><option value="all">All found papers</option><option value="selected">Selected for analysis</option><option value="cited">Cited in this answer</option></select>
@@ -37,6 +38,7 @@ export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{an
         <button className="ev-source" aria-pressed={active?.id===p.id} aria-expanded={active?.id===p.id} aria-controls={`evidence-${d.id}`} onClick={()=>onSelect(active?.id===p.id?null:p.id)}>
           <span className="ev-source-top"><span className="ev-number">{String(papers.indexOf(p)+1).padStart(2,"0")}</span><span className="ev-micro">{p.refs.length?"Cited":p.selected?"Selected for analysis":"Found · not analyzed"}</span><span>{p.refs.map(s=>`[${s.n}]`).join(" ")}</span></span>
           <span className="ev-source-title">{p.title}</span><span className="ev-source-meta">{p.authors.slice(0,3).join(", ")}{p.year?` · ${p.year}`:""}</span>
+          {(p.publisher||p.doi)&&<span className="ev-source-meta">{p.publisher||"Publisher not confirmed"}{p.doi?` · DOI ${p.doi}`:""}</span>}
           {p.abstract&&<span className="ev-abstract">{p.abstract}</span>}
           {p.refs.length>0&&<span className="ev-source-meta">{[...new Set(p.refs.map(s=>s.evidenceLevel))].join(" · ")}</span>}
           <span className="ev-source-hint">{active?.id===p.id?"Close paper details":"Inspect paper and evidence"} <span>{active?.id===p.id?"−":"↓"}</span></span>
