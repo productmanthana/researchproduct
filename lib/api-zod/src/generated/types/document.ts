@@ -14,4 +14,6 @@ export interface Document {
   pageCount: number;
   error: string;
   createdAt: string;
+  /** @nullable */
+  paperId?: string | null;
 }

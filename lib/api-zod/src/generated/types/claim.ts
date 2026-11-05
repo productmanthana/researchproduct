@@ -9,4 +9,5 @@ import type { ClaimEvidenceItem } from './claimEvidenceItem';
 export interface Claim {
   text: string;
   evidence: ClaimEvidenceItem[];
+  section?: string;
 }

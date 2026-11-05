@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useParams } from "wouter";
 import { useGetPaper, getGetPaperQueryKey, useGetRelatedPapers, getGetRelatedPapersQueryKey, type GetRelatedPapersKind } from "@workspace/api-client-react";
-import { ArrowLeft, ExternalLink, FileText, Quote, Unlock } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Quote, Sparkles, Unlock } from "lucide-react";
 import { PaperRow, SavePaperButton, SelectToggle, useSavedIds } from "@/components/paper-row";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
+import { selection } from "@/lib/selection";
 import { evidenceTone, num } from "@/lib/format";
 
 const TABS: { k: GetRelatedPapersKind; label: string }[] = [
@@ -31,6 +32,8 @@ export default function PaperPage() {
     ["Publisher", p.publisher || "-"],
     ["DOI", p.doi || "-"],
     ["Field", p.field || "-"],
+    ...(p.type ? [["Type", p.type] as [string, string]] : []),
+    ...(p.institutions?.length ? [["Institutions", p.institutions.slice(0, 6).join("; ")] as [string, string]] : []),
     ["Licence", p.license || "Not stated"],
     ["Indexed via", p.sources?.join(", ") || "-"],
   ];
@@ -71,6 +74,20 @@ export default function PaperPage() {
               </a>
             )}
           </div>
+          <Link href={`/research?explain=${encodeURIComponent(p.id)}`} onClick={() => selection.addMany([{ id: p.id, title: p.title }])} className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-md bg-vermilion px-3 text-xs font-medium text-white" data-testid="link-explain-paper">
+            <Sparkles className="h-3.5 w-3.5" /> Explain this paper with AI
+          </Link>
+          {p.tldr && (
+            <section className="mt-8 border-l-2 border-turmeric pl-4" data-testid="section-tldr">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Short summary (from indexing source)</h2>
+              <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed">{p.tldr}</p>
+            </section>
+          )}
+          {!!p.keywords?.length && (
+            <div className="mt-6 flex flex-wrap gap-1.5" data-testid="list-keywords">
+              {p.keywords.slice(0, 12).map((k) => <Link key={k} href={`/discover?q=${encodeURIComponent(k)}`} className="rounded-full border px-2 py-0.5 text-xs hover:border-primary">{k}</Link>)}
+            </div>
+          )}
           <section className="mt-8">
             <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-vermilion">Abstract</h2>
             <p className="mt-3 max-w-[70ch] text-[15.5px] leading-[1.75]" data-testid="text-abstract">

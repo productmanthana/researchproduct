@@ -6,6 +6,7 @@
  */
 import type { AnalysisSourcesItem } from './analysisSourcesItem';
 import type { Claim } from './claim';
+import type { ComparisonRow } from './comparisonRow';
 
 export interface Analysis {
   id: string;
@@ -18,4 +19,5 @@ export interface Analysis {
   warnings: string[];
   error: string;
   createdAt: string;
+  comparisonRows?: ComparisonRow[];
 }

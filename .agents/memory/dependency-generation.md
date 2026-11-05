@@ -13,3 +13,9 @@ After changing React and react-dom together, Vite's optimized dependency cache m
 **Why:** A clean workflow restart alone retained the old optimized renderer and the public page failed with a React version mismatch.
 
 **How to apply:** Confirm package resolution first; when it is correct, clear only the affected artifact's generated Vite dependency cache and restart. Do not downgrade working dependency versions to match stale cache output.
+
+Citation.js CSL versions differ in their style-registration interface; installed versions may expose `styles`, not the `templates` registry shown in older examples, and IEEE is not necessarily bundled.
+
+**Why:** Typechecking a local module declaration did not catch a runtime initialization failure from following the older API.
+
+**How to apply:** Inspect the installed CSL configuration API and run a real formatting smoke test for each advertised style before loading the formatter at server startup.

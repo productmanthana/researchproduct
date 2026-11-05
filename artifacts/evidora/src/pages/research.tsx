@@ -19,6 +19,9 @@ import {
   getExportAnalysisUrl,
   type Analysis,
   type AnalysisInputKind,
+  type AnalysisInput,
+  type ComparisonRow,
+  type ComparisonCell,
 } from "@workspace/api-client-react";
 import { AlertTriangle, BookOpen, Download, ExternalLink, FileImage, FileSearch, FileText, History, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,9 +76,11 @@ function LibraryPicker({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Composer({ onCreated }: { onCreated: (id: string) => void }) {
+function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string) => void; initialQuestion?: string }) {
   const [kind, setKind] = useState<AnalysisInputKind>("answer");
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState(initialQuestion);
+  const [pagesText, setPagesText] = useState("");
+  const [includeLinked, setIncludeLinked] = useState(false);
   const [docIds, setDocIds] = useState<string[]>([]);
   const [consent, setConsent] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -91,13 +96,19 @@ function Composer({ onCreated }: { onCreated: (id: string) => void }) {
   const chosenDocs = docIds.filter((id) => visibleDocs.some((d) => d.id === id));
   const paperIds = kind === "image" ? [] : sel.map((s) => s.id);
 
+  const pageTokens = pagesText.split(/[\s,]+/).filter(Boolean);
+  const pageNumbers = [...new Set(pageTokens.map(Number))];
+  const pagesBad = kind === "image" && pageTokens.length > 0 && (pageNumbers.length > 3 || pageNumbers.some((n) => !Number.isInteger(n) || n < 1 || n > 50));
+  const linked = kind !== "image" && includeLinked;
+
   let problem: string | null = null;
   if (question.trim().length < 5) problem = "Write a question of at least 5 characters.";
   else if (kind === "answer" && paperIds.length + chosenDocs.length === 0) problem = "Select at least one paper or PDF.";
   else if (kind === "answer" && paperIds.length > 10) problem = `Answers use at most 10 papers. You have ${paperIds.length}.`;
   else if (kind === "review" && (paperIds.length < 10 || paperIds.length > 50)) problem = `Reviews need 10 to 50 papers. You have ${paperIds.length}.`;
   else if (kind === "image" && chosenDocs.length === 0) problem = "Choose at least one screenshot or PDF.";
-  else if (chosenDocs.length > 0 && !consent) problem = "Confirm consent to send your files to OpenAI.";
+  else if (pagesBad) problem = "Page numbers: up to 3 whole numbers between 1 and 50.";
+  else if (!consent) problem = "Confirm consent to send this request to OpenAI.";
 
   const u = usage.data;
   const left = u ? (kind === "answer" ? u.answersLimit - u.answersUsed : kind === "review" ? u.reviewsLimit - u.reviewsUsed : u.imagesLimit - u.imagesUsed) : null;
@@ -106,9 +117,20 @@ function Composer({ onCreated }: { onCreated: (id: string) => void }) {
   const submit = () => {
     if (problem) return;
     create.mutate(
-      { data: { kind, question: question.trim(), paperIds: paperIds.length ? paperIds : undefined, documentIds: chosenDocs.length ? chosenDocs : undefined } },
+      {
+        data: {
+          kind,
+          question: question.trim(),
+          paperIds: paperIds.length ? paperIds : undefined,
+          documentIds: chosenDocs.length ? chosenDocs : undefined,
+          pageNumbers: kind === "image" && pageNumbers.length ? pageNumbers : undefined,
+          includeLinkedDocuments: linked,
+          aiConsent: true,
+        },
+      },
       {
         onSuccess: (a) => {
+          setConsent(false);
           qc.invalidateQueries({ queryKey: getListAnalysesQueryKey() });
           qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
           qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
@@ -189,12 +211,33 @@ function Composer({ onCreated }: { onCreated: (id: string) => void }) {
           </div>
         )}
 
-        {chosenDocs.length > 0 && (
-          <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] p-3 text-sm">
-            <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" data-testid="checkbox-ai-consent" />
-            <span>I consent to sending the selected files to OpenAI for this analysis. {kind === "image" ? "Original images (and up to 3 page images per PDF) will be sent." : "Extracted PDF text will be sent."}</span>
+        {kind === "image" && (
+          <div>
+            <label htmlFor="input-pages" className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">PDF pages to read (optional, up to 3)</label>
+            <input id="input-pages" value={pagesText} onChange={(e) => setPagesText(e.target.value)} placeholder="e.g. 4, 7" className="mt-1.5 block w-full rounded-md border bg-background px-3 py-2 font-mono text-sm sm:w-56" data-testid="input-page-numbers" />
+            <p className="mt-1 text-xs text-muted-foreground">Leave blank to let Evidora pick up to 3 relevant pages. Ignored for screenshots.</p>
+          </div>
+        )}
+
+        {kind !== "image" && (
+          <label className="flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Checkbox checked={includeLinked} onCheckedChange={(v) => setIncludeLinked(v === true)} className="mt-0.5" data-testid="checkbox-include-linked" />
+            <span>
+              Include my private PDFs linked to the selected papers.
+              <span className="block text-xs text-muted-foreground">Off by default. When on, text from PDFs you linked in Library is sent to OpenAI along with the paper metadata.</span>
+            </span>
           </label>
         )}
+
+        <label className="flex items-start gap-3 rounded-md border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] p-3 text-sm">
+          <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" data-testid="checkbox-ai-consent" />
+          <span>
+            I consent to sending this request to OpenAI: my question, selected paper metadata and abstracts
+            {chosenDocs.length > 0 ? (kind === "image" ? ", and the selected images or PDF page images" : ", and extracted text of the selected PDFs") : ""}
+            {linked ? ", and text of my linked private PDFs" : ""}.
+            <span className="block text-xs text-muted-foreground">Output is machine-generated and can be wrong. Verify every claim against its quoted source before use.</span>
+          </span>
+        </label>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className={`text-xs ${problem ? "text-vermilion" : "text-muted-foreground"}`} data-testid="text-composer-status">
@@ -210,6 +253,64 @@ function Composer({ onCreated }: { onCreated: (id: string) => void }) {
   );
 }
 
+type CellKey = "problem" | "method" | "dataset" | "metrics" | "results" | "limitations";
+const CELLS: CellKey[] = ["problem", "method", "dataset", "metrics", "results", "limitations"];
+
+function ComparisonTable({ rows, srcById, onEdit, dirty, saving, onSave, onReset }: {
+  rows: ComparisonRow[];
+  srcById: Map<string, { n: number; title: string }>;
+  onEdit: (ri: number, field: CellKey, text: string) => void;
+  dirty: boolean;
+  saving: boolean;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div data-testid="section-comparison">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">Edit any cell. Edited cells are marked unverified; their original quotes stay attached but no longer prove your wording.</p>
+        <div className="flex gap-2">
+          {dirty && <Button size="sm" variant="ghost" onClick={onReset} data-testid="button-reset-comparison">Discard</Button>}
+          <Button size="sm" onClick={onSave} disabled={!dirty || saving} data-testid="button-save-comparison">{saving ? "Saving..." : "Save comparison"}</Button>
+        </div>
+      </div>
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full min-w-[1100px] text-sm">
+          <thead className="bg-muted/60 text-left font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            <tr><th className="w-56 px-3 py-2">Paper</th>{CELLS.map((c) => <th key={c} className="px-3 py-2">{c}</th>)}</tr>
+          </thead>
+          <tbody className="divide-y">
+            {rows.map((r, ri) => (
+              <tr key={r.paperId} data-testid={`row-comparison-${ri}`}>
+                <td className="px-3 py-2 align-top">
+                  <p className="font-medium leading-snug">{r.title}</p>
+                  {r.evidenceLevel && <span className={`mt-1 inline-block rounded border px-1.5 py-0.5 text-[10px] ${evidenceTone(r.evidenceLevel)}`}>{r.evidenceLevel}</span>}
+                </td>
+                {CELLS.map((c) => {
+                  const cell = r[c];
+                  return (
+                    <td key={c} className="px-2 py-2 align-top">
+                      <textarea value={cell.text} maxLength={2000} rows={4} onChange={(e) => onEdit(ri, c, e.target.value)} placeholder={cell.status === "not_reported" ? "Not reported" : ""} className="w-full resize-y rounded border bg-background p-1.5 text-xs leading-snug" data-testid={`input-cell-${ri}-${c}`} />
+                      <span className={`mt-1 inline-block font-mono text-[10px] ${cell.status === "verified" ? "text-leaf" : cell.status === "edited" ? "text-vermilion" : "text-muted-foreground"}`} data-testid={`status-cell-${ri}-${c}`}>
+                        {cell.status === "verified" ? "verified quote" : cell.status === "edited" ? "edited, unverified" : "not reported"}
+                      </span>
+                      {cell.evidence.map((e, j) => (
+                        <p key={j} className="mt-1 border-l-2 border-turmeric pl-1.5 text-[11px] italic text-muted-foreground" title={e.quote}>
+                          &ldquo;{e.quote.length > 120 ? `${e.quote.slice(0, 120)}...` : e.quote}&rdquo; <span className="not-italic font-mono">[{srcById.get(e.sourceId)?.n ?? "?"}]{e.page !== null ? ` p.${e.page}` : ""}</span>
+                        </p>
+                      ))}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -220,7 +321,17 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
   const del = useDeleteAnalysis();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [view, setView] = useState<"claims" | "compare">("claims");
+  const [view, setView] = useState<"claims" | "compare" | "papers">("claims");
+  const [rows, setRows] = useState<ComparisonRow[] | null>(null);
+  const initFor = useRef<string | null>(null);
+  const serverRows = a.data?.comparisonRows;
+  const loadedStatus = a.data?.status;
+  useEffect(() => {
+    if (serverRows && initFor.current !== id && isDone(loadedStatus)) {
+      initFor.current = id;
+      setRows(serverRows);
+    }
+  }, [serverRows, loadedStatus, id]);
   const notified = useRef<string | null>(null);
 
   const status = a.data?.status;
@@ -236,6 +347,23 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
   if (a.isError || !a.data) return <ErrorState error={a.error} onRetry={() => a.refetch()} title="Couldn't load analysis" />;
   const d: Analysis = a.data;
   const srcById = new Map(d.sources.map((s, i) => [s.id, { ...s, n: i + 1 }]));
+
+  const rowsDirty = !!rows && JSON.stringify(rows) !== JSON.stringify(d.comparisonRows ?? []);
+  const saveRows = () =>
+    rows &&
+    update.mutate(
+      { id, data: { comparisonRows: rows } },
+      {
+        onSuccess: (res) => {
+          qc.setQueryData(getGetAnalysisQueryKey(id), res);
+          setRows(res.comparisonRows ?? rows);
+          toast({ title: "Comparison saved" });
+        },
+        onError: (e) => toast({ title: "Couldn't save comparison", description: errMessage(e), variant: "destructive" }),
+      },
+    );
+  const editCell = (ri: number, field: CellKey, text: string) =>
+    setRows((rs) => rs && rs.map((r, i) => (i === ri ? { ...r, [field]: { text, evidence: r[field].evidence, status: "edited" } as ComparisonCell } : r)));
 
   const saveDraft = () =>
     update.mutate(
@@ -312,19 +440,24 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
               )}
             </>
           ) : (
-            <div className="max-w-none whitespace-pre-wrap text-[15px] leading-[1.75]" data-testid="text-analysis-content">{d.content || "No content returned."}</div>
+            <div className="max-w-none whitespace-pre-wrap text-[15px] leading-[1.75]" data-testid="text-analysis-content">{(d.content || "No content returned.").split(/(\[\d+\])/g).map((part,i)=>{
+              const match=part.match(/^\[(\d+)\]$/),source=match?d.sources[Number(match[1])-1]:undefined;
+              return source?.url?<a key={i} href={source.url} target="_blank" rel="noreferrer" title={source.title} className="font-semibold text-primary underline">{part}</a>:part;
+            })}</div>
           )}
 
-          {d.claims.length > 0 && (
+          {(d.claims.length > 0 || (rows?.length ?? 0) > 0) && (
             <section className="mt-8">
               <div className="mb-3 flex items-center gap-1 border-b">
-                {(["claims", "compare"] as const).map((v) => (
+                {(["claims", "compare", "papers"] as const).filter((v) => (v === "papers" ? (rows?.length ?? 0) > 0 : d.claims.length > 0)).map((v) => (
                   <button key={v} onClick={() => setView(v)} className={`px-3 py-2 text-sm ${view === v ? "border-b-2 border-vermilion font-medium" : "text-muted-foreground"}`} data-testid={`tab-view-${v}`}>
-                    {v === "claims" ? `Claims and evidence (${d.claims.length})` : "Claim / source matrix"}
+                    {v === "claims" ? `Claims and evidence (${d.claims.length})` : v === "compare" ? "Claim / source matrix" : `Paper comparison (${rows?.length ?? 0})`}
                   </button>
                 ))}
               </div>
-              {view === "claims" ? (
+              {view === "papers" && rows ? (
+                <ComparisonTable rows={rows} srcById={srcById} onEdit={editCell} dirty={rowsDirty} saving={update.isPending} onSave={saveRows} onReset={() => setRows(d.comparisonRows ?? [])} />
+              ) : view === "claims" ? (
                 <ol className="space-y-4">
                   {d.claims.map((c, i) => (
                     <li key={i} className="rounded-md border p-4" data-testid={`card-claim-${i}`}>
@@ -382,6 +515,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
                     <span className="flex-1">
                       {s.url ? <a href={s.url} target="_blank" rel="noreferrer" className="hover:underline">{s.title} <ExternalLink className="inline h-3 w-3" /></a> : s.title}
                     </span>
+                    {s.verification && <span className={`rounded border px-1.5 py-0.5 text-[11px] ${s.verification.toLowerCase().includes("verified") && !s.verification.toLowerCase().includes("un") ? "border-[hsl(var(--leaf)/0.35)] text-leaf" : "text-muted-foreground"}`} data-testid={`status-source-verification-${i}`}>{s.verification}</span>}
                     {s.evidenceLevel && <span className={`rounded border px-1.5 py-0.5 text-[11px] ${evidenceTone(s.evidenceLevel)}`}>{s.evidenceLevel}</span>}
                   </li>
                 ))}
@@ -430,7 +564,10 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
 function ResearchInner() {
   const search = useSearch();
   const [, setLocation] = useLocation();
-  const activeId = new URLSearchParams(search).get("a");
+  const sp = new URLSearchParams(search);
+  const activeId = sp.get("a");
+  const explain = sp.get("explain");
+  const initialQuestion = explain ? "Explain this paper: the problem it addresses, method, data, key results, and stated limitations." : "";
   const list = useListAnalyses({ query: { queryKey: getListAnalysesQueryKey() } });
   const usage = useGetUsage({ query: { queryKey: getGetUsageQueryKey() } });
   const open = (id: string | null) => setLocation(id ? `/research?a=${id}` : "/research");
@@ -441,7 +578,7 @@ function ResearchInner() {
         {activeId && <Button variant="outline" onClick={() => open(null)} className="gap-1.5" data-testid="button-new-analysis"><Plus className="h-4 w-4" /> New analysis</Button>}
       </PageHeader>
       <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-        <div>{activeId ? <AnalysisView key={activeId} id={activeId} onDeleted={() => open(null)} /> : <Composer onCreated={(id) => open(id)} />}</div>
+        <div>{activeId ? <AnalysisView key={activeId} id={activeId} onDeleted={() => open(null)} /> : <Composer key={explain ?? "new"} initialQuestion={initialQuestion} onCreated={(id) => open(id)} />}</div>
         <aside className="space-y-6">
           {usage.data && (
             <div className="rounded-md border bg-card p-4">
@@ -450,6 +587,10 @@ function ResearchInner() {
               <Link href="/plans" className="mt-3 block text-xs text-primary hover:underline">Plan details</Link>
             </div>
           )}
+          <div className="rounded-md border bg-card p-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-ai-disclosure">
+            <p className="mb-1 font-mono text-[10px] uppercase tracking-widest">AI and privacy</p>
+            Analyses are generated by OpenAI models from what you choose to send. Nothing is sent without your consent per run. Private PDFs stay in your account unless you select them or opt in to linked PDFs. Generated text can misquote or omit; check quotes and pages.
+          </div>
           <div>
             <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"><History className="h-3 w-3" /> History</p>
             {list.isLoading ? (

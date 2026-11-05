@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { Paper } from './paper';
+import type { SearchResultsSourceCountsItem } from './searchResultsSourceCountsItem';
 
 export interface SearchResults {
   papers: Paper[];
@@ -12,4 +13,7 @@ export interface SearchResults {
   warnings: string[];
   duplicatesRemoved: number;
   page: number;
+  sourceCounts?: SearchResultsSourceCountsItem[];
+  hasMore?: boolean;
+  scopeNotice?: string;
 }

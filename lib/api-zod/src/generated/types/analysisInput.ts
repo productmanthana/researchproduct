@@ -15,4 +15,12 @@ export interface AnalysisInput {
   question: string;
   paperIds?: string[];
   documentIds?: string[];
+  includeLinkedDocuments?: boolean;
+  /**
+     * @maxItems 3
+     * @items.minimum 1
+     * @items.maximum 50
+     */
+  pageNumbers?: number[];
+  aiConsent: true;
 }

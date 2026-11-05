@@ -14,4 +14,9 @@ sort?: string;
 venue?: string;
 field?: string;
 publisher?: string;
+/**
+ * @minimum 0
+ */
+minCitations?: number;
+sources?: string;
 };

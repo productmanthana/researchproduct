@@ -11,6 +11,7 @@ import {
   useListDocuments,
   getListDocumentsQueryKey,
   useDeleteDocument,
+  useLinkDocument,
   getGetSummaryQueryKey,
   getDownloadDocumentUrl,
   type LibraryItem,
@@ -196,6 +197,44 @@ export function LibraryList({ params, projects }: { params?: ListLibraryParams; 
   );
 }
 
+function DocLink({ docId, paperId }: { docId: string; paperId: string | null | undefined }) {
+  const lib = useListLibrary(undefined, { query: { queryKey: getListLibraryQueryKey() } });
+  const link = useLinkDocument();
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const items = lib.data ?? [];
+  const current = items.find((i) => i.paper.id === paperId);
+  return (
+    <div className="mt-2">
+      <label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground" htmlFor={`link-${docId}`}>Linked paper</label>
+      <select
+        id={`link-${docId}`}
+        value={paperId ?? ""}
+        disabled={link.isPending || lib.isLoading}
+        onChange={(e) =>
+          link.mutate(
+            { id: docId, data: { paperId: e.target.value || null } },
+            {
+              onSuccess: () => {
+                qc.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
+                toast({ title: e.target.value ? "Document linked to paper" : "Document unlinked" });
+              },
+              onError: (err) => toast({ title: "Couldn't update link", description: errMessage(err), variant: "destructive" }),
+            },
+          )
+        }
+        className="mt-1 block w-full truncate rounded border bg-background px-2 py-1 text-xs"
+        data-testid={`select-link-${docId}`}
+      >
+        <option value="">{lib.isLoading ? "Loading library..." : "Not linked"}</option>
+        {paperId && !current && <option value={paperId}>Saved paper (not in library list)</option>}
+        {items.map((i) => <option key={i.id} value={i.paper.id}>{i.paper.title.slice(0, 90)}</option>)}
+      </select>
+      {lib.isError && <p className="mt-1 text-[11px] text-vermilion">Couldn't load library papers.</p>}
+    </div>
+  );
+}
+
 function Documents() {
   const docs = useListDocuments({ query: { queryKey: getListDocumentsQueryKey() } });
   const del = useDeleteDocument();
@@ -204,7 +243,7 @@ function Documents() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted-foreground">Private to you. Files are sent to OpenAI only when you include them in an analysis.</p>
+        <p className="max-w-xl text-sm text-muted-foreground">Private to you. Files are sent to OpenAI only when you explicitly include them in an analysis, or tick "include linked PDFs" for papers they are linked to. Upload only files you have the right to use; delete them here at any time.</p>
         <DocumentUpload />
       </div>
       {docs.isLoading ? (
@@ -235,6 +274,7 @@ function Documents() {
                     {d.status}
                     {d.error ? ` \u2014 ${d.error}` : ""}
                   </p>
+                  <DocLink docId={d.id} paperId={d.paperId} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <a href={getDownloadDocumentUrl(d.id)} target="_blank" rel="noreferrer" className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Open original" data-testid={`link-download-${d.id}`}>

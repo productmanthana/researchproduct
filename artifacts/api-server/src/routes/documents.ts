@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { pool } from "@workspace/db";
-import { RequestDocumentUploadBody } from "@workspace/api-zod";
+import { RequestDocumentUploadBody, LinkDocumentBody } from "@workspace/api-zod";
+import { getPaper } from "../lib/catalogue";
 import { requireUser, uid, routeId, HttpError } from "../lib/common";
 import { storage, documentView, ownedDocument, readDocument, extractPages } from "../lib/documents";
 const router=Router();
@@ -11,12 +12,18 @@ router.get("/documents",requireUser,async(req,res)=>{
 });
 router.post("/documents/upload",requireUser,async(req,res)=>{
   const b=RequestDocumentUploadBody.parse(req.body),owner=uid(req);
-  const total=await pool.query("SELECT coalesce(sum(size),0)::bigint AS bytes,count(*)::int AS n FROM research_documents WHERE owner_id=$1",[owner]);
-  if(Number(total.rows[0].bytes)+b.size>250*1024*1024 || total.rows[0].n>=100) throw new HttpError(429,"Your private library limit is 100 files or 250 MB.");
   const uploadUrl=await storage.getObjectEntityUploadURL();
   const objectPath=storage.normalizeObjectEntityPath(uploadUrl);
-  const {rows}=await pool.query("INSERT INTO research_documents(id,owner_id,name,content_type,size,object_path) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",[randomUUID(),owner,b.name.slice(0,255),b.contentType,b.size,objectPath]);
-  res.json({document:documentView(rows[0]),uploadUrl});
+  const client=await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))",[`uploads:${owner}`]);
+    const total=await client.query("SELECT coalesce(sum(size),0)::bigint AS bytes,count(*)::int AS n FROM research_documents WHERE owner_id=$1",[owner]);
+    if(Number(total.rows[0].bytes)+b.size>250*1024*1024||total.rows[0].n>=100) throw new HttpError(429,"Your private library limit is 100 files or 250 MB.");
+    const {rows}=await client.query("INSERT INTO research_documents(id,owner_id,name,content_type,size,object_path) VALUES($1,$2,$3,$4,$5,$6) RETURNING *",[randomUUID(),owner,b.name.slice(0,255),b.contentType,b.size,objectPath]);
+    await client.query("COMMIT");
+    res.json({document:documentView(rows[0]),uploadUrl});
+  } catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
 });
 router.post("/documents/:id/complete",requireUser,async(req,res)=>{
   const row=await ownedDocument(routeId(req),uid(req));
@@ -43,6 +50,18 @@ router.get("/documents/:id/file",requireUser,async(req,res)=>{
   res.setHeader("X-Content-Type-Options","nosniff");
   res.setHeader("Content-Disposition",`inline; filename*=UTF-8''${encodeURIComponent(row.name)}`);
   res.send(bytes);
+});
+router.patch("/documents/:id",requireUser,async(req,res)=>{
+  const row=await ownedDocument(routeId(req),uid(req));
+  const {paperId}=LinkDocumentBody.parse(req.body);
+  if(paperId) {
+    await getPaper(paperId);
+    if(row.content_type!=="application/pdf") throw new HttpError(400,"Only PDFs can be linked as full-text paper evidence.");
+  }
+  const active=await pool.query("SELECT id FROM research_analyses WHERE owner_id=$1 AND status IN ('queued','running') AND input->'documentIds' ? $2",[uid(req),row.id]);
+  if(active.rowCount) throw new HttpError(409,"Wait until the current analysis completes before changing its document links.");
+  const {rows}=await pool.query("UPDATE research_documents SET paper_id=$3 WHERE id=$1 AND owner_id=$2 RETURNING *",[row.id,uid(req),paperId]);
+  res.json(documentView(rows[0]));
 });
 router.delete("/documents/:id",requireUser,async(req,res)=>{
   const row=await ownedDocument(routeId(req),uid(req));

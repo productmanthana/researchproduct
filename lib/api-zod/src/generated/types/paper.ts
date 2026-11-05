@@ -22,4 +22,8 @@ export interface Paper {
   license: string;
   field: string;
   evidenceLevel: string;
+  type?: string;
+  institutions?: string[];
+  keywords?: string[];
+  tldr?: string;
 }

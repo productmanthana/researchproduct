@@ -36,6 +36,7 @@ export const documents = pgTable("research_documents", {
   contentType: text("content_type").notNull(),
   size: integer("size").notNull(),
   objectPath: text("object_path").notNull(),
+  paperId: text("paper_id").references(() => papers.id, { onDelete:"set null" }),
   status: text("status").notNull().default("uploading"),
   pageCount: integer("page_count").notNull().default(0),
   pages: jsonb("pages").notNull().default([]),

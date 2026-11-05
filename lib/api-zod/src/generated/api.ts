@@ -19,6 +19,10 @@ export const GetAccountResponse = zod.object({
 })
 
 
+export const searchPapersQueryMinCitationsMin = 0;
+
+
+
 export const SearchPapersQueryParams = zod.object({
   "q": zod.coerce.string(),
   "year": zod.coerce.number().int().optional(),
@@ -27,7 +31,9 @@ export const SearchPapersQueryParams = zod.object({
   "sort": zod.coerce.string().optional(),
   "venue": zod.coerce.string().optional(),
   "field": zod.coerce.string().optional(),
-  "publisher": zod.coerce.string().optional()
+  "publisher": zod.coerce.string().optional(),
+  "minCitations": zod.coerce.number().int().min(searchPapersQueryMinCitationsMin).optional(),
+  "sources": zod.coerce.string().optional()
 })
 
 export const SearchPapersResponse = zod.object({
@@ -47,12 +53,23 @@ export const SearchPapersResponse = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 })),
   "total": zod.number().int(),
   "warnings": zod.array(zod.string()),
   "duplicatesRemoved": zod.number().int(),
-  "page": zod.number().int()
+  "page": zod.number().int(),
+  "sourceCounts": zod.array(zod.object({
+  "name": zod.string(),
+  "total": zod.number().int(),
+  "status": zod.string()
+})).optional(),
+  "hasMore": zod.boolean().optional(),
+  "scopeNotice": zod.string().optional()
 })
 
 
@@ -76,7 +93,11 @@ export const GetPaperResponse = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 })
 
 
@@ -105,12 +126,23 @@ export const GetRelatedPapersResponse = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 })),
   "total": zod.number().int(),
   "warnings": zod.array(zod.string()),
   "duplicatesRemoved": zod.number().int(),
-  "page": zod.number().int()
+  "page": zod.number().int(),
+  "sourceCounts": zod.array(zod.object({
+  "name": zod.string(),
+  "total": zod.number().int(),
+  "status": zod.string()
+})).optional(),
+  "hasMore": zod.boolean().optional(),
+  "scopeNotice": zod.string().optional()
 })
 
 
@@ -137,7 +169,24 @@ export const GetLandscapeResponse = zod.object({
   "name": zod.string(),
   "count": zod.number().int()
 })),
-  "notice": zod.string()
+  "notice": zod.string(),
+  "institutions": zod.array(zod.object({
+  "name": zod.string(),
+  "count": zod.number().int()
+})).optional(),
+  "totalWorks": zod.number().int().optional(),
+  "indiaCount": zod.number().int().optional(),
+  "indiaShare": zod.number().nullish(),
+  "scope": zod.string().optional(),
+  "keywords": zod.array(zod.object({
+  "name": zod.string(),
+  "recentCount": zod.number().int(),
+  "earlierCount": zod.number().int(),
+  "recentShare": zod.number(),
+  "earlierShare": zod.number(),
+  "changePoints": zod.number()
+})).optional(),
+  "updatedAt": zod.string().optional()
 })
 
 
@@ -175,6 +224,20 @@ export const GetUsageResponse = zod.object({
 })
 
 
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemProblemTextMax = 2000;
+
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemMethodTextMax = 2000;
+
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemDatasetTextMax = 2000;
+
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemMetricsTextMax = 2000;
+
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemResultsTextMax = 2000;
+
+export const getSummaryResponseRecentAnalysesItemComparisonRowsItemLimitationsTextMax = 2000;
+
+
+
 export const GetSummaryResponse = zod.object({
   "savedPapers": zod.number().int(),
   "projects": zod.number().int(),
@@ -200,17 +263,78 @@ export const GetSummaryResponse = zod.object({
   "sourceId": zod.string(),
   "quote": zod.string(),
   "page": zod.number().int().nullable()
-}))
+})),
+  "section": zod.string().optional()
 })),
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "url": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(getSummaryResponseRecentAnalysesItemComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional()
 }))
 })
 
@@ -306,7 +430,11 @@ export const ListLibraryResponseItem = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 }),
   "projectId": zod.string().nullable(),
   "notes": zod.string(),
@@ -341,7 +469,11 @@ export const SavePaperResponse = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 }),
   "projectId": zod.string().nullable(),
   "notes": zod.string(),
@@ -382,7 +514,11 @@ export const UpdateLibraryItemResponse = zod.object({
   "sources": zod.array(zod.string()),
   "license": zod.string(),
   "field": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "type": zod.string().optional(),
+  "institutions": zod.array(zod.string()).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "tldr": zod.string().optional()
 }),
   "projectId": zod.string().nullable(),
   "notes": zod.string(),
@@ -408,7 +544,8 @@ export const ListDocumentsResponseItem = zod.object({
   "status": zod.string(),
   "pageCount": zod.number().int(),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "paperId": zod.string().nullish()
 })
 export const ListDocumentsResponse = zod.array(ListDocumentsResponseItem)
 
@@ -433,7 +570,8 @@ export const RequestDocumentUploadResponse = zod.object({
   "status": zod.string(),
   "pageCount": zod.number().int(),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "paperId": zod.string().nullish()
 }),
   "uploadUrl": zod.string()
 })
@@ -451,7 +589,8 @@ export const CompleteDocumentUploadResponse = zod.object({
   "status": zod.string(),
   "pageCount": zod.number().int(),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "paperId": zod.string().nullish()
 })
 
 
@@ -462,6 +601,41 @@ export const DeleteDocumentParams = zod.object({
 export const DeleteDocumentResponse = zod.object({
   "status": zod.string()
 })
+
+
+export const LinkDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const LinkDocumentBody = zod.object({
+  "paperId": zod.string().nullable()
+})
+
+export const LinkDocumentResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number().int(),
+  "status": zod.string(),
+  "pageCount": zod.number().int(),
+  "error": zod.string(),
+  "createdAt": zod.string(),
+  "paperId": zod.string().nullish()
+})
+
+
+export const listAnalysesResponseComparisonRowsItemProblemTextMax = 2000;
+
+export const listAnalysesResponseComparisonRowsItemMethodTextMax = 2000;
+
+export const listAnalysesResponseComparisonRowsItemDatasetTextMax = 2000;
+
+export const listAnalysesResponseComparisonRowsItemMetricsTextMax = 2000;
+
+export const listAnalysesResponseComparisonRowsItemResultsTextMax = 2000;
+
+export const listAnalysesResponseComparisonRowsItemLimitationsTextMax = 2000;
+
 
 
 export const ListAnalysesResponseItem = zod.object({
@@ -476,17 +650,78 @@ export const ListAnalysesResponseItem = zod.object({
   "sourceId": zod.string(),
   "quote": zod.string(),
   "page": zod.number().int().nullable()
-}))
+})),
+  "section": zod.string().optional()
 })),
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "url": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(listAnalysesResponseComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional()
 })
 export const ListAnalysesResponse = zod.array(ListAnalysesResponseItem)
 
@@ -494,14 +729,35 @@ export const ListAnalysesResponse = zod.array(ListAnalysesResponseItem)
 export const createAnalysisBodyQuestionMin = 5;
 export const createAnalysisBodyQuestionMax = 2000;
 
+export const createAnalysisBodyPageNumbersItemMax = 50;
+
+export const createAnalysisBodyPageNumbersMax = 3;
+
 
 
 export const CreateAnalysisBody = zod.object({
   "kind": zod.enum(['answer', 'review', 'image']),
   "question": zod.string().min(createAnalysisBodyQuestionMin).max(createAnalysisBodyQuestionMax),
   "paperIds": zod.array(zod.string()).optional(),
-  "documentIds": zod.array(zod.string()).optional()
+  "documentIds": zod.array(zod.string()).optional(),
+  "includeLinkedDocuments": zod.boolean().optional(),
+  "pageNumbers": zod.array(zod.number().int().min(1).max(createAnalysisBodyPageNumbersItemMax)).max(createAnalysisBodyPageNumbersMax).optional(),
+  "aiConsent": zod.literal(true)
 })
+
+export const createAnalysisResponseComparisonRowsItemProblemTextMax = 2000;
+
+export const createAnalysisResponseComparisonRowsItemMethodTextMax = 2000;
+
+export const createAnalysisResponseComparisonRowsItemDatasetTextMax = 2000;
+
+export const createAnalysisResponseComparisonRowsItemMetricsTextMax = 2000;
+
+export const createAnalysisResponseComparisonRowsItemResultsTextMax = 2000;
+
+export const createAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
+
+
 
 export const CreateAnalysisResponse = zod.object({
   "id": zod.string(),
@@ -515,23 +771,98 @@ export const CreateAnalysisResponse = zod.object({
   "sourceId": zod.string(),
   "quote": zod.string(),
   "page": zod.number().int().nullable()
-}))
+})),
+  "section": zod.string().optional()
 })),
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "url": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(createAnalysisResponseComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional()
 })
 
 
 export const GetAnalysisParams = zod.object({
   "id": zod.coerce.string()
 })
+
+export const getAnalysisResponseComparisonRowsItemProblemTextMax = 2000;
+
+export const getAnalysisResponseComparisonRowsItemMethodTextMax = 2000;
+
+export const getAnalysisResponseComparisonRowsItemDatasetTextMax = 2000;
+
+export const getAnalysisResponseComparisonRowsItemMetricsTextMax = 2000;
+
+export const getAnalysisResponseComparisonRowsItemResultsTextMax = 2000;
+
+export const getAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
+
+
 
 export const GetAnalysisResponse = zod.object({
   "id": zod.string(),
@@ -545,17 +876,78 @@ export const GetAnalysisResponse = zod.object({
   "sourceId": zod.string(),
   "quote": zod.string(),
   "page": zod.number().int().nullable()
-}))
+})),
+  "section": zod.string().optional()
 })),
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "url": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(getAnalysisResponseComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional()
 })
 
 
@@ -565,11 +957,98 @@ export const UpdateAnalysisParams = zod.object({
 
 export const updateAnalysisBodyContentMax = 100000;
 
+export const updateAnalysisBodyComparisonRowsItemProblemTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsItemMethodTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsItemDatasetTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsItemMetricsTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsItemResultsTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsItemLimitationsTextMax = 2000;
+
+export const updateAnalysisBodyComparisonRowsMax = 50;
+
 
 
 export const UpdateAnalysisBody = zod.object({
-  "content": zod.string().max(updateAnalysisBodyContentMax)
+  "content": zod.string().max(updateAnalysisBodyContentMax).optional(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(updateAnalysisBodyComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
 })
+})).max(updateAnalysisBodyComparisonRowsMax).optional()
+})
+
+export const updateAnalysisResponseComparisonRowsItemProblemTextMax = 2000;
+
+export const updateAnalysisResponseComparisonRowsItemMethodTextMax = 2000;
+
+export const updateAnalysisResponseComparisonRowsItemDatasetTextMax = 2000;
+
+export const updateAnalysisResponseComparisonRowsItemMetricsTextMax = 2000;
+
+export const updateAnalysisResponseComparisonRowsItemResultsTextMax = 2000;
+
+export const updateAnalysisResponseComparisonRowsItemLimitationsTextMax = 2000;
+
+
 
 export const UpdateAnalysisResponse = zod.object({
   "id": zod.string(),
@@ -583,17 +1062,78 @@ export const UpdateAnalysisResponse = zod.object({
   "sourceId": zod.string(),
   "quote": zod.string(),
   "page": zod.number().int().nullable()
-}))
+})),
+  "section": zod.string().optional()
 })),
   "sources": zod.array(zod.object({
   "id": zod.string(),
   "title": zod.string(),
   "url": zod.string(),
-  "evidenceLevel": zod.string()
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional()
 })),
   "warnings": zod.array(zod.string()),
   "error": zod.string(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(updateAnalysisResponseComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional()
 })
 
 

@@ -4,8 +4,11 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { ComparisonRow } from './comparisonRow';
 
 export interface AnalysisUpdate {
   /** @maxLength 100000 */
-  content: string;
+  content?: string;
+  /** @maxItems 50 */
+  comparisonRows?: ComparisonRow[];
 }

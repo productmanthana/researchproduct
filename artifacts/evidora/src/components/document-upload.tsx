@@ -22,7 +22,11 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
   const request = useRequestDocumentUpload();
   const complete = useCompleteDocumentUpload();
 
-  const fileError = file && !TYPES.includes(file.type) ? "Only PDF, PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
+  // Some operating systems report a generic MIME type for valid files. The
+  // server independently verifies their magic bytes before accepting them.
+  const extensionTypes:Record<string,string>={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
+  const contentType=file?(!file.type||file.type==="application/octet-stream"?extensionTypes[file.name.split(".").pop()?.toLowerCase()??""]??file.type:file.type):"";
+  const fileError = file && !TYPES.includes(contentType) ? "Only PDF, PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
   const busy = stage !== "idle";
 
   const reset = () => {
@@ -36,10 +40,10 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
     try {
       setStage("ticket");
       const ticket = await request.mutateAsync({
-        data: { name: file.name, contentType: file.type as UploadInputContentType, size: file.size, rightsConfirmed: true },
+        data: { name: file.name, contentType: contentType as UploadInputContentType, size: file.size, rightsConfirmed: true },
       });
       setStage("put");
-      const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      const put = await fetch(ticket.uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: file });
       if (!put.ok) throw new Error(`Upload failed (${put.status})`);
       setStage("complete");
       const doc = await complete.mutateAsync({ id: ticket.document.id });

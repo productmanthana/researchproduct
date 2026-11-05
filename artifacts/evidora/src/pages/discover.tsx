@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useUser } from "@clerk/react";
 import { useSearchPapers, getSearchPapersQueryKey, useGetSummary, getGetSummaryQueryKey, type SearchPapersParams } from "@workspace/api-client-react";
-import { ArrowRight, ChevronLeft, ChevronRight, Compass, Search, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Compass, Info, Search, SlidersHorizontal, TriangleAlert, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,8 @@ import { PaperRow, useSavedIds } from "@/components/paper-row";
 import { EmptyState, ErrorState, PageHeader, RowSkeleton } from "@/components/states";
 import { selection, useSelection } from "@/lib/selection";
 import { num } from "@/lib/format";
+
+const SOURCES = ["OpenAlex", "Crossref", "arXiv", "dblp", "DataCite", "Europe PMC", "DOAJ"];
 
 function DeskStrip() {
   const { isSignedIn } = useUser();
@@ -61,6 +63,8 @@ export default function Discover() {
   const [oa, setOa] = useState(false);
   const [sort, setSort] = useState("relevance");
   const [page, setPage] = useState(1);
+  const [srcs, setSrcs] = useState<string[]>([]);
+  const [minCit, setMinCit] = useState("");
   const saved = useSavedIds();
   const sel = useSelection();
 
@@ -71,9 +75,11 @@ export default function Discover() {
   if (publisher) params.publisher = publisher;
   if (oa) params.oa = true;
   if (sort !== "relevance") params.sort = sort;
+  if (srcs.length) params.sources = srcs.join(",");
+  if (minCit && Number(minCit) > 0) params.minCitations = Math.floor(Number(minCit));
 
   const res = useSearchPapers(params, { query: { enabled: urlQ.length > 1, queryKey: getSearchPapersQueryKey(params) } });
-  const activeFilters = [year && `Year ${year}`, venue && venue, field && field, publisher && publisher, oa && "Open access"].filter(Boolean) as string[];
+  const activeFilters = [year && `Year ${year}`, venue && venue, field && field, publisher && publisher, oa && "Open access", minCit && Number(minCit) > 0 && `>= ${minCit} citations`, srcs.length > 0 && `Sources: ${srcs.join(", ")}`].filter(Boolean) as string[];
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -86,6 +92,8 @@ export default function Discover() {
     setField("");
     setPublisher("");
     setOa(false);
+    setSrcs([]);
+    setMinCit("");
     setPage(1);
   };
 
@@ -127,6 +135,20 @@ export default function Discover() {
             Open access only
             <Switch checked={oa} onCheckedChange={(v) => { setOa(v); setPage(1); }} data-testid="switch-filter-oa" />
           </label>
+          <Input type="number" min={0} placeholder="Min. citations" value={minCit} onChange={(e) => { setMinCit(e.target.value); setPage(1); }} data-testid="input-filter-min-citations" />
+          <div className="sm:col-span-2 lg:col-span-5">
+            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Sources {srcs.length === 0 && <span className="normal-case tracking-normal">(all available)</span>}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {SOURCES.map((sname) => {
+                const on = srcs.includes(sname);
+                return (
+                  <button key={sname} type="button" onClick={() => { setSrcs((x) => (on ? x.filter((y) => y !== sname) : [...x, sname])); setPage(1); }} className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:border-foreground/40"}`} aria-pressed={on} data-testid={`toggle-source-${sname}`}>
+                    {sname}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
       {activeFilters.length > 0 && (
@@ -155,6 +177,22 @@ export default function Discover() {
                 page {res.data.page} &middot; {res.data.duplicatesRemoved} duplicates merged
               </p>
             </div>
+            {res.data.scopeNotice && (
+              <p className="mb-3 flex items-start gap-2 rounded border bg-card px-3 py-2 text-xs text-muted-foreground" data-testid="text-scope-notice"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {res.data.scopeNotice}</p>
+            )}
+            {!!res.data.sourceCounts?.length && (
+              <div className="mb-3 rounded border bg-card px-3 py-2" data-testid="section-source-counts">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Matches reported by each provider (indexes overlap, so these are not added together)</p>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  {res.data.sourceCounts.map((c) => (
+                    <span key={c.name} className="inline-flex items-center gap-1.5" data-testid={`text-source-count-${c.name}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${c.status === "ok" || c.status === "live" ? "bg-leaf" : c.status === "error" || c.status === "failed" ? "bg-vermilion" : "bg-turmeric"}`} />
+                      {c.name} <span className="font-mono">{c.status === "ok" || c.status === "live" || c.total > 0 ? num(c.total) : c.status}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {res.data.warnings.map((w) => (
               <p key={w} className="mb-3 flex items-center gap-2 rounded border border-[hsl(var(--turmeric)/0.6)] bg-[hsl(var(--turmeric)/0.12)] px-3 py-2 text-sm" data-testid="text-search-warning">
                 <TriangleAlert className="h-4 w-4 shrink-0 text-[hsl(30_70%_35%)]" /> {w}
@@ -177,7 +215,7 @@ export default function Discover() {
                     <ChevronLeft className="mr-1 h-4 w-4" /> Previous
                   </Button>
                   <span className="font-mono text-xs text-muted-foreground">Page {page}</span>
-                  <Button variant="outline" size="sm" disabled={res.data.papers.length === 0} onClick={() => setPage((p) => p + 1)} data-testid="button-next-page">
+                  <Button variant="outline" size="sm" disabled={res.data.hasMore === false || res.data.papers.length === 0} onClick={() => setPage((p) => p + 1)} data-testid="button-next-page">
                     Next <ChevronRight className="ml-1 h-4 w-4" />
                   </Button>
                 </div>
@@ -190,7 +228,7 @@ export default function Discover() {
       {sel.length > 0 && (
         <div className="fixed bottom-4 left-1/2 z-40 flex w-[min(640px,calc(100%-2rem))] -translate-x-1/2 items-center gap-3 rounded-lg bg-sidebar px-4 py-3 text-sidebar-foreground shadow-2xl animate-in slide-in-from-bottom-4 lg:ml-30" data-testid="tray-selection">
           <span className="flex h-7 min-w-7 items-center justify-center rounded bg-vermilion px-1.5 font-mono text-sm text-white">{sel.length}</span>
-          <span className="flex-1 text-sm">papers selected for analysis</span>
+          <span className="flex-1 text-sm">papers selected across pages{sel.length < 10 ? <span className="opacity-70"> &middot; reviews need 10-50</span> : sel.length > 50 ? <span className="text-turmeric"> &middot; over the 50 review limit</span> : <span className="opacity-70"> &middot; ready for a review</span>}</span>
           <button onClick={() => selection.clear()} className="rounded p-1.5 hover:bg-sidebar-accent" title="Clear selection" data-testid="button-clear-selection">
             <X className="h-4 w-4" />
           </button>

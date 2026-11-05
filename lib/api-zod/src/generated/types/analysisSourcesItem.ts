@@ -10,4 +10,5 @@ export type AnalysisSourcesItem = {
   title: string;
   url: string;
   evidenceLevel: string;
+  verification?: string;
 };

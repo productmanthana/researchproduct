@@ -2,7 +2,7 @@ import { ObjectStorageService } from "./objectStorage";
 import { HttpError, iso } from "./common";
 import { pool } from "@workspace/db";
 export const storage=new ObjectStorageService();
-export const documentView=(r:any)=>({id:r.id,name:r.name,contentType:r.content_type,size:r.size,status:r.status,pageCount:r.page_count,error:r.error,createdAt:iso(r.created_at)});
+export const documentView=(r:any)=>({id:r.id,name:r.name,contentType:r.content_type,size:r.size,status:r.status,pageCount:r.page_count,error:r.error,paperId:r.paper_id??null,createdAt:iso(r.created_at)});
 export async function ownedDocument(id:string,owner:string) {
   const {rows}=await pool.query("SELECT * FROM research_documents WHERE id=$1 AND owner_id=$2",[id,owner]);
   if(!rows[0]) throw new HttpError(404,"Document not found.");

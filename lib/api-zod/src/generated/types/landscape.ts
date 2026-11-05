@@ -6,6 +6,8 @@
  */
 import type { LandscapeAuthorsItem } from './landscapeAuthorsItem';
 import type { LandscapeFieldsItem } from './landscapeFieldsItem';
+import type { LandscapeInstitutionsItem } from './landscapeInstitutionsItem';
+import type { LandscapeKeywordsItem } from './landscapeKeywordsItem';
 import type { LandscapeVenuesItem } from './landscapeVenuesItem';
 import type { LandscapeYearsItem } from './landscapeYearsItem';
 
@@ -17,4 +19,12 @@ export interface Landscape {
   authors: LandscapeAuthorsItem[];
   fields: LandscapeFieldsItem[];
   notice: string;
+  institutions?: LandscapeInstitutionsItem[];
+  totalWorks?: number;
+  indiaCount?: number;
+  /** @nullable */
+  indiaShare?: number | null;
+  scope?: string;
+  keywords?: LandscapeKeywordsItem[];
+  updatedAt?: string;
 }

@@ -17,6 +17,7 @@ async function buildAll() {
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
+    loader: { ".csl": "text" },
     bundle: true,
     format: "esm",
     outdir: distDir,
@@ -29,6 +30,8 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "pdfjs-dist",
+      "@citation-js/core",
+      "@citation-js/plugin-csl",
       "@napi-rs/canvas",
       "*.node",
       "sharp",

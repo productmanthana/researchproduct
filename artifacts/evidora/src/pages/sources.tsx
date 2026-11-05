@@ -4,8 +4,8 @@ import { ErrorState, PageHeader, RowSkeleton } from "@/components/states";
 
 function tone(status: string) {
   const s = status.toLowerCase();
-  if (s.includes("ok") || s.includes("operational") || s.includes("active") || s.includes("up")) return { dot: "bg-leaf", text: "text-leaf" };
-  if (s.includes("partial") || s.includes("degrad") || s.includes("limited")) return { dot: "bg-turmeric pulse-dot", text: "text-[hsl(30_70%_35%)]" };
+  if (s === "connected" || s.includes("operational") || s === "active") return { dot: "bg-leaf", text: "text-leaf" };
+  if (s.includes("partial") || s.includes("degrad") || s.includes("limited") || s.includes("not checked")) return { dot: "bg-turmeric pulse-dot", text: "text-[hsl(30_70%_35%)]" };
   return { dot: "bg-vermilion", text: "text-vermilion" };
 }
 

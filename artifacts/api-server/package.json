@@ -7,9 +7,12 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node ./test.mjs"
   },
   "dependencies": {
+    "@citation-js/core": "^0.9.0",
+    "@citation-js/plugin-csl": "^0.9.0",
     "@clerk/express": "^2.1.87",
     "@clerk/shared": "^4.44.0",
     "@google-cloud/storage": "^8.4.0",

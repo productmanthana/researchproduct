@@ -29,7 +29,17 @@ export interface Paper {
   license: string;
   field: string;
   evidenceLevel: string;
+  type?: string;
+  institutions?: string[];
+  keywords?: string[];
+  tldr?: string;
 }
+
+export type SearchResultsSourceCountsItem = {
+  name: string;
+  total: number;
+  status: string;
+};
 
 export interface SearchResults {
   papers: Paper[];
@@ -37,6 +47,9 @@ export interface SearchResults {
   warnings: string[];
   duplicatesRemoved: number;
   page: number;
+  sourceCounts?: SearchResultsSourceCountsItem[];
+  hasMore?: boolean;
+  scopeNotice?: string;
 }
 
 export interface Project {
@@ -94,6 +107,8 @@ export interface Document {
   pageCount: number;
   error: string;
   createdAt: string;
+  /** @nullable */
+  paperId?: string | null;
 }
 
 export type UploadInputContentType = typeof UploadInputContentType[keyof typeof UploadInputContentType];
@@ -140,6 +155,14 @@ export interface AnalysisInput {
   question: string;
   paperIds?: string[];
   documentIds?: string[];
+  includeLinkedDocuments?: boolean;
+  /**
+     * @maxItems 3
+     * @items.minimum 1
+     * @items.maximum 50
+     */
+  pageNumbers?: number[];
+  aiConsent: true;
 }
 
 export type ClaimEvidenceItem = {
@@ -152,6 +175,7 @@ export type ClaimEvidenceItem = {
 export interface Claim {
   text: string;
   evidence: ClaimEvidenceItem[];
+  section?: string;
 }
 
 export type AnalysisSourcesItem = {
@@ -159,7 +183,43 @@ export type AnalysisSourcesItem = {
   title: string;
   url: string;
   evidenceLevel: string;
+  verification?: string;
 };
+
+export type ComparisonCellStatus = typeof ComparisonCellStatus[keyof typeof ComparisonCellStatus];
+
+
+export const ComparisonCellStatus = {
+  verified: 'verified',
+  not_reported: 'not_reported',
+  edited: 'edited',
+} as const;
+
+export type ComparisonCellEvidenceItem = {
+  sourceId: string;
+  quote: string;
+  /** @nullable */
+  page: number | null;
+};
+
+export interface ComparisonCell {
+  /** @maxLength 2000 */
+  text: string;
+  evidence: ComparisonCellEvidenceItem[];
+  status: ComparisonCellStatus;
+}
+
+export interface ComparisonRow {
+  paperId: string;
+  title: string;
+  evidenceLevel: string;
+  problem: ComparisonCell;
+  method: ComparisonCell;
+  dataset: ComparisonCell;
+  metrics: ComparisonCell;
+  results: ComparisonCell;
+  limitations: ComparisonCell;
+}
 
 export interface Analysis {
   id: string;
@@ -172,11 +232,14 @@ export interface Analysis {
   warnings: string[];
   error: string;
   createdAt: string;
+  comparisonRows?: ComparisonRow[];
 }
 
 export interface AnalysisUpdate {
   /** @maxLength 100000 */
-  content: string;
+  content?: string;
+  /** @maxItems 50 */
+  comparisonRows?: ComparisonRow[];
 }
 
 export interface Plan {
@@ -237,6 +300,20 @@ export type LandscapeFieldsItem = {
   count: number;
 };
 
+export type LandscapeInstitutionsItem = {
+  name: string;
+  count: number;
+};
+
+export type LandscapeKeywordsItem = {
+  name: string;
+  recentCount: number;
+  earlierCount: number;
+  recentShare: number;
+  earlierShare: number;
+  changePoints: number;
+};
+
 export interface Landscape {
   query: string;
   sampleSize: number;
@@ -245,6 +322,14 @@ export interface Landscape {
   authors: LandscapeAuthorsItem[];
   fields: LandscapeFieldsItem[];
   notice: string;
+  institutions?: LandscapeInstitutionsItem[];
+  totalWorks?: number;
+  indiaCount?: number;
+  /** @nullable */
+  indiaShare?: number | null;
+  scope?: string;
+  keywords?: LandscapeKeywordsItem[];
+  updatedAt?: string;
 }
 
 export interface Account {
@@ -252,6 +337,11 @@ export interface Account {
   /** @nullable */
   userId: string | null;
   role: string;
+}
+
+export interface DocumentLink {
+  /** @nullable */
+  paperId: string | null;
 }
 
 export type SearchPapersParams = {
@@ -263,6 +353,11 @@ sort?: string;
 venue?: string;
 field?: string;
 publisher?: string;
+/**
+ * @minimum 0
+ */
+minCitations?: number;
+sources?: string;
 };
 
 export type GetRelatedPapersParams = {

@@ -43,7 +43,9 @@ Live search adapters for OpenAlex, Crossref and arXiv, conservative deduplicatio
 
 Paid upgrades are deliberately disabled. Prices: Student ₹499 (20/1/10), Researcher ₹999 (60/3/30), Faculty/Pro ₹1,999 (150/6/60): answers/reviews/images per month. Starter allowance is 3/1/2 lifetime.
 
-Not yet delivered: full-corpus ingestion/vector retrieval, additional source integrations, publisher licences, institution administration and institution/India-share analytics, comprehensive structured method/dataset/result extraction, full journal-style formatting. Phase 2 writing/thesis tools remain out of scope.
+Live discovery queries OpenAlex (authenticated), Crossref, arXiv, dblp, DataCite, Europe PMC and DOAJ, with per-provider totals and explicit partial-result warnings. OpenAlex aggregation supplies institutions, India share and keyword comparisons. Reviews include editable, evidence-checked per-paper extraction and CSL IEEE/APA exports. Linked private PDFs require explicit per-run consent.
+
+External dependencies still required for optional CORE/Semantic Scholar commercial access, Unpaywall contact configuration, OpenCitations token and publisher full-text licences. Institution administration and Phase 2 writing/thesis tools remain outside Phase 1. Full-corpus hosting is intentionally excluded by the user's choice of live provider catalogues.
 
 ## User preferences
 
