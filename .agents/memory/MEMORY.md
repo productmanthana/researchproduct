@@ -1,2 +1,3 @@
 - [Dependency generation quirks](dependency-generation.md) — Orval export collisions and Vite cache invalidation after React version changes.
 - [Full-text verification](full-text-verification.md) — metadata availability is not proof of a retrievable, readable, reusable PDF.
+- [Operating budget](operating-budget.md) — ₹30,000/month including OpenAI; quality and accuracy prioritized; Replit excluded from comparisons.
