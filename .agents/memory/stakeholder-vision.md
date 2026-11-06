@@ -13,3 +13,9 @@ For the Evidora stakeholder presentation, the user wants detailed, pointwise exp
 **Why:** The user rejected the five-slide version as “too short and not clear” and repeated the need for separate feature explanations.
 
 **How to apply:** Expand the number of slides rather than compressing several capabilities into a brief overview. Keep descriptions of current foundations separate from proposed integrated workflows.
+
+In stakeholder slides, omit provider names such as OpenAlex and explanations about PDFs not being stored. Focus on researcher benefits instead.
+
+**Why:** The user explicitly requested removing these details from the presentation.
+
+**How to apply:** Describe scholarly discovery, natural-language questions, deduplication and traceable evidence without infrastructure detail. Keep coverage and access claims accurate without implying every indexed work has accessible full text.
