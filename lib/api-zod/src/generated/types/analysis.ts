@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { AnalysisMode } from './analysisMode';
+import type { AnalysisResponseMode } from './analysisResponseMode';
 import type { AnalysisSourcesItem } from './analysisSourcesItem';
 import type { Claim } from './claim';
 import type { ComparisonRow } from './comparisonRow';
@@ -22,6 +23,13 @@ export interface Analysis {
   question: string;
   status: string;
   content: string;
+  responseMode?: AnalysisResponseMode;
+  /** @nullable */
+  draftContent?: string | null;
+  /** @nullable */
+  draftRevision?: number | null;
+  /** @nullable */
+  draftProvenance?: string | null;
   claims: Claim[];
   sources: AnalysisSourcesItem[];
   warnings: string[];

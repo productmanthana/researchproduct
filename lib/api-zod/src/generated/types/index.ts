@@ -7,9 +7,11 @@
 
 export * from './account';
 export * from './analysis';
+export * from './analysisDraftUpdate';
 export * from './analysisInput';
 export * from './analysisInputKind';
 export * from './analysisMode';
+export * from './analysisResponseMode';
 export * from './analysisSourcesItem';
 export * from './analysisUpdate';
 export * from './claim';

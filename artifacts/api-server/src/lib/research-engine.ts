@@ -15,6 +15,10 @@ import { academicContent } from "./research-writing";
 import { researchCurrency } from "./publication-currency";
 import { checkedSynthesis } from "./synthesis-pipeline";
 import { evidenceQuestion } from "./synthesis-prompts";
+import { decideAskIntent } from "./ask-intent";
+import { conversationContext } from "./ask-discovery";
+import { routeAskIntent } from "./ask-intent";
+import { usageStatusForResult } from "./analysis-draft";
 
 // All plans use the same agreed model and evidence checks.
 const MODEL="gpt-4.1";
@@ -85,6 +89,19 @@ export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSo
   return sources;
 }
 async function runAnalysis(job:any) {
+  let intentTokens={input:0,output:0};
+  if(job.input.guided) {
+    const {history}=await conversationContext(job);
+    await researchProgress(job,"planning");
+    const intent=await decideAskIntent(job.question,history);
+    intentTokens={input:intent.usage?.prompt_tokens??0,output:intent.usage?.completion_tokens??0};
+    const routed=routeAskIntent(intent.decision);
+    if(routed.kind==="guidance") {
+      const result={responseMode:"guidance",content:routed.reply,claims:[],sources:[],warnings:[],comparisonRows:[]};
+      return {result,inputTokens:intentTokens.input,outputTokens:intentTokens.output};
+    }
+    job.question=routed.question;
+  }
   await discoverForQuestion(job);
   await researchProgress(job,"reading");
   const papers=await Promise.all((job.input.paperIds??[]).map((id:string)=>getPaper(id)));
@@ -133,7 +150,7 @@ async function runAnalysis(job:any) {
   const currency=citedPapers.length?researchCurrency(citedPapers):"";
   const content=academicContent({kind:job.kind,claims:supported,sources:refs,limitations:academicLimitations,currency});
   logger.info({jobId:job.id,validation},"Research claim validation completed");
-  return {result:{content,formatVersion:2,academicLimitations,validation,claims:supported,sources:refs,warnings,comparisonRows:comparison.rows},inputTokens:comparison.inputTokens+synthesis.inputTokens,outputTokens:comparison.outputTokens+synthesis.outputTokens};
+  return {result:{content,formatVersion:2,responseMode:"research",academicLimitations,validation,claims:supported,sources:refs,warnings,comparisonRows:comparison.rows},inputTokens:intentTokens.input+comparison.inputTokens+synthesis.inputTokens,outputTokens:intentTokens.output+comparison.outputTokens+synthesis.outputTokens};
 }
 let busy=false;
 export async function processNextAnalysis() {
@@ -153,7 +170,7 @@ export async function processNextAnalysis() {
     try {
       await client.query("BEGIN");
       await client.query("UPDATE research_analyses SET result=$2,status='completed' WHERE id=$1 AND status='running'",[job.id,JSON.stringify(result.result)]);
-      await client.query("UPDATE research_usage SET status=$4,input_tokens=$2,output_tokens=$3 WHERE id=$1 AND status='reserved'",[job.id,result.inputTokens,result.outputTokens,result.result.claims.length?"completed":"refunded"]);
+      await client.query("UPDATE research_usage SET status=$4,input_tokens=$2,output_tokens=$3 WHERE id=$1 AND status='reserved'",[job.id,result.inputTokens,result.outputTokens,usageStatusForResult(result.result)]);
       await client.query("COMMIT");
     } catch(e) { await client.query("ROLLBACK"); throw e; } finally {client.release();}
     logger.info({jobId:job.id,inputTokens:result.inputTokens,outputTokens:result.outputTokens,model:MODEL},"Research analysis completed");

@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { usageLimitMessage, allUsageLimitMessages } from "./usage-limits";
+import { markdownSections, replaceMarkdownSection } from "../pages/draft-markdown";
+import { askSendDisabled } from "../pages/ask-workspace-state";
 
 test("Limit notices distinguish allowances, trials, unlimited accounts and shared budgets",()=>{
   const base={plan:"trial",period:"starter",answersUsed:3,answersLimit:3,reviewsUsed:0,reviewsLimit:1,imagesUsed:0,imagesLimit:2,paymentsEnabled:false,aiServiceRemainingInr:100};
@@ -13,4 +15,23 @@ test("Limit notices distinguish allowances, trials, unlimited accounts and share
   assert.equal(allUsageLimitMessages({...unlimited,aiServiceRemainingInr:0}).length,1);
   assert.match(usageLimitMessage({...unlimited,aiServiceRemainingInr:0},"answer")??"",/including for unlimited accounts/);
   assert.equal(allUsageLimitMessages(undefined).length,0);
+});
+test("Editing a Markdown section preserves all unedited document and reference text byte-for-byte",()=>{
+  const original="# Working research draft\n\n> Source-based draft.\n\n## Evidence-grounded synthesis\n\nFirst paragraph [1].\n\nSecond paragraph [2].\n\n## References\n\n[1] Actual source one.\n\n[2] Actual source two.";
+  const sections=markdownSections(original);
+  const evidence=sections.find(section=>section.title==="Evidence-grounded synthesis");
+  const references=sections.find(section=>section.title==="References");
+  assert.ok(evidence);assert.ok(references);
+  assert.equal(replaceMarkdownSection(original,evidence,evidence.body),original);
+  const edited=replaceMarkdownSection(original,evidence,`${evidence.body}\nAn authored paragraph.`);
+  assert.ok(edited.startsWith(original.slice(0,evidence.bodyStart)));
+  assert.ok(edited.endsWith(original.slice(evidence.bodyEnd)));
+  assert.match(edited,/\[1\] Actual source one\.\n\n\[2\] Actual source two\.$/);
+  assert.match(edited,/First paragraph \[1\]\.\n\nSecond paragraph \[2\]\.\nAn authored paragraph\./);
+  assert.equal(original.includes("Authored paragraph"),false);
+});
+test("A reached answer limit remains actionable while other blocked sends stay disabled",()=>{
+  assert.equal(askSendDisabled({limitReached:true,blocked:true,pending:false,loading:true}),false);
+  assert.equal(askSendDisabled({limitReached:false,blocked:true,pending:false,loading:false}),true);
+  assert.equal(askSendDisabled({limitReached:false,blocked:false,pending:true,loading:false}),true);
 });

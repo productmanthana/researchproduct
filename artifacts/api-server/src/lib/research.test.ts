@@ -19,6 +19,8 @@ import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } 
 import { matchesSearchFocus } from "./search-focus";
 import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
 import { synthesisPrompt, evidenceQuestion } from "./synthesis-prompts";
+import { routeAskIntent, validateAskIntent } from "./ask-intent";
+import { makeDraftRevision, usageStatusForResult, withDraftPreservingAnswer } from "./analysis-draft";
 const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
   text:"Adaptive pitch control reduced simulated power fluctuations. "+"Detailed study conditions and distinct reported outcomes support further explanation. ".repeat(110)};
 const depthClaim=(text:string,section="Evidence-based findings")=>({text,section,evidence:[{sourceId:depthSource.id,quote:"Adaptive pitch control reduced simulated power fluctuations.",page:2}]});
@@ -362,15 +364,41 @@ test("Ask ancestry cannot cross owners and preserves the selected conversation c
   const owner=`ask-test-${randomUUID()}`,other=`ask-test-${randomUUID()}`,parent=randomUUID();
   try{
     await pool.query("INSERT INTO research_accounts(id) VALUES($1),($2)",[owner,other]);
+    const originalQuestion="I am curious about wind turbines";
     await pool.query(`INSERT INTO research_analyses(id,owner_id,kind,question,status,input,result)
-      VALUES($1,$2,'answer','Wind turbine efficiency','completed',$3,$4)`,[parent,owner,JSON.stringify({autoDiscover:true,paperIds:["source-a"],conversationId:parent}),JSON.stringify({content:"A verified prior answer."})]);
+      VALUES($1,$2,'answer',$3,'completed',$4,$5)`,[parent,owner,originalQuestion,JSON.stringify({autoDiscover:true,paperIds:["source-a"],conversationId:parent,resolvedQuestion:"How do turbine control methods compare?"}),JSON.stringify({content:"A verified prior answer."})]);
     const context=await conversationContext({owner_id:owner,input:{parentAnalysisId:parent}});
-    assert.equal(context.history[0].question,"Wind turbine efficiency");
+    assert.equal(context.history[0].question,originalQuestion);
     assert.deepEqual(context.previous.input.paperIds,["source-a"]);
     await assert.rejects(conversationContext({owner_id:other,input:{parentAnalysisId:parent}}),/previous answer is unavailable/);
   }finally{
     await pool.query("DELETE FROM research_analyses WHERE id=$1",[parent]);
     await pool.query("DELETE FROM research_accounts WHERE id=ANY($1::text[])",[[owner,other]]);
+  }
+});
+test("Draft and answer JSON updates preserve each other's independently saved fields",async()=>{
+  const owner=`draft-atomic-test-${randomUUID()}`,id=randomUUID();
+  const client=await pool.connect();
+  try{
+    await client.query("BEGIN");
+    await client.query("INSERT INTO research_accounts(id) VALUES($1)",[owner]);
+    await client.query(`INSERT INTO research_analyses(id,owner_id,kind,question,status,input,result)
+      VALUES($1,$2,'answer','Atomic draft test','completed','{}',$3)`,[id,owner,JSON.stringify({content:"Original answer",sources:[{id:"source"}],draft:{content:"First draft",revision:1}})]);
+    await client.query("UPDATE research_analyses SET result=COALESCE(result,'{}'::jsonb)||$3::jsonb WHERE id=$1 AND owner_id=$2",[id,owner,JSON.stringify({content:"Updated answer"})]);
+    const draft=await client.query(`UPDATE research_analyses SET result=jsonb_set(COALESCE(result,'{}'::jsonb),'{draft}',$3::jsonb,true)
+      WHERE id=$1 AND owner_id=$2 AND COALESCE((result->'draft'->>'revision')::int,0)=$4 RETURNING result`,[id,owner,JSON.stringify({content:"Updated draft",revision:2}),1]);
+    assert.equal(draft.rows[0].result.content,"Updated answer");
+    assert.equal(draft.rows[0].result.draft.content,"Updated draft");
+    assert.deepEqual(draft.rows[0].result.sources,[{id:"source"}]);
+    const stale=await client.query(`UPDATE research_analyses SET result=jsonb_set(result,'{draft}',$3::jsonb,true)
+      WHERE id=$1 AND owner_id=$2 AND COALESCE((result->'draft'->>'revision')::int,0)=$4 RETURNING result`,[id,owner,JSON.stringify({content:"Stale overwrite",revision:2}),1]);
+    assert.equal(stale.rowCount,0);
+    const answer=await client.query("UPDATE research_analyses SET result=COALESCE(result,'{}'::jsonb)||$3::jsonb WHERE id=$1 AND owner_id=$2 RETURNING result",[id,owner,JSON.stringify({content:"Second answer edit"})]);
+    assert.equal(answer.rows[0].result.draft.revision,2);
+    assert.equal(answer.rows[0].result.draft.content,"Updated draft");
+  }finally{
+    await client.query("ROLLBACK");
+    client.release();
   }
 });
 test("Retrieval chunks preserve page attribution and overlap; fusion does not reward duplicate chunks",()=>{
@@ -488,4 +516,31 @@ test("Both CSL export styles include evidence, disclosure and valid DOCX bytes",
   const apa=await exportResearch(view,"apa","md");assert.match(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
   const ieee=await exportResearch(view,"ieee","md");assert.match(String(ieee),/\[1\]/);
   const docx=await exportResearch(view,"ieee","docx");assert.ok(Buffer.isBuffer(docx));assert.equal(docx.subarray(0,2).toString(),"PK");
+});
+test("Guided Ask accepts only bounded intent replies and routes ambiguous turns to guidance",()=>{
+  assert.deepEqual(routeAskIntent({intent:"guidance",reply:"Which field interests you, and what makes it timely?",standaloneQuestion:"latest topic"}),{
+    kind:"guidance",reply:"Which field interests you, and what makes it timely?",
+  });
+  assert.deepEqual(routeAskIntent({intent:"research",reply:"I can look for evidence.",standaloneQuestion:"How does X affect Y in adults since 2020?"}),{
+    kind:"research",question:"How does X affect Y in adults since 2020?",
+  });
+  assert.throws(()=>validateAskIntent({intent:"research",reply:"",standaloneQuestion:""}));
+  assert.throws(()=>validateAskIntent({intent:"other",reply:"Search anyway",standaloneQuestion:"Find research"}));
+});
+test("Successful conversational guidance consumes its reserved allowance even without claims",()=>{
+  assert.equal(usageStatusForResult({responseMode:"guidance",claims:[],sources:[]}),"completed");
+  assert.equal(usageStatusForResult({responseMode:"research",claims:[],sources:[]}),"refunded");
+  assert.equal(usageStatusForResult({responseMode:"research",claims:[{text:"checked"}]}),"completed");
+});
+test("Working draft revisions conflict atomically without changing the source synthesis",()=>{
+  const source={content:"# Verified source answer\n\nFinding [1].",sources:[{id:"paper-a"}],claims:[{text:"Finding"}]};
+  const revision=makeDraftRevision(source,"# Working draft\n\nFinding [1].",0);
+  const updated=withDraftPreservingAnswer(source,revision);
+  assert.equal(updated.content,source.content);
+  assert.equal(updated.draft.revision,1);
+  assert.equal(updated.draft.content,"# Working draft\n\nFinding [1].");
+  assert.throws(()=>makeDraftRevision(updated,"stale other-tab text",0),error=>{
+    assert.equal((error as {status:number}).status,409);return true;
+  });
+  assert.equal(updated.content,"# Verified source answer\n\nFinding [1].");
 });

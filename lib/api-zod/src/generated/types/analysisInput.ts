@@ -10,6 +10,8 @@ export interface AnalysisInput {
   /** Automatically find and select relevant papers for a direct research question. */
   autoDiscover?: boolean;
   parentAnalysisId?: string;
+  /** Use the conversational intent-and-guidance entry point for Ask. */
+  guided?: boolean;
   kind: AnalysisInputKind;
   /**
      * @minLength 5

@@ -20,7 +20,7 @@ export function analysisView(r:any) {
     const currency=researchCurrency(found.length?found:sources,new Date(r.created_at));
     content=content.replace(/^(#[^\n]+\n\n)/,`$1${currency}\n\n`);
   }
-  return {id:r.id,kind:r.kind,question:r.question,status:r.status,content,claims:r.result?.claims??[],sources,comparisonRows:r.result?.comparisonRows??[],warnings:[...new Set([...legacy,...(r.input?.discoveryWarnings??[]),...(r.result?.warnings??[])])].map(w=>readableResearchText(String(w),sources)),error:r.error??"",createdAt:iso(r.created_at),
+  return {id:r.id,kind:r.kind,question:r.question,status:r.status,content,claims:r.result?.claims??[],sources,responseMode:r.result?.responseMode??"research",draftContent:r.result?.draft?.content??null,draftRevision:r.result?.draft?.revision??null,draftProvenance:r.result?.draft?.provenance??null,comparisonRows:r.result?.comparisonRows??[],warnings:[...new Set([...legacy,...(r.input?.discoveryWarnings??[]),...(r.result?.warnings??[])])].map(w=>readableResearchText(String(w),sources)),error:r.error??"",createdAt:iso(r.created_at),
   mode:r.input?.autoDiscover?"ask":"research",parentAnalysisId:r.input?.parentAnalysisId??null,
   conversationId:r.input?.conversationId??null,searchQueries:r.input?.searchQueries??[],
   stage:r.input?.stage??"",discoveredPapers:r.input?.discoveredPapers??[]};

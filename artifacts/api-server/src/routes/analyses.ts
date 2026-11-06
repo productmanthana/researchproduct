@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { pool } from "@workspace/db";
-import { CreateAnalysisBody, UpdateAnalysisBody, ExportAnalysisQueryParams } from "@workspace/api-zod";
+import { CreateAnalysisBody, UpdateAnalysisBody, SaveAnalysisDraftBody, ExportAnalysisQueryParams } from "@workspace/api-zod";
 import { exportResearch } from "../lib/exports";
 import { requireUser, uid, routeId, usage, HttpError, allowanceReached } from "../lib/common";
 import { analysisView } from "../lib/analysis-view";
@@ -9,6 +9,7 @@ import { ownedDocument } from "../lib/documents";
 import { getPaper } from "../lib/catalogue";
 import { comparisonFields } from "../lib/comparison";
 import { analysisSnapshot } from "../lib/analysis-input";
+import { makeDraftRevision } from "../lib/analysis-draft";
 const router=Router();
 async function ownedAnalysis(id:string,owner:string) {
   const {rows}=await pool.query("SELECT * FROM research_analyses WHERE id=$1 AND owner_id=$2",[id,owner]);
@@ -21,6 +22,7 @@ router.get("/analyses",requireUser,async(req,res)=>{
 });
 router.post("/analyses",requireUser,async(req,res)=>{
   const b=CreateAnalysisBody.parse(req.body),owner=uid(req);
+  if(b.guided&&(!b.autoDiscover||b.kind!=="answer")) throw new HttpError(400,"Guided conversation is available only for automatically discovered Ask answers.");
   const paperIds=[...new Set(b.paperIds??[])];
   let documentIds=[...new Set(b.documentIds??[])];
   if(b.autoDiscover && (b.kind!=="answer" || paperIds.length || documentIds.length || b.includeLinkedDocuments))
@@ -75,8 +77,20 @@ router.patch("/analyses/:id",requireUser,async(req,res)=>{
       return {...original,...Object.fromEntries(comparisonFields.map(field=>[field,edit[field].text===original[field].text?original[field]:{...original[field],text:edit[field].text,status:"edited"}]))};
     });
   }
-  const result={...row.result,content:content??row.result.content,comparisonRows:editedRows,warnings:[...new Set([...(row.result.warnings??[]),"Edited by the user. Changes have not been checked against source evidence."])]};
-  const {rows}=await pool.query("UPDATE research_analyses SET result=$3 WHERE id=$1 AND owner_id=$2 RETURNING *",[row.id,uid(req),JSON.stringify(result)]);
+  const result={content:content??row.result.content,comparisonRows:editedRows,warnings:[...new Set([...(row.result.warnings??[]),"Edited by the user. Changes have not been checked against source evidence."])]};
+  const {rows}=await pool.query("UPDATE research_analyses SET result=COALESCE(result,'{}'::jsonb)||$3::jsonb WHERE id=$1 AND owner_id=$2 RETURNING *",[row.id,uid(req),JSON.stringify(result)]);
+  res.json(analysisView(rows[0]));
+});
+router.patch("/analyses/:id/draft",requireUser,async(req,res)=>{
+  const row=await ownedAnalysis(routeId(req),uid(req));
+  if(row.status!=="completed"||row.kind!=="answer"||!row.input?.autoDiscover||row.result?.responseMode==="guidance"||!row.result?.sources?.length)
+    throw new HttpError(400,"A working draft can only be attached to a completed evidence answer.");
+  const b=SaveAnalysisDraftBody.parse(req.body);
+  const draft=makeDraftRevision(row.result,b.content,b.expectedRevision);
+  const {rows}=await pool.query(`UPDATE research_analyses SET result=jsonb_set(COALESCE(result,'{}'::jsonb),'{draft}',$3::jsonb,true) WHERE id=$1 AND owner_id=$2
+    AND COALESCE((result->'draft'->>'revision')::int,0)=$4 RETURNING *`,
+  [row.id,uid(req),JSON.stringify(draft),b.expectedRevision]);
+  if(!rows[0]) throw new HttpError(409,"This draft changed in another tab. Reload to compare, or copy your text before resolving the conflict.");
   res.json(analysisView(rows[0]));
 });
 router.delete("/analyses/:id",requireUser,async(req,res)=>{

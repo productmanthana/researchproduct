@@ -1118,6 +1118,49 @@
         }
       }
     },
+    "/analyses/{id}/draft": {
+      "patch": {
+        "operationId": "saveAnalysisDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisDraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Analysis"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Draft revision conflict"
+          },
+          "401": {
+            "description": "Sign in required"
+          }
+        }
+      }
+    },
     "/documents/{id}/file": {
       "get": {
         "operationId": "downloadDocument",
@@ -1572,6 +1615,10 @@
             "type": "string",
             "format": "uuid"
           },
+          "guided": {
+            "type": "boolean",
+            "description": "Use the conversational intent-and-guidance entry point for Ask."
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -1709,6 +1756,19 @@
           "content": {
             "type": "string"
           },
+          "responseMode": {
+            "type": "string",
+            "enum": ["guidance", "research"]
+          },
+          "draftContent": {
+            "type": ["string", "null"]
+          },
+          "draftRevision": {
+            "type": ["integer", "null"]
+          },
+          "draftProvenance": {
+            "type": ["string", "null"]
+          },
           "claims": {
             "type": "array",
             "items": {
@@ -1804,6 +1864,20 @@
           }
         },
         "required": []
+      },
+      "AnalysisDraftUpdate": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 100000
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["content", "expectedRevision"]
       },
       "Plan": {
         "type": "object",

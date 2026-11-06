@@ -114,8 +114,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const usage = useGetUsage({ query: { enabled: !!isSignedIn, queryKey: getGetUsageQueryKey(), refetchInterval: 30000 } });
   const limitMessages = allUsageLimitMessages(usage.data);
   const studio = location === "/ask";
+  if (studio) return <div className="ev-ask-shell">{children}</div>;
   return (
-    <div className={`min-h-[100dvh] bg-background ${studio?"ev-shell":""}`}>
+    <div className="min-h-[100dvh] bg-background">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 bg-sidebar text-sidebar-foreground lg:block">
         <SidebarBody />
       </aside>

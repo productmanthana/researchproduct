@@ -9,6 +9,7 @@ export function analysisSnapshot(input: z.infer<typeof CreateAnalysisBody>, pape
     inspectFigures: input.inspectFigures === true,
     aiConsent: input.aiConsent,
     autoDiscover: input.autoDiscover === true,
+    guided: input.guided === true,
     parentAnalysisId: input.parentAnalysisId ?? null,
   };
 }

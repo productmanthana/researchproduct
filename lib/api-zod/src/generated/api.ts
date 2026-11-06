@@ -269,6 +269,10 @@ export const GetSummaryResponse = zod.object({
   "question": zod.string(),
   "status": zod.string(),
   "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
   "claims": zod.array(zod.object({
   "text": zod.string(),
   "evidence": zod.array(zod.object({
@@ -677,6 +681,10 @@ export const ListAnalysesResponseItem = zod.object({
   "question": zod.string(),
   "status": zod.string(),
   "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
   "claims": zod.array(zod.object({
   "text": zod.string(),
   "evidence": zod.array(zod.object({
@@ -785,6 +793,7 @@ export const createAnalysisBodyPageNumbersMax = 3;
 export const CreateAnalysisBody = zod.object({
   "autoDiscover": zod.boolean().optional().describe('Automatically find and select relevant papers for a direct research question.'),
   "parentAnalysisId": zod.string().uuid().optional(),
+  "guided": zod.boolean().optional().describe('Use the conversational intent-and-guidance entry point for Ask.'),
   "kind": zod.enum(['answer', 'review', 'image']),
   "question": zod.string().min(createAnalysisBodyQuestionMin).max(createAnalysisBodyQuestionMax),
   "paperIds": zod.array(zod.string()).optional(),
@@ -819,6 +828,10 @@ export const CreateAnalysisResponse = zod.object({
   "question": zod.string(),
   "status": zod.string(),
   "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
   "claims": zod.array(zod.object({
   "text": zod.string(),
   "evidence": zod.array(zod.object({
@@ -942,6 +955,10 @@ export const GetAnalysisResponse = zod.object({
   "question": zod.string(),
   "status": zod.string(),
   "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
   "claims": zod.array(zod.object({
   "text": zod.string(),
   "evidence": zod.array(zod.object({
@@ -1146,6 +1163,10 @@ export const UpdateAnalysisResponse = zod.object({
   "question": zod.string(),
   "status": zod.string(),
   "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
   "claims": zod.array(zod.object({
   "text": zod.string(),
   "evidence": zod.array(zod.object({
@@ -1260,6 +1281,144 @@ export const ExportAnalysisQueryParams = zod.object({
 })
 
 export const ExportAnalysisResponse = zod.unknown()
+
+
+export const SaveAnalysisDraftParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const saveAnalysisDraftBodyContentMax = 100000;
+
+export const saveAnalysisDraftBodyExpectedRevisionMin = 0;
+
+
+
+export const SaveAnalysisDraftBody = zod.object({
+  "content": zod.string().max(saveAnalysisDraftBodyContentMax),
+  "expectedRevision": zod.number().int().min(saveAnalysisDraftBodyExpectedRevisionMin)
+})
+
+export const saveAnalysisDraftResponseComparisonRowsItemProblemTextMax = 2000;
+
+export const saveAnalysisDraftResponseComparisonRowsItemMethodTextMax = 2000;
+
+export const saveAnalysisDraftResponseComparisonRowsItemDatasetTextMax = 2000;
+
+export const saveAnalysisDraftResponseComparisonRowsItemMetricsTextMax = 2000;
+
+export const saveAnalysisDraftResponseComparisonRowsItemResultsTextMax = 2000;
+
+export const saveAnalysisDraftResponseComparisonRowsItemLimitationsTextMax = 2000;
+
+
+
+export const SaveAnalysisDraftResponse = zod.object({
+  "mode": zod.enum(['ask', 'research']).optional(),
+  "parentAnalysisId": zod.string().nullish(),
+  "conversationId": zod.string().nullish(),
+  "searchQueries": zod.array(zod.string()).optional(),
+  "id": zod.string(),
+  "kind": zod.string(),
+  "question": zod.string(),
+  "status": zod.string(),
+  "content": zod.string(),
+  "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "draftContent": zod.string().nullish(),
+  "draftRevision": zod.number().int().nullish(),
+  "draftProvenance": zod.string().nullish(),
+  "claims": zod.array(zod.object({
+  "text": zod.string(),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "section": zod.string().optional()
+})),
+  "sources": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "evidenceLevel": zod.string(),
+  "verification": zod.string().optional(),
+  "paperId": zod.string().optional()
+})),
+  "warnings": zod.array(zod.string()),
+  "error": zod.string(),
+  "createdAt": zod.string(),
+  "comparisonRows": zod.array(zod.object({
+  "paperId": zod.string(),
+  "title": zod.string(),
+  "evidenceLevel": zod.string(),
+  "problem": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemProblemTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "method": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemMethodTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "dataset": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemDatasetTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "metrics": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemMetricsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "results": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemResultsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+}),
+  "limitations": zod.object({
+  "text": zod.string().max(saveAnalysisDraftResponseComparisonRowsItemLimitationsTextMax),
+  "evidence": zod.array(zod.object({
+  "sourceId": zod.string(),
+  "quote": zod.string(),
+  "page": zod.number().int().nullable()
+})),
+  "status": zod.enum(['verified', 'not_reported', 'edited'])
+})
+})).optional(),
+  "stage": zod.string().optional(),
+  "discoveredPapers": zod.array(zod.object({
+  "publicationDate": zod.string().optional(),
+  "publisher": zod.string().optional(),
+  "doi": zod.string().optional(),
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "authors": zod.array(zod.string()),
+  "year": zod.number().int().nullish(),
+  "url": zod.string(),
+  "selected": zod.boolean()
+})).optional()
+})
 
 
 export const DownloadDocumentParams = zod.object({

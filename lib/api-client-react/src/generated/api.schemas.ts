@@ -152,6 +152,8 @@ export interface AnalysisInput {
   /** Automatically find and select relevant papers for a direct research question. */
   autoDiscover?: boolean;
   parentAnalysisId?: string;
+  /** Use the conversational intent-and-guidance entry point for Ask. */
+  guided?: boolean;
   kind: AnalysisInputKind;
   /**
      * @minLength 5
@@ -190,6 +192,14 @@ export type AnalysisMode = typeof AnalysisMode[keyof typeof AnalysisMode];
 
 export const AnalysisMode = {
   ask: 'ask',
+  research: 'research',
+} as const;
+
+export type AnalysisResponseMode = typeof AnalysisResponseMode[keyof typeof AnalysisResponseMode];
+
+
+export const AnalysisResponseMode = {
+  guidance: 'guidance',
   research: 'research',
 } as const;
 
@@ -263,6 +273,13 @@ export interface Analysis {
   question: string;
   status: string;
   content: string;
+  responseMode?: AnalysisResponseMode;
+  /** @nullable */
+  draftContent?: string | null;
+  /** @nullable */
+  draftRevision?: number | null;
+  /** @nullable */
+  draftProvenance?: string | null;
   claims: Claim[];
   sources: AnalysisSourcesItem[];
   warnings: string[];
@@ -278,6 +295,13 @@ export interface AnalysisUpdate {
   content?: string;
   /** @maxItems 50 */
   comparisonRows?: ComparisonRow[];
+}
+
+export interface AnalysisDraftUpdate {
+  /** @maxLength 100000 */
+  content: string;
+  /** @minimum 0 */
+  expectedRevision: number;
 }
 
 export interface Plan {
