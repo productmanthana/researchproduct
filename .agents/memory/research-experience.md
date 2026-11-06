@@ -26,11 +26,17 @@ Publisher-specific requests such as “focus on IEEE publications from 2020 onwa
 
 **How to apply:** Restrict discovered, selected and cited papers consistently; exclude missing required publisher/year metadata instead of silently broadening the request. Keep historical answers intact and clearly flag answers generated before filtering was enforced.
 
-Research answers should read as professional academic syntheses: organised evidence-based paragraphs, numbered citations, references and concise scientific limitations—not lists of internal processing notices.
+Research answers should read as professional academic syntheses: organised evidence-based paragraphs, numbered citations, references and concise scientific limitations—not lists of internal processing notices. Default to expanded explanations of mechanisms, study conditions, measured results and defensible comparisons rather than a few isolated findings.
 
-**Why:** The user requested university-quality research writing after seeing embedding, database and internal-ID details mixed into the answer.
+**Why:** The user requested university-quality research writing after seeing embedding, database and internal-ID details mixed into the answer, and explicitly chose “Expand research answers” after receiving only three short findings.
 
 **How to apply:** Separate reproducibility/processing notes from the scientific narrative. Follow clear claim–evidence–analysis structure without implying Harvard endorsement, inventing research methods, or padding unsupported sections. Preserve verified claims and user-edited drafts when improving older presentations.
+
+For expanded answers, word counts are targets, not minimums. Ask for distinct supported aspects in focused paragraphs rather than one long paragraph per paper.
+
+**Why:** Whole-paragraph evidence checking can discard an otherwise useful discussion when one assertion is unsupported; requesting a longer total answer alone did not reliably produce a developed synthesis.
+
+**How to apply:** Plan section and paragraph coverage, preserve independently supported material, and permit shorter outputs when evidence cannot support more detail. Never relax citation matching or repeatedly regenerate just to reach a word count.
 
 The user approved the ivory/teal Research Studio design and asked to use it, with as many papers as practical shown on the right.
 

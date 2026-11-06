@@ -15,6 +15,6 @@ try {
     });}}],
   });
   await build({entryPoints:[new URL("../evidora/src/lib/usage-limits.test.ts",import.meta.url).pathname],outfile:uiOutput.pathname,bundle:true,platform:"node",format:"esm",packages:"external"});
-  const result=spawnSync(process.execPath,["--test",output.pathname,uiOutput.pathname],{stdio:"inherit"});
+  const result=spawnSync(process.execPath,["--test",...process.argv.slice(2),output.pathname,uiOutput.pathname],{stdio:"inherit"});
   process.exitCode=result.status??1;
 }finally{await Promise.all([rm(output,{force:true}),rm(uiOutput,{force:true})]);}

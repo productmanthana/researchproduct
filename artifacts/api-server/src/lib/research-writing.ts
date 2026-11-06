@@ -4,7 +4,7 @@ type WrittenClaim = { text:string; section?:string; evidence:{sourceId:string}[]
 // Keep reproducibility information, but don't mistake infrastructure logs for
 // limitations of the scientific findings.
 export function isProcessingNotice(text:string) {
-  return /^(?:Research freshness:|Search scope:|Earlier answer scope:|Weaviate |Where readable text|Inspected |Automatically selected |Reused the previous|A planned search|The Weaviate|Paper indexing|Possible preprint|AI-assisted draft|Edited by the user|Some or all selected papers|PDF text analysis|Visual analysis inspects|Claims that failed|No supported answer|\d+ retrieved records|(?:OpenAlex|Crossref|arXiv|dblp|DataCite|Europe PMC|DOAJ):)/i.test(text)
+  return /^(?:Answer depth:|Research freshness:|Search scope:|Earlier answer scope:|Weaviate |Where readable text|Inspected |Automatically selected |Reused the previous|A planned search|The Weaviate|Paper indexing|Possible preprint|AI-assisted draft|Edited by the user|Some or all selected papers|PDF text analysis|Visual analysis inspects|Claims that failed|No supported answer|\d+ retrieved records|(?:OpenAlex|Crossref|arXiv|dblp|DataCite|Europe PMC|DOAJ):)/i.test(text)
     || /:\s*(?:No (?:PDF|resolvable)|Licensed PDF|Automatically retrieved|Automatic retrieval|Reused a retained|Full-text lookup|Cached |Using abstract|The (?:provider|paper|PDF)|Citation |Crossref |OpenAlex )/i.test(text)
     || /(?:could not be read|no readable text|citation metadata|DOI metadata|verification unavailable|exceeds.*(?:limit|size))/i.test(text);
 }

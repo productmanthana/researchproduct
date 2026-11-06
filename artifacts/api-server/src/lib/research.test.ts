@@ -17,6 +17,115 @@ import { jsonCall } from "./ai-json";
 import { Claim } from "./evidence";
 import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } from "./publication-currency";
 import { matchesSearchFocus } from "./search-focus";
+import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
+import { synthesisPrompt, evidenceQuestion } from "./synthesis-prompts";
+const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
+  text:"Adaptive pitch control reduced simulated power fluctuations. "+"Detailed study conditions and distinct reported outcomes support further explanation. ".repeat(110)};
+const depthClaim=(text:string,section="Evidence-based findings")=>({text,section,evidence:[{sourceId:depthSource.id,quote:"Adaptive pitch control reduced simulated power fluctuations.",page:2}]});
+function scriptedSynthesis(values:any[]) {
+  let calls=0;
+  const call:typeof jsonCall=async()=>{
+    assert.ok(calls<values.length,"Unexpected extra model call");
+    const value=values[calls++];
+    if(value instanceof Error)throw value;
+    return {value,usage:{prompt_tokens:10,completion_tokens:5}};
+  };
+  return {call,count:()=>calls};
+}
+test("Developed answers request evidence-rich paragraphs and retain brief-question and sparse-evidence boundaries",()=>{
+  assert.match(synthesisPrompt("answer"),/700–1,100 words/);
+  assert.match(synthesisPrompt("answer"),/multiple evidence entries/);
+  assert.match(synthesisPrompt("answer"),/percentage points are different/);
+  assert.match(evidenceQuestion("Improve efficiency?","answer"),/study conditions/);
+  assert.equal(needsAnswerExpansion("answer","Compare methods",[],[depthSource]),true);
+  assert.equal(needsAnswerExpansion("answer","Give a brief answer",[],[depthSource]),false);
+  assert.equal(needsAnswerExpansion("answer","Compare methods",[],[{...depthSource,text:"Only an isolated abstract is available."}]),false);
+  assert.equal(needsAnswerExpansion("review","Compare methods",[],[depthSource]),false);
+});
+test("Short verified answers develop once; additions need literal evidence AND independent approval",async()=>{
+  const first=depthClaim("Pitch control reduced simulated fluctuations.");
+  const added=depthClaim("The reported reduction concerns simulated power fluctuations, not annual energy production.","Critical discussion");
+  const rejected={...depthClaim("A fabricated numerical improvement."),evidence:[{sourceId:depthSource.id,quote:"An invented quote that is not present.",page:2}]};
+  const unsupported=depthClaim("An unsupported claim that the independent reviewer rejects.","Conclusion");
+  const script=scriptedSynthesis([{claims:[first],limitations:[]},{supported:[0]},
+    {claims:[first,added,rejected,unsupported],limitations:[]},{supported:[0]}]);
+  const stages:string[]=[];
+  const result=await checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:script.call,progress:async s=>{stages.push(s);}});
+  assert.equal(script.count(),4);
+  assert.deepEqual(result.claims,[first,added]);
+  assert.equal(result.validation.repair?.unmatchedQuotes,1);
+  assert.equal(result.validation.expansionAttempted,true);
+  assert.equal(result.inputTokens,40);assert.equal(result.outputTokens,20);
+  assert.deepEqual(stages,["writing","checking","writing","checking"]);
+  const content=academicContent({kind:"answer",claims:result.claims,sources:[depthSource]});
+  assert.match(content,/Critical discussion/);assert.doesNotMatch(content,/fabricated|unsupported claim/);
+});
+test("Full developed drafts need no extra generation; every section remains citation-linked",async()=>{
+  const names=["Overview","Evidence-based findings","Critical discussion","Conclusion"];
+  const claims=Array.from({length:12},(_,i)=>depthClaim(`${i}: `+"Evidence-supported discussion of the mechanism and reported experimental conditions. ".repeat(7),names[i%4]));
+  const script=scriptedSynthesis([{claims,limitations:[]},{supported:claims.map((_,i)=>i)}]);
+  const result=await checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:script.call});
+  assert.equal(script.count(),2);assert.equal(result.claims.length,12);
+  assert.equal(result.validation.expansionAttempted,false);
+  const content=academicContent({kind:"answer",claims:result.claims,sources:[depthSource]});
+  for(const name of names)assert.ok(content.includes(name));
+  assert.equal((content.match(/\[1\]/g)??[]).length,12);
+});
+test("Optional expansion failure keeps verified findings; a failed empty reconstruction is not hidden",async()=>{
+  const first=depthClaim("Pitch control reduced simulated fluctuations.");
+  const script=scriptedSynthesis([{claims:[first],limitations:[]},{supported:[0]},new Error("Budget unavailable")]);
+  const result=await checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:script.call});
+  assert.deepEqual(result.claims,[first]);assert.equal(result.expansionUnavailable,true);
+  assert.equal(result.inputTokens,20);
+  const bad={...first,evidence:[{sourceId:"unknown",quote:depthSource.text.slice(0,55),page:2}]};
+  const failed=scriptedSynthesis([{claims:[bad],limitations:[]},new Error("Budget unavailable")]);
+  await assert.rejects(checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:failed.call}),/Budget unavailable/);
+});
+test("Citation recovery can develop paragraphs without publishing an unverified draft or artificial source markers",async()=>{
+  const bad={...depthClaim("Unverified original."),evidence:[{sourceId:"unknown",quote:"An invented quote.",page:null}]};
+  const good=depthClaim("The source reports simulated fluctuation reduction.","Overview");
+  const script=scriptedSynthesis([{claims:[bad],limitations:[]},{claims:[good],limitations:[]},{supported:[0]}]);
+  const result=await checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:script.call});
+  assert.equal(script.count(),3);assert.deepEqual(result.claims,[good]);
+  assert.equal(result.validation.initialMatchedClaims,0);
+  assert.equal(validateDraftClaims([{...good,evidence:[{sourceId:depthSource.id,quote:"[Selected retrieved passage]",page:2}]}],[depthSource]).claims.length,0);
+});
+test("Numerical validation rejects lift-to-energy wording without blocking distinct reported metrics",()=>{
+  const source={...depthSource,text:"Annual energy production rose by 10%, while lift rose by 30%."};
+  const evidence=[{sourceId:source.id,quote:source.text,page:2}];
+  const bad=validateDraftClaims([{text:"The devices improve annual energy production of wind turbines by up to 30% higher lift in post-stall conditions.",evidence}],[source]);
+  assert.equal(bad.claims.length,0);assert.equal(bad.counts.metricMismatches,1);
+  assert.equal(validateDraftClaims([{text:"Annual energy production rose by 10%, while lift rose by 30%.",evidence}],[source]).claims.length,1);
+});
+test("Live developed synthesis uses cached public evidence without overwriting the original answer",{skip:!process.env.EXPANDED_ANSWER_ANALYSIS_ID},async()=>{
+  const id=process.env.EXPANDED_ANSWER_ANALYSIS_ID;
+  const {rows}=await pool.query(id==="latest"
+    ?"SELECT id,owner_id,question,input,result FROM research_analyses WHERE kind='answer' AND status='completed' AND question ILIKE '%wind turbine%' ORDER BY created_at DESC LIMIT 1"
+    :"SELECT id,owner_id,question,input,result FROM research_analyses WHERE id=$1",id==="latest"?[]:[id]);
+  assert.ok(rows.length,"No cached answer available");
+  const row=rows[0],sources:any[]=[];
+  const ids=[...new Set<string>((row.result.sources??[]).map((s:any)=>s.paperId).filter(Boolean))].slice(0,3);
+  for(const paperId of ids){
+    const p=await getPaper(paperId);
+    const chunks=await pool.query("SELECT page,string_agg(text,E'\\n') AS text FROM research_evidence_chunks WHERE scope='public' AND source_key=$1 GROUP BY page ORDER BY page LIMIT 8",[paperId]);
+    if(chunks.rows.length)for(const page of chunks.rows)sources.push({id:`${p.id}-oa-p${page.page}`,paperId:p.id,title:`${p.title} — page ${page.page}`,url:p.url,evidenceLevel:"Cached public PDF text",text:page.text.slice(0,6000),page:page.page});
+    else if(p.abstract)sources.push({id:p.id,paperId:p.id,title:p.title,url:p.url,evidenceLevel:"Abstract only",text:p.abstract,page:null});
+  }
+  assert.ok(sources.length);
+  await aiContext.run({owner:row.owner_id,analysisId:row.id},async()=>{
+    const result=await checkedSynthesis({kind:"answer",question:row.question,sources});
+    const words=result.claims.reduce((n,c)=>n+c.text.split(/\s+/).length,0);
+    const content=academicContent({kind:"answer",claims:result.claims,sources});
+    const sectionCount=(content.match(/^## /gm)??[]).length;
+    console.log(`Live depth check: ${words} verified words; ${result.claims.length} paragraphs; ${sectionCount} rendered sections.`);
+    // The writing target is deliberately not a minimum that forces invention.
+    // Require a substantial multi-section report, not an exact model word count.
+    assert.ok(words>=350,`Only ${words} verified words; validation ${JSON.stringify(result.validation)}`);
+    assert.ok(sectionCount>=3,"Missing developed rendered sections");
+    assert.equal(validateDraftClaims(result.claims,sources).claims.length,result.claims.length);
+    console.log(`Live developed synthesis: ${words} verified words, ${result.claims.length} paragraphs, ${sectionCount} rendered sections; original answer unchanged.`);
+  });
+});
 test("Date-sorted batches retain a topical floor instead of admitting unrelated newly published papers",()=>{
   const q="wind turbine efficiency";
   assert.equal(matchesSearchFocus(q,{title:"Stellar wind variability in OB stars",abstract:"Mass-loss determinations."}),false);
