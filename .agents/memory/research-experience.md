@@ -72,4 +72,4 @@ The users are non-technical and want as few steps as possible; a visible six-ste
 
 **Why:** The user explicitly rejected the six-step presentation of the connected design previews as too much for their audience.
 
-**How to apply:** Keep research capabilities available without presenting a mandatory six-stage process. Prefer one conversation with contextual actions and reveal additional controls only when needed.
+**How to apply:** Keep research capabilities available without presenting a mandatory six-stage process. The user approved one chat-first workspace with conversation, evidence and writing as contextual states, not separate steps. Reveal sources and an editable draft alongside the conversation only when needed.

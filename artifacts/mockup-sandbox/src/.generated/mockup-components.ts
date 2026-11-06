@@ -8,5 +8,8 @@ export const modules: ModuleMap = {
   "./components/mockups/evidora-flow/PublicationPlan.tsx": () => import("../components/mockups/evidora-flow/PublicationPlan.tsx"),
   "./components/mockups/evidora-flow/ResearchChat.tsx": () => import("../components/mockups/evidora-flow/ResearchChat.tsx"),
   "./components/mockups/evidora-flow/ResearchPlanner.tsx": () => import("../components/mockups/evidora-flow/ResearchPlanner.tsx"),
-  "./components/mockups/evidora-flow/TopicExplorer.tsx": () => import("../components/mockups/evidora-flow/TopicExplorer.tsx")
+  "./components/mockups/evidora-flow/TopicExplorer.tsx": () => import("../components/mockups/evidora-flow/TopicExplorer.tsx"),
+  "./components/mockups/evidora-simple/Chat.tsx": () => import("../components/mockups/evidora-simple/Chat.tsx"),
+  "./components/mockups/evidora-simple/Evidence.tsx": () => import("../components/mockups/evidora-simple/Evidence.tsx"),
+  "./components/mockups/evidora-simple/Writing.tsx": () => import("../components/mockups/evidora-simple/Writing.tsx")
 };
