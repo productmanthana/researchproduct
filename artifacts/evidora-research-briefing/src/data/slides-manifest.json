@@ -8,35 +8,107 @@
     "speakerNotes": ""
   },
   {
-    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e02",
+    "id": "56d15e88-ceda-46f4-a9f6-247c2c7b4ee4",
     "position": 2,
-    "filepath": "src/pages/slides/WhyResearchSpecific.tsx",
-    "title": "Why a research-specific assistant?",
-    "description": "Why a research-specific assistant?",
+    "filepath": "src/pages/slides/NaturalLanguageQuestions.tsx",
+    "title": "Ask research questions in natural language",
+    "description": "Ask research questions in natural language",
     "speakerNotes": ""
   },
   {
-    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e03",
+    "id": "d4306f79-05c4-449e-a62b-11475e5cf49c",
     "position": 3,
-    "filepath": "src/pages/slides/OriginalityReview.tsx",
-    "title": "Originality review before submission",
-    "description": "Originality review before submission",
+    "filepath": "src/pages/slides/LiteratureSurvey.tsx",
+    "title": "Generate an evidence-backed literature survey",
+    "description": "Generate an evidence-backed literature survey",
     "speakerNotes": ""
   },
   {
-    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e04",
+    "id": "9bccf4ef-41c6-4c84-80a6-3c0bed91606c",
     "position": 4,
-    "filepath": "src/pages/slides/JournalFormatting.tsx",
-    "title": "Journal-ready formatting",
-    "description": "Journal-ready formatting",
+    "filepath": "src/pages/slides/GeneralAssistantsComparison.tsx",
+    "title": "ChatGPT and Claude: research limitations",
+    "description": "ChatGPT and Claude: research limitations",
     "speakerNotes": ""
   },
   {
-    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e05",
+    "id": "8ca6af45-b3a5-49ad-a798-91addbaedd64",
     "position": 5,
-    "filepath": "src/pages/slides/ResearchGaps.tsx",
-    "title": "Find gaps from a two-page idea",
-    "description": "Find gaps from a two-page idea",
+    "filepath": "src/pages/slides/ClaimTraceability.tsx",
+    "title": "Trace every research claim to its evidence",
+    "description": "Trace every research claim to its evidence",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d0429a3c-63fa-4dfd-bd52-1746efb98e8a",
+    "position": 6,
+    "filepath": "src/pages/slides/KnowledgeBase.tsx",
+    "title": "Build a private document knowledge base",
+    "description": "Build a private document knowledge base",
+    "speakerNotes": ""
+  },
+  {
+    "id": "99d6bd20-be15-4b36-988e-7ec600c53c65",
+    "position": 7,
+    "filepath": "src/pages/slides/DocumentCopilot.tsx",
+    "title": "Ask Copilot questions about your documents",
+    "description": "Ask Copilot questions about your documents",
+    "speakerNotes": ""
+  },
+  {
+    "id": "eaeaa099-c77b-47ab-8b53-c653b0239eaf",
+    "position": 8,
+    "filepath": "src/pages/slides/ProposalGaps.tsx",
+    "title": "Find possible research gaps from a short proposal",
+    "description": "Find possible research gaps from a short proposal",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f5814eb2-86dd-4d09-b8b2-f92dd98d81fd",
+    "position": 9,
+    "filepath": "src/pages/slides/PlagiarismSimilarity.tsx",
+    "title": "Check plagiarism and source similarity",
+    "description": "Check plagiarism and source similarity",
+    "speakerNotes": ""
+  },
+  {
+    "id": "b970d42a-f681-4a3e-bea4-b0005f1b567f",
+    "position": 10,
+    "filepath": "src/pages/slides/AIWritingSignals.tsx",
+    "title": "Review AI-writing signals responsibly",
+    "description": "Review AI-writing signals responsibly",
+    "speakerNotes": ""
+  },
+  {
+    "id": "1d711c7c-fba4-4bbd-88ee-c27a0b3a246e",
+    "position": 11,
+    "filepath": "src/pages/slides/JournalFormat.tsx",
+    "title": "Apply the target journal’s format",
+    "description": "Apply the target journal’s format",
+    "speakerNotes": ""
+  },
+  {
+    "id": "2ed5e461-363e-4042-8237-eedf6316274e",
+    "position": 12,
+    "filepath": "src/pages/slides/ThesisDraft.tsx",
+    "title": "Prepare a structured thesis draft",
+    "description": "Prepare a structured thesis draft",
+    "speakerNotes": ""
+  },
+  {
+    "id": "230e5283-948d-4e34-af20-3b0715684f52",
+    "position": 13,
+    "filepath": "src/pages/slides/OneClickExport.tsx",
+    "title": "Export journal and thesis documents in one action",
+    "description": "Export journal and thesis documents in one action",
+    "speakerNotes": ""
+  },
+  {
+    "id": "16041706-9da2-425f-9df0-46da08ccca2c",
+    "position": 14,
+    "filepath": "src/pages/slides/ConnectedWorkflow.tsx",
+    "title": "A connected research-to-publication workflow",
+    "description": "A connected research-to-publication workflow",
     "speakerNotes": ""
   }
 ]
