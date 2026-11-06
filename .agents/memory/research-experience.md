@@ -67,3 +67,9 @@ When usage limits are exhausted, the user wants this shown across the app, and c
 **Why:** They explicitly asked for “limit reached” feedback everywhere when attempting to click.
 
 **How to apply:** Distinguish account allowances from the shared service AI budget, preserve unlimited-account exemptions only for account quotas, and keep viewing saved research available.
+
+The users are non-technical and want as few steps as possible; a visible six-step research journey feels overwhelming.
+
+**Why:** The user explicitly rejected the six-step presentation of the connected design previews as too much for their audience.
+
+**How to apply:** Keep research capabilities available without presenting a mandatory six-stage process. Prefer one conversation with contextual actions and reveal additional controls only when needed.
