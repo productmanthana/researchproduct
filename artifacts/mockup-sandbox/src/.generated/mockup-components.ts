@@ -2,5 +2,11 @@
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/evidora-ask/Current.tsx": () => import("../components/mockups/evidora-ask/Current.tsx"),
-  "./components/mockups/evidora-ask/ResearchStudio.tsx": () => import("../components/mockups/evidora-ask/ResearchStudio.tsx")
+  "./components/mockups/evidora-ask/ResearchStudio.tsx": () => import("../components/mockups/evidora-ask/ResearchStudio.tsx"),
+  "./components/mockups/evidora-flow/EvidenceReview.tsx": () => import("../components/mockups/evidora-flow/EvidenceReview.tsx"),
+  "./components/mockups/evidora-flow/ManuscriptStudio.tsx": () => import("../components/mockups/evidora-flow/ManuscriptStudio.tsx"),
+  "./components/mockups/evidora-flow/PublicationPlan.tsx": () => import("../components/mockups/evidora-flow/PublicationPlan.tsx"),
+  "./components/mockups/evidora-flow/ResearchChat.tsx": () => import("../components/mockups/evidora-flow/ResearchChat.tsx"),
+  "./components/mockups/evidora-flow/ResearchPlanner.tsx": () => import("../components/mockups/evidora-flow/ResearchPlanner.tsx"),
+  "./components/mockups/evidora-flow/TopicExplorer.tsx": () => import("../components/mockups/evidora-flow/TopicExplorer.tsx")
 };
