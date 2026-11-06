@@ -1,0 +1,42 @@
+[
+  {
+    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e01",
+    "position": 1,
+    "filepath": "src/pages/slides/SearchCatalogue.tsx",
+    "title": "Search 320M+ scholarly works",
+    "description": "Search 320M+ scholarly works",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e02",
+    "position": 2,
+    "filepath": "src/pages/slides/WhyResearchSpecific.tsx",
+    "title": "Why a research-specific assistant?",
+    "description": "Why a research-specific assistant?",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e03",
+    "position": 3,
+    "filepath": "src/pages/slides/OriginalityReview.tsx",
+    "title": "Originality review before submission",
+    "description": "Originality review before submission",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e04",
+    "position": 4,
+    "filepath": "src/pages/slides/JournalFormatting.tsx",
+    "title": "Journal-ready formatting",
+    "description": "Journal-ready formatting",
+    "speakerNotes": ""
+  },
+  {
+    "id": "3f6c2a10-5b1e-4c8d-9a01-1a2b3c4d5e05",
+    "position": 5,
+    "filepath": "src/pages/slides/ResearchGaps.tsx",
+    "title": "Find gaps from a two-page idea",
+    "description": "Find gaps from a two-page idea",
+    "speakerNotes": ""
+  }
+]

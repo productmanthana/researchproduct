@@ -4,3 +4,4 @@
 - [Research experience](research-experience.md) — simple question-to-answer flow and minimal waiting are user priorities alongside accuracy.
 - [Retrieval and spending decisions](retrieval-decisions.md) — live catalogue choice, selected-paper vectors, and why refunded allowances must not erase AI spending.
 - [Provider query contracts](provider-queries.md) — conversational punctuation is not safe query syntax; HTTP success can still be an upstream bot challenge.
+- [Stakeholder vision](stakeholder-vision.md) — the user wants originality review, journal-specific formats and proposal-based gap finding in the research journey.

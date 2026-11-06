@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "LCvN82HjX32_BNpG10ayB"
+uri = "file://.local/outputs/Evidora-Research-Stakeholder-Briefing.pptx"
+type = "slides"
+title = "Evidora Research Stakeholder Briefing (PPTX)"
+description = "Five slides on research discovery, evidence-checked answers, and proposed publication-support features."
+logical_id = "b023fd52-5551-4bcd-a292-24c29e4d5de6"
+content_hash = "sha256:396945d66232e6f4d28bfc619ae1bf4ff72459e3ec869dcc495ebb68377946f8"
+size = 242512
+mtime_ms = 1793954548084
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:448b76d4-4245-4ca8-8e14-91f634a7d03e/b023fd52-5551-4bcd-a292-24c29e4d5de6/b6b51f17-fb4f-47ee-96fb-4d28917061af"
+storage_version_token = "1793954548856257"
+content_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"

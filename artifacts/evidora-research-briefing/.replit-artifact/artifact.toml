@@ -1,0 +1,28 @@
+kind = "slides"
+previewPath = "/evidora-research-briefing/"
+title = "Evidora | Research, with evidence"
+description = "Five-slide stakeholder presentation on scholarly discovery, source-backed answers, responsible originality review, journal-specific formatting, and research-gap exploration."
+version = "1.0.0"
+id = "artifacts/evidora-research-briefing"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/evidora-research-briefing/" ]
+localPort = 21816
+
+[services.development]
+run = "pnpm --filter @workspace/evidora-research-briefing run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/evidora-research-briefing", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/evidora-research-briefing/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21816"
+BASE_PATH = "/evidora-research-briefing/"
