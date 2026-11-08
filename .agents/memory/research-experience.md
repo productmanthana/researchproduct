@@ -79,3 +79,9 @@ The user specifically approved the simplified writing preview: conversation on t
 **Why:** They supplied the writing-state screenshot and said “this is good.”
 
 **How to apply:** Use this side-by-side composition as the preferred writing direction. Keep the conversation available while editing, without restoring a visible multi-step journey.
+
+The user now requests persistent navigation across AI Chat, Literature Survey, Synopsis, Journal Papers, Thesis, AI Plagiarism and Patents. AI Chat should offer five research ideas in a coloured popup with confirmation on each and back/forward navigation. Papers and relevant patents should support all research modules.
+
+**Why:** The user reported that other sidebar pages disappear in AI Chat and explicitly described this revised product flow.
+
+**How to apply:** This supersedes hiding modules inside the chat-only shell. Keep modules independently accessible, preserve shared project context, and avoid forcing all users through every page. Journal and university templates, patent integration and integrity checking remain requested capabilities until implemented and verified.
