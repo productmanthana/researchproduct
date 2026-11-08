@@ -24,7 +24,19 @@ The user wants PDF/Word review inside AI Chat, with coloured suggestions on the 
 
 **How to apply:** Preserve the uploaded original and earlier revisions. Pair colour with readable labels and keyboard/touch-accessible explanations. Distinguish retrieved paper/patent evidence and inspected visuals from unsearched or unrendered material.
 
+The user wants supplementary Internet search wherever papers are searched across the app, to help find research gaps.
+
+**Why:** They want wider context beyond scholarly catalogues and patents, while keeping research quality and costs important.
+
+**How to apply:** Include Internet evidence in paper-search and research-generation workflows, while respecting explicit project-only or no-new-search instructions. Do not represent missing Internet results as proof of novelty.
+
 The user wants research to be very easy, with a direct question-to-answer flow and instant answers; they report that the current flow takes too long.
+
+The user wants generated responses to stream visibly across all pages rather than appear only after completion.
+
+**Why:** Waiting for the full response makes the app feel unresponsive.
+
+**How to apply:** Show genuine generated text as it arrives, distinguish unfinished drafts from checked final output, and retain progress indicators during retrieval when no response text exists yet.
 
 **Why:** The user identified waiting time as their main problem, rather than the choice of vector database.
 

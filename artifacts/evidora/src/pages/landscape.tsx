@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LiveWebEvidence } from "@/components/web-evidence";
 import { useGetLandscape, getGetLandscapeQueryKey } from "@workspace/api-client-react";
 import { Info, LineChart } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -39,6 +40,7 @@ export default function Landscape() {
         <Button type="submit" className="h-11 px-6" data-testid="button-landscape">Summarise</Button>
       </form>
       <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Counts are aggregated by OpenAlex across every work matching your query, not a sample. Coverage reflects what OpenAlex indexes, so treat figures as orientation, not a census of the field.</p>
+      {q && <div className="mt-6"><LiveWebEvidence q={q} /></div>}
       <div className="mt-8">
         {!q ? (
           <EmptyState icon={<LineChart className="h-5 w-5" />} title="Get a quick lay of the land" body="See which years, venues, authors and fields dominate all OpenAlex works matching your topic, and how India contributes." />

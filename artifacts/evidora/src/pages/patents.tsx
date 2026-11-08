@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { LiveWebEvidence } from "@/components/web-evidence";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchStudioPatents, getSearchStudioPatentsQueryKey, useSaveStudioItem, getListStudioItemsQueryKey, type StudioPatentSearch, type SearchStudioPatentsRegion } from "@workspace/api-client-react";
 import { BookmarkPlus, ExternalLink, Lock, Search, Stamp } from "lucide-react";
@@ -48,6 +49,7 @@ function Inner() {
       </form>
       <div className="mt-6 space-y-4">
         {!query && <div className="sx-card grid-paper flex flex-col items-center p-12 text-center"><Stamp className="h-10 w-10 text-[hsl(var(--teal))] opacity-70" strokeWidth={1.2} /><p className="sx-title mt-4 text-2xl">Describe the invention in plain words</p><p className="mt-1 text-sm text-muted-foreground">We will not invent or estimate patent results.</p></div>}
+        {query && <LiveWebEvidence q={query.q} />}
         {res.isLoading && <RowSkeleton rows={3} />}
         {res.isError && <ErrorState error={{ message: friendlyError(res.error) }} onRetry={() => void res.refetch()} title="Patent search failed" />}
         {data && (

@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
 import { HttpError } from "./common";
+import { readOpenAIStream } from "./openai-stream";
 
 export const AI_MONTHLY_INR = 18000;
 export const TOTAL_MONTHLY_INR = 30000;
@@ -18,7 +19,7 @@ export function priceMicros(model: string, input: number, output = 0) {
   const [inRate, outRate] = model === SCIENTIFIC_MODEL ? [2, 10] : model === CHAT_MODEL ? [2, 8] : [0.13, 0];
   return Math.ceil((input * inRate + output * outRate) * USD_INR);
 }
-export async function paidOpenAI(path: "embeddings" | "chat/completions", body: any, reservedInput: number, reservedOutput = 0) {
+export async function paidOpenAI(path: "embeddings" | "chat/completions", body: any, reservedInput: number, reservedOutput = 0,onDelta?:(text:string,flush?:boolean)=>Promise<void>) {
   const context = aiContext.getStore();
   if (!context) throw new Error("AI call requires an owner and analysis context");
   if (!process.env.OPENAI_API_KEY) throw new HttpError(503, "OpenAI is not configured.");
@@ -39,7 +40,7 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
     const response = await fetch(`https://api.openai.com/v1/${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body), signal: AbortSignal.timeout(180000),
+      body: JSON.stringify(onDelta?{...body,stream:true,stream_options:{include_usage:true}}:body), signal: AbortSignal.timeout(180000),
     });
     if (!response.ok) {
       // Explicit rejection is unbilled. On ambiguous server/network failures
@@ -48,7 +49,7 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
         await pool.query("UPDATE research_ai_spend SET status='rejected',amount_micros=0 WHERE id=$1", [id]);
       throw new HttpError(503, response.status === 401 ? "OpenAI rejected the configured key. Contact the app administrator." : response.status === 429 ? "OpenAI quota or rate limit reached. Check your OpenAI billing and retry later." : "OpenAI could not complete this request. Please retry later.");
     }
-    const result = await response.json() as any;
+    const result = onDelta?await readOpenAIStream(response,onDelta):await response.json() as any;
     const input = result.usage?.prompt_tokens ?? result.usage?.total_tokens;
     const output = result.usage?.completion_tokens ?? 0;
     if (!Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0) throw new Error("Missing OpenAI usage");

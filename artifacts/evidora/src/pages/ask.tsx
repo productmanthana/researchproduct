@@ -21,6 +21,7 @@ import { friendlyError, projectIntent } from "@/lib/studio";
 import { FIGURE_GUARD, ROUTE_FOR_KIND } from "@/lib/figures";
 import "@/components/research-studio/studio.css";
 import "./ask-workspace.css";
+import { InternetSourcesNote } from "@/components/web-evidence";
 import { DocumentReviewWorkspace } from "@/components/document-review/document-review-workspace";
 import { REVIEW_KIND, parsePages } from "@/components/document-review/review-model";
 import { DocumentUpload } from "@/components/document-upload";
@@ -381,6 +382,7 @@ function AskInner() {
             {thread?.turns.map(analysis => <div className="es-chat-item" key={analysis.id}>
               <div className="es-turn es-user">{analysis.question}</div>
               <ol className="es-turn-list"><StudioTurn initial={analysis} retryDisabled={!!ownActive} onRetry={text => { setQuestion(text); composer.current?.focus(); }} chatMode onSourceSelect={handleEvidenceSelect} /></ol>
+              {analysis.status === "completed" && analysis.responseMode !== "guidance" && <InternetSourcesNote sources={analysis.sources} warnings={analysis.warnings ?? []} />}
               {analysis.status === "completed" && <div className="es-chat-actions">
                 <button className="es-button" onClick={() => exploreFurther(analysis)}><Wind />Explore further</button>
                 {analysis.responseMode !== "guidance" && analysis.sources.length > 0 && <button className="es-button es-primary" onClick={() => startDraft(analysis)}><FileText />{analysis.draftContent != null || draftBuffers[analysis.id] ? "Continue draft" : "Start a draft"}</button>}

@@ -1,5 +1,6 @@
 import { paidOpenAI, CHAT_MODEL } from "./ai-budget";
-export async function jsonCall(system:string,body:any[],model=CHAT_MODEL) {
+import { liveDeltaWriter } from "./live-generation";
+export async function jsonCall(system:string,body:any[],model=CHAT_MODEL,live=false) {
   const textSize = system.length + body.filter(p=>p.type==="text").reduce((n,p)=>n+p.text.length,0);
   const images = body.filter(p=>p.type==="image_url").length;
   // UTF-8 byte count bounds text tokens conservatively; image reserve covers
@@ -9,7 +10,8 @@ export async function jsonCall(system:string,body:any[],model=CHAT_MODEL) {
   const response=await paidOpenAI("chat/completions",{
     model,max_completion_tokens:8192,response_format:{type:"json_object"},
     messages:[{role:"system",content:system},{role:"user",content:body}],
-  },inputReserve,8192);
+  },inputReserve,8192,live?liveDeltaWriter():undefined);
   if(!response || response.choices[0]?.finish_reason!=="stop") throw new Error("Incomplete model response");
   return {value:JSON.parse(response.choices[0]?.message.content??"{}"),usage:response.usage};
 }
+export const liveJsonCall=(system:string,body:any[],model=CHAT_MODEL)=>jsonCall(system,body,model,true);

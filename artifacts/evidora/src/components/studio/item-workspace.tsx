@@ -1,3 +1,4 @@
+import { SavedWebEvidence } from "@/components/web-evidence";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -209,6 +210,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
                 <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" /></>
               : content.trim() ? <AcademicAnswer content={content} inline={plainInline} renderFigure={renderFigure} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
           </div>
+          {mode !== "edit" && !isProjectInfo && <div className="mt-6"><SavedWebEvidence metadata={item.metadata} /></div>}
         </div>
         {canFigure && <div className="mx-5 mb-4 rounded-md border bg-[hsl(66_20%_97%)] p-3" data-testid="panel-add-figure">
           {!figOpen ? <div className="flex flex-wrap items-center gap-2">

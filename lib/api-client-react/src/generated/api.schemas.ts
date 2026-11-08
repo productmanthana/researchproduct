@@ -683,6 +683,45 @@ export interface DocumentLink {
   paperId: string | null;
 }
 
+export type GetWebEvidenceParams = {
+/**
+ * @minLength 3
+ * @maxLength 2000
+ */
+q: string;
+};
+
+export type GetWebEvidence200Status = typeof GetWebEvidence200Status[keyof typeof GetWebEvidence200Status];
+
+
+export const GetWebEvidence200Status = {
+  ready: 'ready',
+  empty: 'empty',
+  unavailable: 'unavailable',
+  not_configured: 'not_configured',
+  restricted: 'restricted',
+} as const;
+
+export type GetWebEvidence200ResultsItem = {
+  id: string;
+  title: string;
+  url: string;
+  text: string;
+  evidenceLevel: string;
+  /** @nullable */
+  publishedAt: string | null;
+};
+
+export type GetWebEvidence200 = {
+  status: GetWebEvidence200Status;
+  message: string;
+  query: string;
+  /** @nullable */
+  retrievedAt: string | null;
+  cached: boolean;
+  results: GetWebEvidence200ResultsItem[];
+};
+
 export type DownloadStudioFigureParams = {
 format: DownloadStudioFigureFormat;
 };

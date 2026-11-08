@@ -19,6 +19,8 @@ import { decideAskIntent } from "./ask-intent";
 import { conversationContext } from "./ask-discovery";
 import { routeAskIntent } from "./ask-intent";
 import { usageStatusForResult } from "./analysis-draft";
+import { addWebEvidence } from "./web-evidence";
+import { withLiveGeneration, clearLive } from "./live-generation";
 
 // All plans use the same agreed model and evidence checks.
 const MODEL="gpt-4.1";
@@ -112,6 +114,7 @@ async function runAnalysis(job:any) {
   const retrievalNotices:string[]=[];
   const verifiedJob={...job,input:{...job.input,paperIds:(job.input.paperIds??[]).filter((id:string)=>!verification.get(id)?.includes("excluded"))}};
   const sources=(await sourcesFor(verifiedJob,retrievalNotices)).filter(s=>!verification.get(s.paperId??s.id)?.includes("excluded")).map(s=>({...s,verification:s.paperId?verification.get(s.paperId):"Private uploaded evidence"}));
+  await addWebEvidence(job,sources,retrievalNotices);
   if(!sources.length) throw new HttpError(400,"No usable evidence remained after citation verification.");
   const comparison=job.kind==="review"?await buildComparison(papers,sources):{rows:[],inputTokens:0,outputTokens:0};
   // Large reviews first extract and verify the comparison from each paper in
@@ -168,7 +171,7 @@ export async function processNextAnalysis() {
     job=rows[0]; if(!job) return;
     heartbeat=setInterval(()=>{void pool.query("UPDATE research_analyses SET started_at=now() WHERE id=$1 AND status='running'",[job.id]).catch(()=>{});},30000);
     heartbeat.unref();
-    const result=await aiContext.run({owner:job.owner_id,analysisId:job.id},()=>retrievalContext.run({},()=>runAnalysis(job)));
+    const result=await withLiveGeneration("analysis",job.id,()=>aiContext.run({owner:job.owner_id,analysisId:job.id},()=>retrievalContext.run({},()=>runAnalysis(job))));
     const client=await pool.connect();
     try {
       await client.query("BEGIN");
@@ -183,5 +186,5 @@ export async function processNextAnalysis() {
       await pool.query("UPDATE research_analyses SET status='failed',error=$2 WHERE id=$1",[job.id,e instanceof HttpError?e.message:"Analysis could not be completed. Your allowance was restored. Please retry."]);
       await pool.query("UPDATE research_usage SET status='refunded' WHERE id=$1 AND status='reserved'",[job.id]);
     }
-  } finally {if(heartbeat)clearInterval(heartbeat);busy=false;}
+  } finally {if(heartbeat)clearInterval(heartbeat);if(job)await clearLive("analysis",job.id).catch(()=>{});busy=false;}
 }

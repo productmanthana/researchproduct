@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { jsonCall } from "./ai-json";
+import { liveJsonCall as jsonCall } from "./ai-json";
 
 export const AskIntent=z.object({
   intent:z.enum(["guidance","research"]),

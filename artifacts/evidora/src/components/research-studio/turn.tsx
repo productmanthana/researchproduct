@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/states";
 import { EvidencePanel } from "./evidence-panel";
 import { ProcessingProgress, processingLabel } from "./processing-progress";
 import { AcademicAnswer } from "@/components/academic-answer";
+import { LiveDraft } from "@/components/live-draft";
 
 const done=(s:string)=>s==="completed"||s==="failed";
 
@@ -47,9 +48,9 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
         {!chatMode&&<div className="ev-answer-head"><div className="ev-section-label"><span className="ev-number">02</span><span className="ev-micro">The answer</span></div>{d.content&&<button className="ev-quiet" onClick={async()=>{try{await navigator.clipboard.writeText(d.content+(referenceText?`\n\n## References\n\n${referenceText}`:""));setCopyStatus("Answer and references copied.");}catch{setCopyStatus("Copy unavailable. Select the answer text to copy.");}}}><Copy/>Copy</button>}</div>}
         {copyStatus&&<p role="status" className="ev-status">{copyStatus}</p>}
         {result.isError&&!done(d.status)&&<ErrorState error={result.error} onRetry={()=>result.refetch()} title="Could not refresh progress"/>}
-        {!done(d.status)&&(chatMode
+        {!done(d.status)&&<LiveDraft kind="analysis" id={d.id} working invalidate={[getGetAnalysisQueryKey(d.id),getListAnalysesQueryKey()]} fallback={chatMode
           ?<p className="es-progress" role="status">{d.status==="queued"?"Queued · waiting for a research worker":processingLabel(d.stage)}{["reading","writing","checking"].includes(d.stage??"")&&!d.searchQueries?.length?" · Reusing selected papers":""}</p>
-          :<ProcessingProgress stage={d.stage} queued={d.status==="queued"} reusedSources={["reading","writing","checking"].includes(d.stage??"")&&!d.searchQueries?.length}/>)}
+          :<ProcessingProgress stage={d.stage} queued={d.status==="queued"} reusedSources={["reading","writing","checking"].includes(d.stage??"")&&!d.searchQueries?.length}/>}/>}
         {d.status==="failed"&&<><ErrorState error={{message:d.error}} title="Research could not complete"/><button className="ev-quiet" disabled={retryDisabled} onClick={()=>onRetry(d.question)}>Put question back in composer</button></>}
         {d.status==="completed"&&<div data-testid={`text-answer-${d.id}`}>
           {d.responseMode!=="guidance"&&<p className="ev-evidence-context">{paperCount} cited {paperCount===1?"paper":"papers"} · Bounded research synthesis{d.sources.some(s=>s.evidenceLevel==="Abstract only")?" · Includes abstract-only evidence":""}</p>}

@@ -1,6 +1,8 @@
 import "./watch.test";
 import "./figures.test";
 import "./document-review.test";
+import "./web-evidence.test";
+import "./live-generation.test";
 import "./studio.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";

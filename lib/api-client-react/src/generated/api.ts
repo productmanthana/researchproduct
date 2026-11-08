@@ -38,6 +38,8 @@ import type {
   ExportStudioDocumentParams,
   GetLandscapeParams,
   GetRelatedPapersParams,
+  GetWebEvidence200,
+  GetWebEvidenceParams,
   HealthStatus,
   Landscape,
   LibraryInput,
@@ -98,6 +100,211 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getStreamGenerationUrl = (kind: 'analysis' | 'studio',
+    id: string,) => {
+
+
+
+
+  return `/api/live/${kind}/${id}`
+}
+
+export const streamGeneration = async (kind: 'analysis' | 'studio',
+    id: string, options?: Parameters<typeof customFetch>[1]): Promise<string> => {
+
+  return customFetch<string>(getStreamGenerationUrl(kind,id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getStreamGenerationQueryKey = (kind: 'analysis' | 'studio',
+    id: string,) => {
+    return [
+    `/api/live/${kind}/${id}`
+    ] as const;
+    }
+
+
+export const getStreamGenerationQueryOptions = <TData = Awaited<ReturnType<typeof streamGeneration>>, TError = ErrorType<unknown>>(kind: 'analysis' | 'studio',
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getStreamGenerationQueryKey(kind,id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof streamGeneration>>> = ({ signal }) => streamGeneration(kind,id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: kind !== null && kind !== undefined && id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type StreamGenerationQueryResult = NonNullable<Awaited<ReturnType<typeof streamGeneration>>>
+export type StreamGenerationQueryError = ErrorType<unknown>
+
+
+export function useStreamGeneration<TData = Awaited<ReturnType<typeof streamGeneration>>, TError = ErrorType<unknown>>(
+ kind: 'analysis' | 'studio',
+    id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof streamGeneration>>,
+          TError,
+          Awaited<ReturnType<typeof streamGeneration>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStreamGeneration<TData = Awaited<ReturnType<typeof streamGeneration>>, TError = ErrorType<unknown>>(
+ kind: 'analysis' | 'studio',
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof streamGeneration>>,
+          TError,
+          Awaited<ReturnType<typeof streamGeneration>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useStreamGeneration<TData = Awaited<ReturnType<typeof streamGeneration>>, TError = ErrorType<unknown>>(
+ kind: 'analysis' | 'studio',
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useStreamGeneration<TData = Awaited<ReturnType<typeof streamGeneration>>, TError = ErrorType<unknown>>(
+ kind: 'analysis' | 'studio',
+    id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof streamGeneration>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getStreamGenerationQueryOptions(kind,id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetWebEvidenceUrl = (params: GetWebEvidenceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/web-evidence?${stringifiedParams}` : `/api/web-evidence`
+}
+
+export const getWebEvidence = async (params: GetWebEvidenceParams, options?: Parameters<typeof customFetch>[1]): Promise<GetWebEvidence200> => {
+
+  return customFetch<GetWebEvidence200>(getGetWebEvidenceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWebEvidenceQueryKey = (params?: GetWebEvidenceParams,) => {
+    return [
+    `/api/web-evidence`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWebEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof getWebEvidence>>, TError = ErrorType<unknown>>(params: GetWebEvidenceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWebEvidenceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWebEvidence>>> = ({ signal }) => getWebEvidence(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetWebEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof getWebEvidence>>>
+export type GetWebEvidenceQueryError = ErrorType<unknown>
+
+
+export function useGetWebEvidence<TData = Awaited<ReturnType<typeof getWebEvidence>>, TError = ErrorType<unknown>>(
+ params: GetWebEvidenceParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWebEvidence>>,
+          TError,
+          Awaited<ReturnType<typeof getWebEvidence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWebEvidence<TData = Awaited<ReturnType<typeof getWebEvidence>>, TError = ErrorType<unknown>>(
+ params: GetWebEvidenceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getWebEvidence>>,
+          TError,
+          Awaited<ReturnType<typeof getWebEvidence>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetWebEvidence<TData = Awaited<ReturnType<typeof getWebEvidence>>, TError = ErrorType<unknown>>(
+ params: GetWebEvidenceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetWebEvidence<TData = Awaited<ReturnType<typeof getWebEvidence>>, TError = ErrorType<unknown>>(
+ params: GetWebEvidenceParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getWebEvidence>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetWebEvidenceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateDocumentReviewUrl = () => {
 

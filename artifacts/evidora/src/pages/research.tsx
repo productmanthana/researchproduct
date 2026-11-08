@@ -4,6 +4,7 @@ import { useLocation, useSearch, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { usageLimitMessage } from "@/lib/usage-limits";
 import { AcademicAnswer } from "@/components/academic-answer";
+import { LiveDraft } from "@/components/live-draft";
 import {
   useCreateAnalysis,
   useGetAnalysis,
@@ -401,10 +402,10 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
       )}
 
       {!isDone(d.status) ? (
-        <div className="p-8 text-center">
+        <div className="p-5"><LiveDraft kind="analysis" id={id} working invalidate={[getGetAnalysisQueryKey(id)]} fallback={<div className="p-3 text-center">
           <div className="relative mx-auto h-1 max-w-xs overflow-hidden rounded bg-muted"><div className="scanline absolute inset-y-0 w-1/3 bg-primary" /></div>
           <p className="mt-4 text-sm text-muted-foreground">Reading sources and checking quotes. This page refreshes every 2 seconds.</p>
-        </div>
+        </div>} /></div>
       ) : d.status === "failed" ? (
         <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
       ) : (

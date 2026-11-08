@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LiveWebEvidence } from "@/components/web-evidence";
 import { Link, useParams } from "wouter";
 import { useGetPaper, getGetPaperQueryKey, useGetRelatedPapers, getGetRelatedPapersQueryKey, type GetRelatedPapersKind } from "@workspace/api-client-react";
 import { ArrowLeft, ExternalLink, FileText, Quote, Sparkles, Unlock } from "lucide-react";
@@ -21,6 +22,9 @@ export default function PaperPage() {
   const relParams = { kind };
   const related = useGetRelatedPapers(paperId, relParams, { query: { enabled: !!paperId, queryKey: getGetRelatedPapersQueryKey(paperId, relParams) } });
   const saved = useSavedIds();
+  // Internet comparison only after the user explicitly opens the Similar tab; the paper title is the submitted query.
+  const [webOpened, setWebOpened] = useState(false);
+  const webQ = webOpened && kind === "similar" ? (paper.data?.title ?? "") : "";
 
   if (paper.isLoading) return <RowSkeleton rows={3} />;
   if (paper.isError || !paper.data) return <ErrorState error={paper.error} onRetry={() => paper.refetch()} title="Paper not found or source unavailable" />;
@@ -120,7 +124,7 @@ export default function PaperPage() {
           {TABS.map((t) => (
             <button
               key={t.k}
-              onClick={() => setKind(t.k)}
+              onClick={() => { setKind(t.k); if (t.k === "similar") setWebOpened(true); }}
               className={`relative px-4 py-2.5 text-sm transition-colors ${kind === t.k ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               data-testid={`tab-related-${t.k}`}
             >
@@ -129,6 +133,7 @@ export default function PaperPage() {
             </button>
           ))}
         </div>
+        {webQ && <div className="mb-4"><LiveWebEvidence q={webQ} /></div>}
         {related.isLoading ? (
           <RowSkeleton rows={4} />
         ) : related.isError ? (

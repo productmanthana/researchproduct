@@ -7,6 +7,8 @@ import analysesRouter from "./analyses";
 import studioRouter from "./studio";
 import watchesRouter from "./watches";
 import documentReviewsRouter from "./document-reviews";
+import webEvidenceRouter from "./web-evidence";
+import liveGenerationRouter from "./live-generation";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use(analysesRouter);
 router.use(studioRouter);
 router.use(watchesRouter);
 router.use(documentReviewsRouter);
+router.use(webEvidenceRouter);
+router.use(liveGenerationRouter);
 
 export default router;

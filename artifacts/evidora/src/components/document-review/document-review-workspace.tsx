@@ -13,6 +13,8 @@ import { figuresOf, markerOrder, isolateMarkers, type StudioFigure } from "@/lib
 import { friendlyError, isWorking, statusOf } from "@/lib/studio";
 import { DECISION_LABEL, SEVERITY_LABEL, quoteRanges, reviewOf, type ReviewSource, type ReviewSuggestion } from "./review-model";
 import "./document-review.css";
+import { SavedWebEvidence } from "@/components/web-evidence";
+import { LiveDraft } from "@/components/live-draft";
 
 const plain = (t: string): ReactNode => t;
 function proposedFigure(s: ReviewSuggestion, figures: StudioFigure[]): StudioFigure | undefined {
@@ -124,6 +126,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
         <div className="dr-paper">
           <p className="dr-eyebrow"><FileText />{review.originalName}</p>
           {working && <div className="dr-working" role="status" data-testid="status-review-working"><span className="dr-scan" />{typeof item.metadata?.stage === "string" ? item.metadata.stage : "Reading your text and visuals and retrieving related evidence."} Larger documents and source retrieval can take several minutes. You can return to this saved review later.</div>}
+          {working && <LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id)]} fallback={null} />}
           {item.status === "failed" && <div className="dr-alert" role="alert">{item.error || "This review could not be completed."}</div>}
           {view === "original" && !working && <>
             <p className="dr-note">Extracted text from your file, shown for review. Highlights mark exact quotes with a suggestion; select one to open it. Layout and formatting of the original file are not reproduced here.</p>
@@ -137,7 +140,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
     <aside className="es-panel dr-panel" aria-label="Review suggestions">
       <div className="es-panel-header"><h2>Suggestions <span className="es-small">/ {pending.length} open</span></h2><button className="es-icon" aria-label="Close review and return to chat" onClick={onClose}><X /></button></div>
       <div className="dr-panel-scroll">
-        <Coverage review={review} working={working} />
+        <Coverage review={review} working={working} metadata={item.metadata} />
         {conflict && <div className="dr-alert" role="alert" data-testid="status-review-conflict"><AlertTriangle />{conflict}</div>}
         {!working && item.status === "completed" && <>
           <div className="dr-filter" role="group" aria-label="Filter suggestions">
@@ -192,7 +195,7 @@ function DraftView({ draft, loading, error, retry }: { draft?: StudioItem; loadi
   </>;
 }
 
-function Coverage({ review, working }: { review: ReturnType<typeof reviewOf>; working: boolean }) {
+function Coverage({ review, working, metadata }: { review: ReturnType<typeof reviewOf>; working: boolean; metadata: unknown }) {
   const c = review.coverage;
   const textPct = pct(c.textCharacters, c.totalTextCharacters);
   return <section className="dr-coverage" aria-label="What was reviewed" data-testid="panel-review-coverage">
@@ -210,6 +213,7 @@ function Coverage({ review, working }: { review: ReturnType<typeof reviewOf>; wo
         <p>{review.patent.message || (review.patent.available ? "Patent results were included where relevant." : "Patent search was unavailable for this review.")}</p>
         {review.patent.links.length > 0 && <ul>{review.patent.links.map(l => <li key={l.url}><a href={l.url} target="_blank" rel="noreferrer">{l.label}<ExternalLink /></a></li>)}</ul>}
       </div>
+      <SavedWebEvidence metadata={metadata} />
       {review.warnings.length > 0 && <div className="dr-warnings" role="status" data-testid="list-review-warnings"><p><AlertTriangle />Limits of this review</p><ul>{review.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
       {review.sources.length > 0 && <details className="dr-sources"><summary>Retrieved sources ({review.sources.length})<ChevronDown /></summary><ol>{review.sources.map(s => <li key={s.id}>{s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : s.title}{s.evidenceLevel && <small> · {s.evidenceLevel}</small>}</li>)}</ol></details>}
     </>}

@@ -1,6 +1,8 @@
 import type { StudioItem } from "@workspace/api-client-react";
 import { AlertTriangle, RotateCw } from "lucide-react";
+import { getGetStudioItemQueryKey, getListStudioItemsQueryKey } from "@workspace/api-client-react";
 import { meta } from "@/lib/studio";
+import { LiveDraft } from "@/components/live-draft";
 
 /** Honest progress: reflects only the server-reported status, no simulated steps. */
 export function GenerationStatus({ item, onRetry }: { item: StudioItem; onRetry?: () => void }) {
@@ -27,7 +29,7 @@ export function GenerationStatus({ item, onRetry }: { item: StudioItem; onRetry?
         {queued ? "Your request is saved and waiting for a writer slot." : "The server is drafting from your evidence. This usually takes under a minute or two."}
         {" "}You can leave this page; the result is saved to your project automatically.
       </p>
-      <div className="sx-progress mt-4" aria-hidden />
+      <div className="mt-4"><LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id), getListStudioItemsQueryKey()]} fallback={<div className="sx-progress" aria-hidden />} /></div>
     </div>
   );
 }

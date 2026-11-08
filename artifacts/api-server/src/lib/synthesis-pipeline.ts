@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Claim, normalize, type EvidenceSource } from "./evidence";
-import { jsonCall } from "./ai-json";
+import { jsonCall,liveJsonCall } from "./ai-json";
 import { recoverClaimDraft } from "./claim-recovery";
 import { validateDraftClaims } from "./claim-validation";
 import { synthesisPrompt, QUANTITATIVE_CHECKS } from "./synthesis-prompts";
@@ -33,8 +33,8 @@ export async function checkedSynthesis({kind,question,sources,rawSources=sources
   progress?:(stage:"writing"|"checking")=>Promise<void>;call?:Call;
 }) {
   let inputTokens=0,outputTokens=0;
-  const tracked:Call=async(system,body)=>{
-    const result=await call(system,body);
+  const tracked:Call=async(system,body,model,live=false)=>{
+    const result=await (live&&call===jsonCall?liveJsonCall:call)(system,body,model);
     inputTokens+=result.usage?.prompt_tokens??0;
     outputTokens+=result.usage?.completion_tokens??0;
     return result;
@@ -50,7 +50,7 @@ Abstract-only sources support only appropriately qualified findings. Check the o
     return claims.filter((_,i)=>indices.includes(i));
   }
   await progress("writing");
-  const generated=await tracked(synthesisPrompt(kind),[{type:"text",text:JSON.stringify({task:kind,question,asOfDate:new Date().toISOString().slice(0,10),sources})},...images]);
+  const generated=await tracked(synthesisPrompt(kind),[{type:"text",text:JSON.stringify({task:kind,question,asOfDate:new Date().toISOString().slice(0,10),sources})},...images],undefined,true);
   const draft=Output.parse(generated.value);
   let limitations=draft.limitations;
   const initial=validateDraftClaims(draft.claims,rawSources);
@@ -64,7 +64,7 @@ Abstract-only sources support only appropriately qualified findings. Check the o
     try {
       await progress("writing");
       const response=await recoverClaimDraft(question,sources,draft.claims.map(c=>c.text),images,{
-        expanded:kind==="answer",existing:supported,call:tracked,
+        expanded:kind==="answer",existing:supported,call:(system,body,model)=>tracked(system,body,model,true),
       });
       const recovered=Output.parse(response.value);
       repair=validateDraftClaims(recovered.claims,rawSources);

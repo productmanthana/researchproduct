@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { LiveWebEvidence } from "@/components/web-evidence";
 import { Link, useLocation, useSearch } from "wouter";
 import { useUser } from "@clerk/react";
 import { useSearchPapers, getSearchPapersQueryKey, useGetSummary, getGetSummaryQueryKey, type SearchPapersParams } from "@workspace/api-client-react";
@@ -171,6 +172,7 @@ export default function Discover() {
         </div>
       )}
 
+      {urlQ && <div className="mt-6"><LiveWebEvidence q={urlQ} /></div>}
       <div className="mt-8">
         {!urlQ ? (
           <EmptyState icon={<Compass className="h-5 w-5" />} title="Start with a question you actually have" body="Search across open scholarly indexes. Select papers as you go, then send them to Research for a cited answer or review." />

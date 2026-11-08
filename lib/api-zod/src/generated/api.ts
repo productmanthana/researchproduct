@@ -7,6 +7,40 @@
 import * as zod from 'zod';
 
 
+export const StreamGenerationParams = zod.object({
+  "kind": zod.enum(['analysis', 'studio']),
+  "id": zod.coerce.string()
+})
+
+export const StreamGenerationResponse = zod.unknown()
+
+
+export const getWebEvidenceQueryQMin = 3;
+export const getWebEvidenceQueryQMax = 2000;
+
+
+
+export const GetWebEvidenceQueryParams = zod.object({
+  "q": zod.coerce.string().min(getWebEvidenceQueryQMin).max(getWebEvidenceQueryQMax)
+})
+
+export const GetWebEvidenceResponse = zod.object({
+  "status": zod.enum(['ready', 'empty', 'unavailable', 'not_configured', 'restricted']),
+  "message": zod.string(),
+  "query": zod.string(),
+  "retrievedAt": zod.string().nullable(),
+  "cached": zod.boolean(),
+  "results": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "text": zod.string(),
+  "evidenceLevel": zod.string(),
+  "publishedAt": zod.string().nullable()
+}))
+})
+
+
 export const createDocumentReviewBodyPromptMin = 5;
 export const createDocumentReviewBodyPromptMax = 5000;
 

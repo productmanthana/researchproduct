@@ -10,6 +10,17 @@
     }
   ],
   "paths": {
+    "/live/{kind}/{id}": {
+      "get": {
+        "operationId":"streamGeneration",
+        "parameters":[{"name":"kind","in":"path","required":true,"schema":{"type":"string","enum":["analysis","studio"]}},{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],
+        "responses":{"200":{"description":"Owner-only SSE snapshot/done events with id,status,stage,draft,updatedAt. Reconnect after closure; snapshots replace previous draft.","content":{"text/event-stream":{"schema":{"type":"string"}}}}}
+      }
+    },
+    "/web-evidence": {
+      "get":{"operationId":"getWebEvidence","parameters":[{"name":"q","in":"query","required":true,"schema":{"type":"string","minLength":3,"maxLength":2000}}],"responses":{"200":{"description":"Bounded Internet evidence and availability","content":{"application/json":{"schema":{"type":"object","required":["status","message","query","retrievedAt","cached","results"],"properties":{"status":{"type":"string","enum":["ready","empty","unavailable","not_configured","restricted"]},"message":{"type":"string"},"query":{"type":"string"},"retrievedAt":{"type":["string","null"]},"cached":{"type":"boolean"},"results":{"type":"array","items":{"type":"object","required":["id","title","url","text","evidenceLevel","publishedAt"],"properties":{"id":{"type":"string"},"title":{"type":"string"},"url":{"type":"string"},"text":{"type":"string"},"evidenceLevel":{"type":"string"},"publishedAt":{"type":["string","null"]}}}}}}}}}}
+      }
+    },
     "/studio/document-reviews": {
       "post":{"operationId":"createDocumentReview","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/DocumentReviewInput"}}}},"responses":{"200":{"description":"Queued private document review","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
     },
