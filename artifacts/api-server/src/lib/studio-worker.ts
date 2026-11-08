@@ -92,7 +92,7 @@ Only empirical findings supported by supplied evidence may be asserted. Use exac
 Return JSON {"title":"...","content":"markdown body WITHOUT bibliography","ideas":[five objects with title,problem,question,method,feasibility only when generating ideas]}.
 Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never promise human authorship or detector evasion.`;
   await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Academic Writing Agent · developing your draft"})]);
-  const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,project:{name:project.name,description:project.description},context:projectMaterial,passages,template,evidence,date:new Date().toISOString().slice(0,10)})}];
+  const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,project:{name:project.name,description:project.description},context:projectMaterial,passages,template,documentDetails:request.documentDetails,evidence,date:new Date().toISOString().slice(0,10)})}];
   for(const source of sources.filter(s=>s.image).slice(0,3))body.push({type:"text",text:`Original page image for reference [${sources.indexOf(source)+1}]`},{type:"image_url",image_url:{url:source.image,detail:"high"}});
   const output=await jsonCall(prompt,body);
   const draft=Generated.parse(output.value);

@@ -37,6 +37,23 @@ export const StudioItemInputKind = {
   answer: 'answer',
 } as const;
 
+export interface DocumentDetails {
+  /** @maxLength 500 */
+  author?: string;
+  /** @maxLength 500 */
+  affiliation?: string;
+  /** @maxLength 500 */
+  supervisor?: string;
+  /** @maxLength 200 */
+  degree?: string;
+  /** @maxLength 200 */
+  department?: string;
+  /** @maxLength 40 */
+  year?: string;
+  /** @maxLength 100 */
+  studentId?: string;
+}
+
 export interface StudioItemInput {
   projectId: string;
   kind: StudioItemInputKind;
@@ -50,7 +67,9 @@ export interface StudioItemInput {
   parentId?: string;
   documentId?: string;
   analysisId?: string;
-  templateId?: string;
+  /** @nullable */
+  templateId?: string | null;
+  documentDetails?: DocumentDetails;
 }
 
 export type StudioGenerationInputKind = typeof StudioGenerationInputKind[keyof typeof StudioGenerationInputKind];
@@ -86,11 +105,15 @@ export interface StudioGenerationInput {
   templateId?: string;
   parentId?: string;
   includePatents?: boolean;
+  documentDetails?: DocumentDetails;
 }
 
 export type StudioCheckMatchesItem = {
   title: string;
   excerpt: string;
+  sourceExcerpt?: string;
+  url?: string;
+  matchType?: string;
 };
 
 export interface StudioCheck {
@@ -98,7 +121,22 @@ export interface StudioCheck {
   issues: string[];
   matches: StudioCheckMatchesItem[];
   externalAvailable: boolean;
+  checkedAt?: string;
+  comparedSources?: number;
+  wordsChecked?: number;
+  matchedWords?: number;
+  corpusSimilarityPercent?: number;
+  excludedWords?: number;
+  formatIssues?: string[];
+  profileName?: string;
 }
+
+export type StudioTemplateRanking = {
+  quartile: string;
+  year: number;
+  category: string;
+  sourceUrl: string;
+};
 
 export interface StudioTemplate {
   id: string;
@@ -109,6 +147,10 @@ export interface StudioTemplate {
   guidelines: string;
   status: string;
   requirements: string[];
+  layoutDescription?: string;
+  verifiedAt?: string;
+  officialTemplateUrl?: string;
+  ranking?: StudioTemplateRanking;
 }
 
 export type StudioPatentSearchLinksItem = {

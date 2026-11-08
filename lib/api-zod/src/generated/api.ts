@@ -32,6 +32,20 @@ export const saveStudioItemBodyTitleMax = 300;
 
 export const saveStudioItemBodyContentMax = 500000;
 
+export const saveStudioItemBodyDocumentDetailsAuthorMax = 500;
+
+export const saveStudioItemBodyDocumentDetailsAffiliationMax = 500;
+
+export const saveStudioItemBodyDocumentDetailsSupervisorMax = 500;
+
+export const saveStudioItemBodyDocumentDetailsDegreeMax = 200;
+
+export const saveStudioItemBodyDocumentDetailsDepartmentMax = 200;
+
+export const saveStudioItemBodyDocumentDetailsYearMax = 40;
+
+export const saveStudioItemBodyDocumentDetailsStudentIdMax = 100;
+
 
 
 export const SaveStudioItemBody = zod.object({
@@ -42,7 +56,16 @@ export const SaveStudioItemBody = zod.object({
   "parentId": zod.string().optional(),
   "documentId": zod.string().optional(),
   "analysisId": zod.string().optional(),
-  "templateId": zod.string().optional()
+  "templateId": zod.string().nullish(),
+  "documentDetails": zod.object({
+  "author": zod.string().max(saveStudioItemBodyDocumentDetailsAuthorMax).optional(),
+  "affiliation": zod.string().max(saveStudioItemBodyDocumentDetailsAffiliationMax).optional(),
+  "supervisor": zod.string().max(saveStudioItemBodyDocumentDetailsSupervisorMax).optional(),
+  "degree": zod.string().max(saveStudioItemBodyDocumentDetailsDegreeMax).optional(),
+  "department": zod.string().max(saveStudioItemBodyDocumentDetailsDepartmentMax).optional(),
+  "year": zod.string().max(saveStudioItemBodyDocumentDetailsYearMax).optional(),
+  "studentId": zod.string().max(saveStudioItemBodyDocumentDetailsStudentIdMax).optional()
+}).optional()
 })
 
 export const SaveStudioItemResponse = zod.object({
@@ -94,6 +117,21 @@ export const generateStudioDocumentBodyPromptMin = 5;
 export const generateStudioDocumentBodyPromptMax = 5000;
 
 export const generateStudioDocumentBodyIncludePatentsDefault = true;
+export const generateStudioDocumentBodyDocumentDetailsAuthorMax = 500;
+
+export const generateStudioDocumentBodyDocumentDetailsAffiliationMax = 500;
+
+export const generateStudioDocumentBodyDocumentDetailsSupervisorMax = 500;
+
+export const generateStudioDocumentBodyDocumentDetailsDegreeMax = 200;
+
+export const generateStudioDocumentBodyDocumentDetailsDepartmentMax = 200;
+
+export const generateStudioDocumentBodyDocumentDetailsYearMax = 40;
+
+export const generateStudioDocumentBodyDocumentDetailsStudentIdMax = 100;
+
+
 
 export const GenerateStudioDocumentBody = zod.object({
   "projectId": zod.string(),
@@ -102,7 +140,16 @@ export const GenerateStudioDocumentBody = zod.object({
   "evidenceMode": zod.enum(['project', 'discover', 'combined']),
   "templateId": zod.string().optional(),
   "parentId": zod.string().optional(),
-  "includePatents": zod.boolean().default(generateStudioDocumentBodyIncludePatentsDefault)
+  "includePatents": zod.boolean().default(generateStudioDocumentBodyIncludePatentsDefault),
+  "documentDetails": zod.object({
+  "author": zod.string().max(generateStudioDocumentBodyDocumentDetailsAuthorMax).optional(),
+  "affiliation": zod.string().max(generateStudioDocumentBodyDocumentDetailsAffiliationMax).optional(),
+  "supervisor": zod.string().max(generateStudioDocumentBodyDocumentDetailsSupervisorMax).optional(),
+  "degree": zod.string().max(generateStudioDocumentBodyDocumentDetailsDegreeMax).optional(),
+  "department": zod.string().max(generateStudioDocumentBodyDocumentDetailsDepartmentMax).optional(),
+  "year": zod.string().max(generateStudioDocumentBodyDocumentDetailsYearMax).optional(),
+  "studentId": zod.string().max(generateStudioDocumentBodyDocumentDetailsStudentIdMax).optional()
+}).optional()
 })
 
 export const GenerateStudioDocumentResponse = zod.object({
@@ -141,9 +188,20 @@ export const CheckStudioDocumentResponse = zod.object({
   "issues": zod.array(zod.string()),
   "matches": zod.array(zod.object({
   "title": zod.string(),
-  "excerpt": zod.string()
+  "excerpt": zod.string(),
+  "sourceExcerpt": zod.string().optional(),
+  "url": zod.string().optional(),
+  "matchType": zod.string().optional()
 })),
-  "externalAvailable": zod.boolean()
+  "externalAvailable": zod.boolean(),
+  "checkedAt": zod.string().optional(),
+  "comparedSources": zod.number().int().optional(),
+  "wordsChecked": zod.number().int().optional(),
+  "matchedWords": zod.number().int().optional(),
+  "corpusSimilarityPercent": zod.number().optional(),
+  "excludedWords": zod.number().int().optional(),
+  "formatIssues": zod.array(zod.string()).optional(),
+  "profileName": zod.string().optional()
 })
 
 
@@ -175,7 +233,16 @@ export const ListStudioTemplatesResponseItem = zod.object({
   "country": zod.string(),
   "guidelines": zod.string(),
   "status": zod.string(),
-  "requirements": zod.array(zod.string())
+  "requirements": zod.array(zod.string()),
+  "layoutDescription": zod.string().optional(),
+  "verifiedAt": zod.string().optional(),
+  "officialTemplateUrl": zod.string().optional(),
+  "ranking": zod.object({
+  "quartile": zod.string(),
+  "year": zod.number().int(),
+  "category": zod.string(),
+  "sourceUrl": zod.string()
+}).optional()
 })
 export const ListStudioTemplatesResponse = zod.array(ListStudioTemplatesResponseItem)
 

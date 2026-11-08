@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { DocumentDetails } from './documentDetails';
 import type { StudioGenerationInputEvidenceMode } from './studioGenerationInputEvidenceMode';
 import type { StudioGenerationInputKind } from './studioGenerationInputKind';
 
@@ -19,4 +20,5 @@ export interface StudioGenerationInput {
   templateId?: string;
   parentId?: string;
   includePatents?: boolean;
+  documentDetails?: DocumentDetails;
 }

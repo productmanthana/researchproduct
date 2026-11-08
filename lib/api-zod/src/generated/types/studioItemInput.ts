@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { DocumentDetails } from './documentDetails';
 import type { StudioItemInputKind } from './studioItemInputKind';
 
 export interface StudioItemInput {
@@ -19,5 +20,7 @@ export interface StudioItemInput {
   parentId?: string;
   documentId?: string;
   analysisId?: string;
-  templateId?: string;
+  /** @nullable */
+  templateId?: string | null;
+  documentDetails?: DocumentDetails;
 }

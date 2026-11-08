@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { StudioTemplateRanking } from './studioTemplateRanking';
 
 export interface StudioTemplate {
   id: string;
@@ -14,4 +15,8 @@ export interface StudioTemplate {
   guidelines: string;
   status: string;
   requirements: string[];
+  layoutDescription?: string;
+  verifiedAt?: string;
+  officialTemplateUrl?: string;
+  ranking?: StudioTemplateRanking;
 }

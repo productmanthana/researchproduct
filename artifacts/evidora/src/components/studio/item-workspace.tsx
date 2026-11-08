@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   useSaveStudioItem, useDeleteStudioItem, useSyncStudioDocument,
   getListStudioItemsQueryKey, getGetStudioItemQueryKey,
-  StudioItemInputKind, type StudioItem,
+  StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Check, Download, FileText, History, RefreshCw, Trash2 } from "lucide-react";
@@ -13,7 +13,10 @@ import { GenerationStatus } from "./generation-status";
 import { CheckPanel } from "./check-panel";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
-import { downloadStudioItem, friendlyError, isWorking, KIND_LABEL, lineageOf, meta, statusOf } from "@/lib/studio";
+import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
+import { DocumentDetailsFields } from "./document-details";
+import { TemplatePicker } from "./template-picker";
+import { savedReviewOf } from "./check-panel";
 import { ago } from "@/lib/format";
 
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
@@ -59,6 +62,11 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
   const [title, setTitle] = useState(item.title);
   const [content, setContent] = useState(item.content);
   const [mode, setMode] = useState<"read" | "edit">("read");
+  const savedDetails = detailsOf(item);
+  const savedTemplate = meta(item).templateId ?? null;
+  const [details, setDetails] = useState<DocumentDetails>(savedDetails);
+  const [templateId, setTemplateId] = useState<string | null>(savedTemplate);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const initFor = useRef<string | null>(null);
@@ -70,11 +78,18 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
     if (initFor.current === key) return;
     initFor.current = key;
     setTitle(item.title); setContent(item.content); setConflict(null);
+    setDetails(detailsOf(item)); setTemplateId(meta(item).templateId ?? null); setProfileName(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, item.status, item.title, item.content, working]);
 
   const isProjectInfo = (item.metadata as Record<string, unknown> | null)?.projectInformation === true;
   const canSave = SAVABLE.has(item.kind) && !isProjectInfo;
-  const dirty = canSave && !working && (title !== item.title || content !== item.content);
+  const docKind = DETAIL_KINDS.has(item.kind) && canSave;
+  const textDirty = title !== item.title || content !== item.content;
+  const detailsDirty = docKind && !sameDetails(details, savedDetails);
+  const profileDirty = docKind && templateId !== savedTemplate;
+  const dirty = canSave && !working && (textDirty || detailsDirty || profileDirty);
+  const missing = missingRequirements(item.kind, title, details);
   useUnsavedGuard(`studio-item-${item.id}`, dirty, `"${item.title}" has unsaved edits.`);
   const lineage = lineageOf(allItems.length ? allItems : [item], item.id);
   const m = meta(item);
@@ -85,12 +100,16 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
     try {
       const saved = await save.mutateAsync({ data: {
         projectId: item.projectId, kind: item.kind as StudioItemInputKind, title: title.trim(), content,
-        parentId: item.id, ...(m.templateId ? { templateId: m.templateId } : {}),
+        parentId: item.id,
+        // Explicit profile choice (or the inherited one); details always carried forward so revisions never drop them.
+        // docKind: always explicit (null clears the profile). Other kinds omit it, which means inherit.
+        ...(docKind ? { templateId: templateId || null } : {}),
+        ...(docKind && hasDetails(details) ? { documentDetails: cleanDetails(details) } : {}),
       } });
       setConflict(null);
       qc.setQueryData(getGetStudioItemQueryKey(saved.id), saved);
       await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
-      toast({ title: `Saved revision ${saved.revision}`, description: "Earlier versions are kept in history." });
+      toast({ title: `Saved revision ${saved.revision}`, description: profileDirty ? "New formatting profile applied to this revision. Earlier versions keep theirs." : "Earlier versions are kept in history." });
       onOpen(saved.id);
     } catch (e) {
       if (statusOf(e) === 409) setConflict(friendlyError(e));
@@ -136,7 +155,8 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           </div>
         </div>
         <div className="px-5 py-5 md:px-9 md:py-8">
-          {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save this revision before exporting. Exports use the last saved revision.</p>}
+          {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save this revision before exporting. Exports use the last saved revision{detailsDirty || profileDirty ? ", including its title-page details and formatting profile" : ""}.</p>}
+          {!dirty && missing.length > 0 && <p className="mb-3 text-xs text-[hsl(var(--turmeric))]" role="status" data-testid="text-export-missing">Before export: {missing.join("; ")}. You can still export.</p>}
           {mode === "edit" && canSave
             ? <input className="sx-title w-full border-0 bg-transparent text-3xl outline-none" value={title} maxLength={300} onChange={e => setTitle(e.target.value)} aria-label="Title" data-testid="input-item-title" />
             : <h2 className="sx-title text-3xl leading-tight" data-testid="text-item-title">{title}</h2>}
@@ -149,7 +169,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
         </div>
         {conflict && <div className="mx-5 mb-4 rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.06)] p-3 text-sm" role="alert" data-testid="status-conflict">{conflict}</div>}
         <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
-          <span className="text-xs text-muted-foreground" role="status">{dirty ? "Unsaved edits" : "All changes saved"}</span>
+          <span className="text-xs text-muted-foreground" role="status">{dirty ? `Unsaved ${[textDirty && "text", detailsDirty && "details", profileDirty && "profile"].filter(Boolean).join(", ")} edits` : "All changes saved"}</span>
           {isProjectInfo
             ? <span className="text-xs text-muted-foreground" data-testid="text-project-info-note">This mirrors your project details. Edit them in <Link href="/my-library" className="underline">the project information form</Link>; it updates here automatically.</span>
             : !canSave && <span className="text-xs text-muted-foreground">This item type is read-only. Confirm an idea to get an editable copy.</span>}
@@ -171,7 +191,16 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           <p className="text-xs text-muted-foreground">Indexed items can be used as evidence for project-aware answers. Syncing does not count as an answer, but it does use AI service budget.{item.indexStatus === "unavailable" ? " The search index is currently unavailable on the server; the item is still saved." : ""}</p>
           <button className="sx-btn mt-3 w-full" disabled={sync.isPending} onClick={() => void doSync()} data-testid="button-sync"><RefreshCw />{sync.isPending ? "Syncing..." : item.indexStatus === "failed" ? "Retry sync" : "Re-sync"}</button>
         </div>
-        <CheckPanel itemId={item.id} disabled={dirty} />
+        {docKind && (
+          <div className="sx-card space-y-3 p-4" data-testid="panel-item-settings">
+            <DocumentDetailsFields kind={item.kind} value={details} onChange={setDetails} defaultOpen={missing.length > 0}
+              note="Saved with the next revision and used on the exported title page." />
+            <TemplatePicker compact kind={item.kind as "journal" | "thesis" | "synopsis"} value={templateId}
+              onChange={(t: StudioTemplate | null) => { setTemplateId(t?.id ?? null); setProfileName(t?.name ?? null); }} label="Formatting profile" />
+            {profileDirty && <p className="text-xs text-vermilion" data-testid="text-profile-dirty">{templateId ? `Switching to ${profileName ?? "a new profile"}` : "Removing the profile"}. Saving creates a new revision; the current one is left unchanged.</p>}
+          </div>
+        )}
+        <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
         {(m.sources.length > 0 || m.warnings.length > 0) && (
           <div className="sx-card p-4 text-sm">
             {m.warnings.length > 0 && <><p className="sx-eyebrow mb-1">Notes from the writer</p><ul className="mb-3 list-disc space-y-1 pl-5 text-muted-foreground">{m.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></>}

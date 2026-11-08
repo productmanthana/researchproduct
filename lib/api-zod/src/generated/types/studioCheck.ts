@@ -11,4 +11,12 @@ export interface StudioCheck {
   issues: string[];
   matches: StudioCheckMatchesItem[];
   externalAvailable: boolean;
+  checkedAt?: string;
+  comparedSources?: number;
+  wordsChecked?: number;
+  matchedWords?: number;
+  corpusSimilarityPercent?: number;
+  excludedWords?: number;
+  formatIssues?: string[];
+  profileName?: string;
 }

@@ -1,4 +1,4 @@
-import { exportStudioDocument, type StudioItem } from "@workspace/api-client-react";
+import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
 export type StudioSource = { id: string; title: string; text: string; url: string };
@@ -82,4 +82,47 @@ export function projectIntent(text: string): ProjectIntent | null {
   if (/\bjournal\b|\bmanuscript\b|\bresearch (paper|article)\b/.test(t)) return { kind: "journal", route: "/journals" };
   if (/\b(five|5|some|new|research) ideas\b|\bsuggest (some )?ideas\b|\bgenerate ideas\b/.test(t)) return { kind: "ideas", route: "/ideas" };
   return { kind: "answer", route: "/ideas?mode=answer" };
+}
+
+/* ---------- Document details (title-page metadata) ---------- */
+export type { DocumentDetails };
+
+export const DETAIL_KINDS = new Set(["journal", "thesis", "synopsis"]);
+export const DETAIL_FIELDS: { key: keyof DocumentDetails; label: string; max: number; kinds?: string[]; hint?: string }[] = [
+  { key: "author", label: "Author(s)", max: 500, hint: "As it should appear on the title page" },
+  { key: "affiliation", label: "Affiliation", max: 500 },
+  { key: "supervisor", label: "Supervisor / guide", max: 500, kinds: ["thesis", "synopsis"] },
+  { key: "degree", label: "Degree", max: 200, kinds: ["thesis", "synopsis"] },
+  { key: "department", label: "Department", max: 200 },
+  { key: "year", label: "Year", max: 40 },
+  { key: "studentId", label: "Student / enrolment ID", max: 100, kinds: ["thesis", "synopsis"] },
+];
+export const fieldsFor = (kind: string) => DETAIL_FIELDS.filter(f => !f.kinds || f.kinds.includes(kind));
+
+/** Trimmed, empty-free copy suitable for the API. */
+export function cleanDetails(d: DocumentDetails): DocumentDetails {
+  const out: DocumentDetails = {};
+  for (const f of DETAIL_FIELDS) { const v = (d[f.key] ?? "").trim(); if (v) out[f.key] = v.slice(0, f.max); }
+  return out;
+}
+export function detailsOf(item?: StudioItem | null): DocumentDetails {
+  const raw = (item?.metadata as Record<string, unknown> | undefined)?.documentDetails;
+  if (!raw || typeof raw !== "object") return {};
+  const out: DocumentDetails = {};
+  for (const f of DETAIL_FIELDS) { const v = (raw as Record<string, unknown>)[f.key]; if (typeof v === "string") out[f.key] = v; }
+  return out;
+}
+export const sameDetails = (a: DocumentDetails, b: DocumentDetails) => JSON.stringify(cleanDetails(a)) === JSON.stringify(cleanDetails(b));
+export const hasDetails = (d: DocumentDetails) => Object.keys(cleanDetails(d)).length > 0;
+
+/** Title-page requirements that block a clean export; shown before exporting and in the check. */
+export function missingRequirements(kind: string, title: string, d: DocumentDetails): string[] {
+  if (!DETAIL_KINDS.has(kind)) return [];
+  const c = cleanDetails(d);
+  const out: string[] = [];
+  if (!title.trim()) out.push("Title is missing");
+  if (!c.author) out.push("Author name is missing");
+  if (kind !== "journal" && !c.degree) out.push("Degree is missing (shown on the title page)");
+  if (kind === "thesis" && !c.supervisor) out.push("Supervisor / guide is missing");
+  return out;
 }

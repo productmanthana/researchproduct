@@ -8,4 +8,7 @@
 export type StudioCheckMatchesItem = {
   title: string;
   excerpt: string;
+  sourceExcerpt?: string;
+  url?: string;
+  matchType?: string;
 };

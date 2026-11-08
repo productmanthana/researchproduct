@@ -8,6 +8,12 @@ The user wants Evidora presented to researchers and other stakeholders as a natu
 
 **How to apply:** Treat originality review, the ten-plus one-click journal profiles and automated short-proposal gap finding as requested product goals until implemented, not current capabilities. Explain that Q1/Q2/Q3 rank journals rather than define manuscript formats, AI-writing detection is fallible, and catalogue coverage is not a locally stored or fully readable PDF corpus.
 
+The user selected “Free project screening only” for originality checking.
+
+**Why:** They chose this explicitly over connecting licensed Copyleaks.
+
+**How to apply:** Keep checking project-scoped and clearly label its comparison corpus. Do not purchase or submit drafts to a commercial plagiarism service without a new request.
+
 For the Evidora stakeholder presentation, the user wants detailed, pointwise explanations with separate slides for each capability. Cover plagiarism checking separately from ChatGPT/Claude limitations, and include document knowledge-base upload, document Copilot questions, journal formatting, thesis preparation and one-click export as distinct topics.
 
 **Why:** The user rejected the five-slide version as “too short and not clear” and repeated the need for separate feature explanations.
