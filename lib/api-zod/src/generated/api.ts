@@ -7,6 +7,78 @@
 import * as zod from 'zod';
 
 
+export const createDocumentReviewBodyPromptMin = 5;
+export const createDocumentReviewBodyPromptMax = 5000;
+
+export const createDocumentReviewBodyIncludePatentsDefault = true;
+export const createDocumentReviewBodyPageNumbersItemMax = 50;
+
+export const createDocumentReviewBodyPageNumbersMax = 12;
+
+
+
+export const CreateDocumentReviewBody = zod.object({
+  "projectId": zod.string(),
+  "documentId": zod.string(),
+  "prompt": zod.string().min(createDocumentReviewBodyPromptMin).max(createDocumentReviewBodyPromptMax),
+  "includePatents": zod.boolean().default(createDocumentReviewBodyIncludePatentsDefault),
+  "pageNumbers": zod.array(zod.number().int().min(1).max(createDocumentReviewBodyPageNumbersItemMax)).max(createDocumentReviewBodyPageNumbersMax).optional()
+})
+
+export const CreateDocumentReviewResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const DecideDocumentReviewParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DecideDocumentReviewBody = zod.object({
+  "suggestionId": zod.string(),
+  "action": zod.enum(['approve', 'dismiss']),
+  "expectedDraftId": zod.string().nullable()
+})
+
+export const DecideDocumentReviewResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const DownloadStudioFigureParams = zod.object({
+  "id": zod.coerce.string(),
+  "figureId": zod.coerce.string()
+})
+
+export const DownloadStudioFigureQueryParams = zod.object({
+  "format": zod.enum(['png', 'svg', 'csv', 'json'])
+})
+
+export const DownloadStudioFigureResponse = zod.unknown()
+
+
 export const ListResearchWatchesResponseItem = zod.object({
   "projectId": zod.string(),
   "projectName": zod.string(),

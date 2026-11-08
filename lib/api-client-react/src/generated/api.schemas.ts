@@ -4,6 +4,38 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export interface DocumentReviewInput {
+  projectId: string;
+  documentId: string;
+  /**
+     * @minLength 5
+     * @maxLength 5000
+     */
+  prompt: string;
+  includePatents?: boolean;
+  /**
+     * @maxItems 12
+     * @items.minimum 1
+     * @items.maximum 50
+     */
+  pageNumbers?: number[];
+}
+
+export type ReviewDecisionInputAction = typeof ReviewDecisionInputAction[keyof typeof ReviewDecisionInputAction];
+
+
+export const ReviewDecisionInputAction = {
+  approve: 'approve',
+  dismiss: 'dismiss',
+} as const;
+
+export interface ReviewDecisionInput {
+  suggestionId: string;
+  action: ReviewDecisionInputAction;
+  /** @nullable */
+  expectedDraftId: string | null;
+}
+
 export interface ResearchWatchInput {
   /**
      * @minLength 5
@@ -650,6 +682,20 @@ export interface DocumentLink {
   /** @nullable */
   paperId: string | null;
 }
+
+export type DownloadStudioFigureParams = {
+format: DownloadStudioFigureFormat;
+};
+
+export type DownloadStudioFigureFormat = typeof DownloadStudioFigureFormat[keyof typeof DownloadStudioFigureFormat];
+
+
+export const DownloadStudioFigureFormat = {
+  png: 'png',
+  svg: 'svg',
+  csv: 'csv',
+  json: 'json',
+} as const;
 
 export type ListResearchAlertsParams = {
 projectId?: string;

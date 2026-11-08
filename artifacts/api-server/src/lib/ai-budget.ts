@@ -9,11 +9,13 @@ export const TOTAL_MONTHLY_INR = 30000;
 // ₹5,000 storage/providers/processing + ₹7,000 tax/FX/contingency, excluding Replit.
 export const USD_INR = 95;
 export const CHAT_MODEL = "gpt-4.1";
+// Explicitly priced, used for scientific document/figure work only.
+export const SCIENTIFIC_MODEL = "gpt-6.1-sol";
 export const EMBEDDING_MODEL = "text-embedding-3-large";
 export const aiContext = new AsyncLocalStorage<{ owner: string; analysisId: string }>();
 export function priceMicros(model: string, input: number, output = 0) {
-  if (![CHAT_MODEL, EMBEDDING_MODEL].includes(model)) throw new Error("Unpriced AI model");
-  const [inRate, outRate] = model === CHAT_MODEL ? [2, 8] : [0.13, 0];
+  if (![CHAT_MODEL, SCIENTIFIC_MODEL, EMBEDDING_MODEL].includes(model)) throw new Error("Unpriced AI model");
+  const [inRate, outRate] = model === SCIENTIFIC_MODEL ? [2, 10] : model === CHAT_MODEL ? [2, 8] : [0.13, 0];
   return Math.ceil((input * inRate + output * outRate) * USD_INR);
 }
 export async function paidOpenAI(path: "embeddings" | "chat/completions", body: any, reservedInput: number, reservedOutput = 0) {

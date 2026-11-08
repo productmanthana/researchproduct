@@ -1,3 +1,4 @@
+import { isFigureRequest } from "./figures";
 import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
@@ -6,7 +7,7 @@ export type StudioSource = { id: string; title: string; text: string; url: strin
 export const KIND_LABEL: Record<string, string> = {
   ideas: "Idea set", idea: "Chosen idea", literature: "Literature review", synopsis: "Synopsis",
   journal: "Journal draft", thesis: "Thesis draft", note: "Note", document: "Document",
-  patent: "Patent search", answer: "Answer",
+  patent: "Patent search", answer: "Answer", "document-review": "Document review",
 };
 
 export const isWorking = (s?: string) => s === "queued" || s === "running";
@@ -70,11 +71,19 @@ export function latestItems(items: StudioItem[]): StudioItem[] {
   return items.filter(i => !parents.has(i.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export type ProjectIntent = { kind: "ideas" | "literature" | "synopsis" | "journal" | "thesis" | "answer"; route: string };
+export type ProjectIntent = { kind: "ideas" | "literature" | "synopsis" | "journal" | "thesis" | "answer"; route: string; figure?: boolean };
 
 /** Detects an explicit request to use the user's own project material, and infers the document kind. */
 export function projectIntent(text: string): ProjectIntent | null {
   const t = text.toLowerCase();
+  if (isFigureRequest(t)) {
+    // Graphs/diagrams always go through the project-aware generator; keep the document kind when it is named.
+    if (/\bthesis\b|\bdissertation\b/.test(t)) return { kind: "thesis", route: "/thesis", figure: true };
+    if (/\bsynopsis\b/.test(t)) return { kind: "synopsis", route: "/synopsis", figure: true };
+    if (/\bjournal\b|\bmanuscript\b|\b(research )?(paper|article)\b/.test(t)) return { kind: "journal", route: "/journals", figure: true };
+    if (/\bliterature review\b|\blit review\b/.test(t)) return { kind: "literature", route: "/literature", figure: true };
+    return { kind: "answer", route: "/ideas?mode=answer", figure: true };
+  }
   if (!/\b(my|our) (own )?(idea|ideas|reference|references|papers|project|notes|documents|uploads|sources|draft)\b/.test(t)) return null;
   if (/\bliterature review\b|\blit(erature)? review\b|\breview of (the )?literature\b/.test(t)) return { kind: "literature", route: "/literature" };
   if (/\bsynopsis\b/.test(t)) return { kind: "synopsis", route: "/synopsis" };

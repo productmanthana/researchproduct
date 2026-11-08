@@ -25,6 +25,7 @@ export async function readDocument(row:any) {
   return bytes;
 }
 export async function extractWord(bytes:Buffer) {
+  let hasImages=false;
   await new Promise<void>((resolve,reject)=>{
     fromBuffer(bytes,{lazyEntries:true},(error,zip)=>{
       if(error||!zip){reject(new HttpError(400,"Invalid Word document."));return;}
@@ -36,6 +37,7 @@ export async function extractWord(bytes:Buffer) {
           zip.close();reject(new HttpError(400,"Word document is too large when expanded, or contains macros."));return;
         }
         if(entry.fileName==="word/document.xml")document=true;
+        if(/^word\/media\//.test(entry.fileName))hasImages=true;
         zip.readEntry();
       });
       zip.on("end",()=>document?resolve():reject(new HttpError(400,"This is not a valid DOCX document.")));
@@ -44,9 +46,9 @@ export async function extractWord(bytes:Buffer) {
   });
   const result=await extractRawText({buffer:bytes});
   if(result.value.length>500000)throw new HttpError(400,"Please split this Word document into smaller files (maximum 500,000 text characters).");
-  if(!result.value.trim())throw new HttpError(400,"No readable text was found in the Word document.");
+  if(!result.value.trim()&&!hasImages)throw new HttpError(400,"No readable text or embedded images were found in the Word document.");
   // Text segments, not asserted physical Word page numbers.
-  return (result.value.match(/[\s\S]{1,10000}/g)??[]).map((text,i)=>({page:i+1,text}));
+  return (result.value.match(/[\s\S]{1,10000}/g)??(hasImages?[""]:[])).map((text,i)=>({page:i+1,text}));
 }
 export async function extractPages(bytes:Buffer) {
   const {getDocument}=await import("pdfjs-dist/legacy/build/pdf.mjs");

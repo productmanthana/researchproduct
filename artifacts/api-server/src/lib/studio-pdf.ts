@@ -2,7 +2,11 @@ import PDFDocument from "pdfkit";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { documentBlocks,documentLayout,sectionText } from "./studio-formatting";
-export function renderStudioPdf(row:any):Promise<Buffer>{
+import { referencedFigures } from "./scientific-figures";
+import { figurePng,figureAspect } from "./figure-renderer";
+export async function renderStudioPdf(row:any):Promise<Buffer>{
+  const figures=referencedFigures(row.content,row.metadata?.figures??[]);
+  const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   return new Promise((resolve,reject)=>{
     const id=row.metadata?.templateId,l=documentLayout(id),d=row.metadata?.documentDetails??{};
     const pdf=new PDFDocument({size:l.size,margins:l.margins,bufferPages:true,info:{Title:row.title,Author:d.author||"Evidora research workspace"}});
@@ -68,6 +72,15 @@ export function renderStudioPdf(row:any):Promise<Buffer>{
           if(l.thesis&&block.level<=2)toc.push({title:block.text,page:pageIndex-bodyStart+1});
           text(block.text,block.level===1?17:block.level===2?14:12,true,false,1.2);
         }else if(block.kind==="paragraph")text(block.text);
+        else if(block.kind==="figure"){
+          const f=figures.find(f=>f.id===block.id)!;
+          const imageHeight=Math.min(width()*figureAspect(f),pdf.page.height-l.margins.top-l.margins.bottom-100);
+          ensure(imageHeight+50);
+          pdf.image(images.get(f.id)!,x(),y,{width:imageHeight/figureAspect(f),height:imageHeight});
+          y+=imageHeight+8;
+          text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
+          text(f.provenance,9,false,false,1.15);
+        }
         else{
           for(let r=0;r<block.rows.length;r++){
             const cells=block.rows[r],cellWidth=width()/Math.max(...block.rows.map(row=>row.length));

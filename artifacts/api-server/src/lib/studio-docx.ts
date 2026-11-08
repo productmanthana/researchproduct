@@ -1,14 +1,28 @@
-import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType } from "docx";
+import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun } from "docx";
 import { documentBlocks,documentLayout,sectionText } from "./studio-formatting";
+import { referencedFigures } from "./scientific-figures";
+import { figurePng,figureAspect } from "./figure-renderer";
 export async function renderStudioWord(row:any):Promise<Buffer>{
   const id=row.metadata?.templateId,l=documentLayout(id),d=row.metadata?.documentDetails??{};
+  const figures=referencedFigures(row.content,row.metadata?.figures??[]);
+  const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   const title=row.title,body=row.content.replace(new RegExp("^# "+title.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\n"),"");
   const paragraph=(text:string,center=false)=>new Paragraph({children:[new TextRun(text)],alignment:center?AlignmentType.CENTER:undefined,spacing:{after:160,line:Math.round(l.lineSpacing*240)},widowControl:true});
-  const blocks=(text:string)=>(documentBlocks(text).map(b=>{
-    if(b.kind==="heading")return new Paragraph({text:b.text,heading:b.level===1?HeadingLevel.HEADING_1:b.level===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3,keepNext:true,pageBreakBefore:l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(b.text)});
-    if(b.kind==="table")return new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:b.rows.map((r,i)=>new TableRow({tableHeader:i===0,children:r.map(text=>new TableCell({children:[new Paragraph({text,spacing:{line:240}})]}))}))});
-    return paragraph(b.text);
-  }));
+  const blocks=(text:string)=>{
+    const result:(Paragraph|Table)[]=[];
+    for(const b of documentBlocks(text)){
+      if(b.kind==="heading")result.push(new Paragraph({text:b.text,heading:b.level===1?HeadingLevel.HEADING_1:b.level===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3,keepNext:true,pageBreakBefore:l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(b.text)}));
+      else if(b.kind==="table")result.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:b.rows.map((r,i)=>new TableRow({tableHeader:i===0,children:r.map(text=>new TableCell({children:[new Paragraph({text,spacing:{line:240}})]}))}))}));
+      else if(b.kind==="figure"){
+        const f=figures.find(f=>f.id===b.id)!;
+        const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(l.columns===2?18:0))/l.columns*96/72);
+        const height=Math.min(650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
+        result.push(new Paragraph({keepNext:true,children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
+        result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`),paragraph(f.provenance));
+      }else result.push(paragraph(b.text));
+    }
+    return result;
+  };
   const page={size:l.size==="A4"?{width:11906,height:16838}:{width:12240,height:15840},margin:{top:l.margins.top*20,bottom:l.margins.bottom*20,left:l.margins.left*20,right:l.margins.right*20,footer:720}};
   const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({children:[PageNumber.CURRENT]})]})]});
   const titleParagraphs=[

@@ -146,7 +146,14 @@ function Inner() {
           ) : item ? (
             <>
               <button className="sx-btn" onClick={() => setId(null, { guard: true })} data-testid="button-back-to-folder">Back to {project.name}</button>
-              <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />
+              {item.kind === "document-review"
+                ? <div className="sx-card space-y-3 p-6" data-testid={`panel-review-record-${item.id}`}>
+                    <span className="sx-chip">Document review</span>
+                    <h2 className="sx-title text-2xl">{item.title}</h2>
+                    <p className="text-sm text-muted-foreground">Review records are read-only. Suggestions are approved or dismissed one at a time in AI Chat; each approval writes a new working-draft revision and your original file stays unchanged.</p>
+                    <Link href={`/ask?review=${encodeURIComponent(item.id)}`} className="sx-btn sx-primary inline-flex" data-testid={`link-open-review-${item.id}`}>Open review</Link>
+                  </div>
+                : <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />}
             </>
           ) : (
             <>

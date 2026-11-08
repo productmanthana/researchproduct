@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { isolateMarkers } from "@/lib/figures";
 
 /** Small, escaped Markdown subset: no raw HTML or untrusted HTML injection. */
 const cells=(row:string)=>row.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
@@ -12,11 +13,13 @@ function withBold(text:string,inline:(text:string)=>ReactNode):ReactNode {
     :<Fragment key={i}>{inline(part)}</Fragment>);
 }
 
-export function AcademicAnswer({content,inline:baseInline,className=""}:{content:string;inline:(text:string)=>ReactNode;className?:string}) {
+export function AcademicAnswer({content,inline:baseInline,className="",renderFigure}:{content:string;inline:(text:string)=>ReactNode;className?:string;renderFigure?:(id:string)=>ReactNode}) {
   const inline=(text:string)=>withBold(text,baseInline);
-  const blocks=content.trim().split(/\n\s*\n/).filter(Boolean);
+  const blocks=(renderFigure?isolateMarkers(content):content).trim().split(/\n\s*\n/).filter(Boolean);
   return <div className={`ev-reading academic-reading ${className}`}>
     {blocks.map((block,i)=>{
+      const fig=/^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/.exec(block);
+      if(fig&&renderFigure)return <Fragment key={i}>{renderFigure(fig[1])}</Fragment>;
       const heading=/^(#{1,3})\s+(.+)$/.exec(block);
       if(heading){
         if(heading[1].length===1)return <h2 className="academic-title mb-5 text-3xl font-semibold leading-tight" key={i}>{inline(heading[2])}</h2>;

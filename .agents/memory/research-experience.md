@@ -12,6 +12,18 @@ The user wants saved research ideas, literature surveys, journal drafts, theses 
 
 ## Research workflow
 
+The user expects scientific figures and diagrams as part of journal papers, theses and research drafts wherever appropriate, and wants AI Chat to insert them on request.
+
+**Why:** The user corrected the earlier implication that text generation and formatted exports alone fulfilled complete research-document generation.
+
+**How to apply:** Treat source-grounded plots, theoretical calculations, conceptual diagrams and their document exports as part of the research workflow. Do not describe a text-only draft as complete. Never manufacture experimental observations to satisfy a figure request.
+
+The user wants PDF/Word review inside AI Chat, with coloured suggestions on the right, hover explanations for text and diagram changes, and explicit approval before applying changes.
+
+**Why:** They want to inspect what needs changing and retain control over each correction rather than receive an automatically rewritten document.
+
+**How to apply:** Preserve the uploaded original and earlier revisions. Pair colour with readable labels and keyboard/touch-accessible explanations. Distinguish retrieved paper/patent evidence and inspected visuals from unsearched or unrendered material.
+
 The user wants research to be very easy, with a direct question-to-answer flow and instant answers; they report that the current flow takes too long.
 
 **Why:** The user identified waiting time as their main problem, rather than the choice of vector database.

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRequestDocumentUpload, useCompleteDocumentUpload, getListDocumentsQueryKey, getGetSummaryQueryKey, type UploadInputContentType } from "@workspace/api-client-react";
+import { useRequestDocumentUpload, useCompleteDocumentUpload, getListDocumentsQueryKey, getGetSummaryQueryKey, type UploadInputContentType, type Document } from "@workspace/api-client-react";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,7 +12,7 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 const TYPES = ["application/pdf", DOCX, "image/png", "image/jpeg", "image/webp"];
 const MAX = 15 * 1024 * 1024;
 
-export function DocumentUpload({ label = "Upload document" }: { label?: string }) {
+export function DocumentUpload({ label = "Upload document", onReady, className }: { label?: string; onReady?: (doc: Document) => void; className?: string }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [rights, setRights] = useState(false);
@@ -53,6 +53,7 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
       toast({ title: "Document ready", description: doc.status === "failed" ? doc.error || "Processing failed" : doc.name });
       setOpen(false);
       reset();
+      if (doc.status !== "failed") onReady?.(doc);
     } catch (e) {
       toast({ title: "Upload failed", description: errMessage(e), variant: "destructive" });
       setStage("idle");
@@ -63,7 +64,7 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className="gap-2" data-testid="button-open-upload">
+      <Button onClick={() => setOpen(true)} className={className ?? "gap-2"} data-testid="button-open-upload">
         <Upload className="h-4 w-4" /> {label}
       </Button>
       <Dialog open={open} onOpenChange={(o) => { if (!busy) { setOpen(o); if (!o) reset(); } }}>

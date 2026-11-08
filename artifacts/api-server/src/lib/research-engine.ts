@@ -22,7 +22,7 @@ import { usageStatusForResult } from "./analysis-draft";
 
 // All plans use the same agreed model and evidence checks.
 const MODEL="gpt-4.1";
-async function renderPdf(bytes:Buffer,pageNumbers:number[]) {
+export async function renderPdf(bytes:Buffer,pageNumbers:number[]) {
   const {getDocument}=await import("pdfjs-dist/legacy/build/pdf.mjs");
   const {createCanvas}=await import("@napi-rs/canvas");
   const task=getDocument({data:new Uint8Array(bytes),useSystemFonts:true});

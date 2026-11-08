@@ -6,6 +6,7 @@ import documentsRouter from "./documents";
 import analysesRouter from "./analyses";
 import studioRouter from "./studio";
 import watchesRouter from "./watches";
+import documentReviewsRouter from "./document-reviews";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(documentsRouter);
 router.use(analysesRouter);
 router.use(studioRouter);
 router.use(watchesRouter);
+router.use(documentReviewsRouter);
 
 export default router;

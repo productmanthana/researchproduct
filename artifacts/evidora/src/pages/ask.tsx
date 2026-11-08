@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
-import { useGenerateStudioDocument, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis } from "@workspace/api-client-react";
-import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, Leaf, LogOut, Menu, MoreHorizontal, Plus, Wind, X } from "lucide-react";
+import { useGenerateStudioDocument, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis, useCreateDocumentReview, useListDocuments, getListDocumentsQueryKey, useListStudioItems, type Document } from "@workspace/api-client-react";
+import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, Leaf, LogOut, Menu, MoreHorizontal, Paperclip, Plus, ScanSearch, Wind, X } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
 import { StudioTurn } from "@/components/research-studio/turn";
@@ -18,8 +18,16 @@ import { SaveAnalysisToProject } from "@/components/studio/save-analysis";
 import { useActiveProject } from "@/lib/active-project";
 import { useUnsavedGuard } from "@/lib/unsaved";
 import { friendlyError, projectIntent } from "@/lib/studio";
+import { FIGURE_GUARD, ROUTE_FOR_KIND } from "@/lib/figures";
 import "@/components/research-studio/studio.css";
 import "./ask-workspace.css";
+import { DocumentReviewWorkspace } from "@/components/document-review/document-review-workspace";
+import { REVIEW_KIND, parsePages } from "@/components/document-review/review-model";
+import { DocumentUpload } from "@/components/document-upload";
+import { isWorking } from "@/lib/studio";
+
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const reviewable = (d: Pick<Document, "contentType" | "name">) => d.contentType === "application/pdf" || d.contentType === DOCX_TYPE || /\.(pdf|docx)$/i.test(d.name);
 
 const isDone = (status?: string) => status === "completed" || status === "failed";
 type Thread = { id: string; turns: Analysis[]; updatedAt: string };
@@ -51,6 +59,7 @@ function AskInner() {
   const params = new URLSearchParams(search);
   const threadId = params.get("t");
   const prefill = params.get("q") ?? "";
+  const reviewId = params.get("review");
   const qc = useQueryClient();
   const { toast } = useToast();
   const { user } = useUser();
@@ -74,6 +83,10 @@ function AskInner() {
   const [draftEditing, setDraftEditing] = useState(false);
   const [draftSectionId, setDraftSectionId] = useState<string | null>(null);
   const [copied, setCopied] = useState("");
+  const [attached, setAttached] = useState<Document | null>(null);
+  const [pagesText, setPagesText] = useState("");
+  const [pickOpen, setPickOpen] = useState(false);
+  const createReview = useCreateDocumentReview();
   const composer = useRef<HTMLTextAreaElement>(null);
   const threadScroll = useRef<HTMLDivElement>(null);
   const editor = activeDraftId ? draftBuffers[activeDraftId] : undefined;
@@ -116,6 +129,12 @@ function AskInner() {
   const { project: activeProject } = useActiveProject();
   const intent = projectIntent(question);
   const generate = useGenerateStudioDocument();
+  const docs = useListDocuments({ query: { queryKey: getListDocumentsQueryKey(), enabled: pickOpen || !!attached } });
+  const readyDocs = (docs.data ?? []).filter(d => reviewable(d) && (d.status === "ready" || d.status === "completed"));
+  const reviewsQ = useListStudioItems({ projectId: activeProject?.id ?? "" }, { query: { queryKey: getListStudioItemsQueryKey({ projectId: activeProject?.id ?? "" }), enabled: !!activeProject } });
+  const reviews = (reviewsQ.data ?? []).filter(i => i.kind === REVIEW_KIND).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
+  const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
 
   useEffect(() => {
@@ -167,25 +186,45 @@ function AskInner() {
     setLocation("/ask");
     requestAnimationFrame(() => composer.current?.focus());
   };
+  const submitReview = async () => {
+    if (!attached || createReview.isPending) return;
+    if (question.trim().length < 5) { toast({ title: "Add a request", description: "Say what to check, for example: check my diagrams and claims against related papers and patents." }); return; }
+    if (!activeProject) { toast({ title: "Choose a project first", description: "Document reviews are saved to a project so you can reopen them. Pick or create one in the sidebar.", variant: "destructive" }); return; }
+    if (pageParse.error) { toast({ title: "Check the page list", description: pageParse.error, variant: "destructive" }); return; }
+    if (!mayLeave()) return;
+    try {
+      const item = await createReview.mutateAsync({ data: { projectId: activeProject.id, documentId: attached.id, prompt: question.trim().slice(0, 5000), includePatents: true, ...(pageParse.pages?.length ? { pageNumbers: pageParse.pages } : {}) } });
+      qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      setQuestion(""); setAttached(null); setPagesText(""); setPanel(null);
+      setLocation(`/ask?review=${encodeURIComponent(item.id)}`);
+    } catch (error) {
+      toast({ title: "Couldn't start the review", description: friendlyError(error), variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+    }
+  };
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
+    if (attached) { await submitReview(); return; }
     if (intent) {
       // Explicit "my idea / my references" request: generate from the active project, never silently fall back to public research.
       // Quota is decided by the backend for the inferred kind (reviews vs answers); only warn locally from the matching allowance.
       if (problem || generate.isPending) return;
       if (!activeProject) {
-        toast({ title: "Choose a project first", description: "You asked to use your own material. Pick or create a project in the sidebar, then send again.", variant: "destructive" });
+        toast({ title: "Choose a project first", description: intent.figure ? "Figures are built from a project's own data and sources. Pick or create a project in the sidebar, then send again." : "You asked to use your own material. Pick or create a project in the sidebar, then send again.", variant: "destructive" });
         return;
       }
       if (sendLimit) { toast({ title: "Limit reached", description: sendLimit, variant: "destructive" }); return; }
       if (!mayLeave()) return;
       try {
-        const item = await generate.mutateAsync({ data: { projectId: activeProject.id, kind: intent.kind, prompt: question.trim().slice(0, 5000), evidenceMode: "project", includePatents: true } });
+        const item = await generate.mutateAsync({ data: { projectId: activeProject.id, kind: intent.kind, prompt: (intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: "project", includePatents: true } });
         qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
         void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
         setQuestion("");
-        setLocation(`${intent.route}${intent.route.includes("?") ? "&" : "?"}item=${encodeURIComponent(item.id)}`);
+        const route = ROUTE_FOR_KIND[item.kind] ?? intent.route;
+        setLocation(`${route}${route.includes("?") ? "&" : "?"}item=${encodeURIComponent(item.id)}`);
       } catch (error) {
         toast({ title: "Couldn't start from your project", description: friendlyError(error), variant: "destructive" });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -320,13 +359,18 @@ function AskInner() {
         {threads.map(item => <button key={item.id} aria-current={thread?.id === item.id ? "page" : undefined} onClick={() => openThread(item.id)}>{item.turns[0]?.question}<small>{item.turns.length} {item.turns.length === 1 ? "turn" : "turns"}</small></button>)}
         {!threads.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
       </div>}
+      {activeProject && <div className="es-recent dr-review-hist" aria-label="Document reviews"><span className="es-eyebrow">Document reviews</span>
+        {reviews.slice(0, 12).map(item => <button key={item.id} aria-current={reviewId === item.id ? "page" : undefined} onClick={() => { if (!mayLeave()) return; setMenuOpen(false); setPanel(null); setLocation(`/ask?review=${encodeURIComponent(item.id)}`); }} data-testid={`button-open-review-${item.id}`}>{item.title}<small>{isWorking(item.status) ? "Reviewing" : item.status === "failed" ? "Failed" : "Ready"}</small></button>)}
+        {!reviews.length && <p className="es-small">{reviewsQ.isLoading ? "Loading reviews..." : "Attach a PDF or Word file below to start one."}</p>}
+      </div>}
       <div className="es-sidebar-bottom"><span className="es-avatar">{initials}</span><span className="es-account-name">{name}<small className="es-small">{usageData?.plan ?? "Research workspace"}</small></span><button className="es-icon es-signout" aria-label="Sign out" title="Sign out" onClick={() => { if (mayLeave()) void signOut(); }}><LogOut /></button></div>
     </aside>
     <main className="es-main">
-      <header className="es-topbar"><div className="es-top-title"><button className="es-icon es-mobile-menu" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu /></button><h1 title={title}>{title}</h1></div>
-        <div className="es-top-actions">{sourceAnalysis && panel !== "sources" && <button className="es-button" onClick={() => setPanel("sources")}><BookOpen />Sources</button>}{activeDraftId && panel !== "draft" && <button className="es-button" onClick={() => setPanel("draft")}><FileText />Draft</button>}</div>
+      <header className="es-topbar"><div className="es-top-title"><button className="es-icon es-mobile-menu" aria-label="Open navigation" onClick={() => setMenuOpen(true)}><Menu /></button><h1 title={reviewId ? "Document review" : title}>{reviewId ? "Document review" : title}</h1></div>
+        <div className="es-top-actions">{!reviewId && sourceAnalysis && panel !== "sources" && <button className="es-button" onClick={() => setPanel("sources")}><BookOpen />Sources</button>}{!reviewId && activeDraftId && panel !== "draft" && <button className="es-button" onClick={() => setPanel("draft")}><FileText />Draft</button>}</div>
       </header>
       {allUsageLimitMessages(usageData).length > 0 && <div className="es-limit-notice" role="status">{allUsageLimitMessages(usageData).map(message => <p key={message}>{message} <Link href="/plans" onClick={guardNavigation}>Plans &amp; usage</Link></p>)}</div>}
+      {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} onClose={() => setLocation("/ask")} /></div> :
       <div className={`es-workspace ${panel === "draft" ? "es-written" : ""}`}>
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">
@@ -353,11 +397,30 @@ function AskInner() {
             </div>)}
           </div></div>
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
-          <div className="es-composer-wrap">{intent && <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
-            ? <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>
-            : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>}<form className="es-composer" onSubmit={submit}>
-            <textarea ref={composer} aria-label="Message Evidora" placeholder="A question, an idea, a half-formed thought…" value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onComposerKey} rows={2} maxLength={2000} data-testid="input-ask-question" />
-            <div className="es-composer-bottom"><span role="status">{sendLimit ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${sendLimit ? "es-limit-send" : ""}`} type="submit" disabled={askSendDisabled({ limitReached: !!sendLimit, blocked: !!problem, pending: create.isPending || generate.isPending, loading: list.isLoading || usage.isLoading })} aria-label={sendLimit ? "Limit reached" : "Send message"} data-testid="button-ask-send">{sendLimit ? "Limit reached" : <ArrowUp />}</button></div>
+          <div className="es-composer-wrap">{!attached && intent && <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
+            ? intent.figure
+              ? <>Sending will build this figure from project <b>{activeProject.name}</b> and open the result. To add it to an existing draft, name that draft (or say &ldquo;my latest draft&rdquo;); Evidora writes a new revision and asks you to choose if more than one draft matches. Otherwise it opens as a new {intent.kind === "answer" ? "project answer" : `${intent.kind} draft`}. Include table data with a header row, or an equation; Evidora will ask for missing data rather than invent values. You can also open a draft and use <i>Add or revise a figure</i>.</>
+              : <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>
+            : intent.figure ? <>Figures are generated from a project&rsquo;s own data, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project-figure">Choose a project</Link> first.</>
+            : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>}<div className="dr-attach-tools">
+            {!attached && <><DocumentUpload label="Upload PDF or Word for review" className="es-button dr-small" onReady={doc => { if (reviewable(doc)) { setAttached(doc); setPickOpen(false); } else toast({ title: "Not reviewable", description: "Document review works with PDF or Word (.docx) files." }); }} />
+            <button type="button" className="es-button dr-small" aria-expanded={pickOpen} onClick={() => setPickOpen(v => !v)} data-testid="button-pick-document"><Paperclip />Use an uploaded file</button></>}
+          </div>
+          {pickOpen && !attached && <div className="dr-attach"><label className="dr-attach-row">Choose a ready PDF or Word file
+            <select aria-label="Choose an uploaded document" defaultValue="" onChange={e => { const d = readyDocs.find(x => x.id === e.target.value); if (d) { setAttached(d); setPickOpen(false); } }} data-testid="select-review-document">
+              <option value="" disabled>{docs.isLoading ? "Loading..." : readyDocs.length ? "Select a file" : "No ready PDF or Word files"}</option>
+              {readyDocs.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select></label>{docs.isError && <span className="es-small">Couldn't load your files. <button type="button" className="es-button dr-small" onClick={() => void docs.refetch()}>Retry</button></span>}</div>}
+          {attached && <div className="dr-attach" data-testid="panel-review-attachment">
+            <div className="dr-attach-row"><span className="dr-attach-chip"><ScanSearch />{attached.name}<button type="button" className="es-icon" style={{ minWidth: 28, height: 28 }} aria-label="Detach file" onClick={() => { setAttached(null); setPagesText(""); }} data-testid="button-detach-document"><X /></button></span></div>
+            <p>Review mode: sending checks this file's text and visuals against related papers and, where available, patents. You get colour-coded suggestions to approve or dismiss one by one. Nothing changes until you approve, and your original file is never modified. Privacy: your request and the file’s text and images are sent to OpenAI; only short topic queries go to scholarly and patent search providers. Word charts and SmartArt may not be read; export to PDF first if they matter.{!activeProject && <> <b>Choose a project in the sidebar first.</b></>}</p>
+            {isPdf && <label className="dr-attach-row">PDF pages to review (optional, up to 12)
+              <input value={pagesText} onChange={e => setPagesText(e.target.value)} placeholder="e.g. 1-4, 9" aria-describedby="dr-pages-help" data-testid="input-review-pages" /></label>}
+            {isPdf && <span id="dr-pages-help" className="es-small" role="status">{pageParse.error ?? (pageParse.pages?.length ? `Pages ${pageParse.pages.join(", ")}` : "Leave blank to select up to 12 visual pages, prioritising figure mentions; exact coverage is shown with the results.")}</span>}
+          </div>}
+          <form className="es-composer" onSubmit={submit}>
+            <textarea ref={composer} aria-label="Message Evidora" placeholder={attached ? "What should Evidora check? e.g. Check my diagrams and claims against related papers and patents." : "A question, an idea, a half-formed thought…"} value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onComposerKey} rows={2} maxLength={2000} data-testid="input-ask-question" />
+            <div className="es-composer-bottom"><span role="status">{attached ? (question.trim().length < 5 ? "Describe what to review (at least 5 characters)." : !activeProject ? "Choose a project to save this review." : pageParse.error ?? "Sends a document review, not a chat answer.") : sendLimit ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${sendLimit ? "es-limit-send" : ""}`} type="submit" disabled={attached ? (createReview.isPending || question.trim().length < 5 || !activeProject || !!pageParse.error) : askSendDisabled({ limitReached: !!sendLimit, blocked: !!problem, pending: create.isPending || generate.isPending, loading: list.isLoading || usage.isLoading })} aria-label={attached ? "Start document review" : sendLimit ? "Limit reached" : "Send message"} data-testid="button-ask-send">{!attached && sendLimit ? "Limit reached" : <ArrowUp />}</button></div>
           </form><p className="es-local-note">Enter to send · Shift+Enter for a new line · AI-assisted answers need original-source review.</p></div>
         </section>
         {panel === "sources" && sourceAnalysis && <aside className="es-panel" aria-label="Sources"><div className="es-panel-header"><h2>Sources <span className="es-small">/ {sourceAnalysis.discoveredPapers?.length ?? sourceAnalysis.sources.length} papers</span></h2><button className="es-icon" aria-label="Close sources and return to chat" onClick={closePanel}><X /></button></div><div className="es-source-panel"><EvidencePanel analysis={sourceAnalysis} selected={selectedSource} onSelect={setSelectedSource} revealRequest={sourceRevealRequest} /></div></aside>}
@@ -378,7 +441,7 @@ function AskInner() {
             <div className="es-status" role="status">{editor.status}</div><button className="es-button es-primary es-save-draft" onClick={() => void saveCurrentDraft()} disabled={saveDraft.isPending || !editor.dirty}><Check />{saveDraft.isPending ? "Saving…" : "Save draft"}</button>
           </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>
         </aside>}
-      </div>
+      </div>}
     </main>
   </div>;
 }

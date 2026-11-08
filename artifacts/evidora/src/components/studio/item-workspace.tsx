@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useSaveStudioItem, useDeleteStudioItem, useSyncStudioDocument,
+  useSaveStudioItem, useDeleteStudioItem, useSyncStudioDocument, useGenerateStudioDocument, useGetUsage, getGetUsageQueryKey,
+  StudioGenerationInputKind,
   getListStudioItemsQueryKey, getGetStudioItemQueryKey,
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, Download, FileText, History, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Download, FileText, History, LineChart, RefreshCw, Trash2 } from "lucide-react";
+import { FigureView, MissingFigure } from "./figure-view";
+import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
+import { usageLimitMessage } from "@/lib/usage-limits";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AcademicAnswer } from "@/components/academic-answer";
 import { GenerationStatus } from "./generation-status";
@@ -22,6 +26,7 @@ import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
 
+const GENERATABLE = new Set<string>(Object.values(StudioGenerationInputKind));
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
 const plainInline = (t: string): ReactNode => t;
 
@@ -99,6 +104,37 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
   useUnsavedGuard(`studio-item-${item.id}`, dirty, `"${item.title}" has unsaved edits.`);
   const lineage = lineageOf(allItems.length ? allItems : [item], item.id);
   const m = meta(item);
+  const figures = figuresOf(item);
+  const figNotices = figureNoticesOf(item);
+  const order = markerOrder(content);
+  const renderFigure = (fid: string) => {
+    const f = figures.find(x => x.id === fid);
+    return f ? <FigureView itemId={item.id} figure={f} number={order.indexOf(fid) + 1} /> : <MissingFigure id={fid} />;
+  };
+  const gen = useGenerateStudioDocument();
+  const usage = useGetUsage({ query: { queryKey: getGetUsageQueryKey() } });
+  const genKind = GENERATABLE.has(item.kind) ? item.kind as StudioGenerationInputKind : null;
+  const figLimit = usageLimitMessage(usage.data, genKind === "literature" ? "review" : "answer");
+  const [figOpen, setFigOpen] = useState(false);
+  const [figPrompt, setFigPrompt] = useState("");
+  const canFigure = !!genKind && canSave && item.status === "completed" && !isProjectInfo;
+  const doFigure = async () => {
+    if (!genKind || dirty || figPrompt.trim().length < 5 || gen.isPending) return;
+    if (figLimit) { toast({ title: "Limit reached", description: figLimit, variant: "destructive" }); return; }
+    try {
+      const created = await gen.mutateAsync({ data: { projectId: item.projectId, kind: genKind, parentId: item.id, evidenceMode: "project",
+        prompt: `Add or revise a figure in "${item.title}". ${figPrompt.trim()}`.slice(0, 4700) + FIGURE_GUARD } });
+      qc.setQueryData(getGetStudioItemQueryKey(created.id), created);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      setFigOpen(false); setFigPrompt("");
+      toast({ title: "Figure revision started", description: "A new document is being written. This revision stays unchanged." });
+      onOpen(created.id);
+    } catch (e) {
+      toast({ title: "Couldn't start the figure revision", description: friendlyError(e), variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+    }
+  };
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
 
   const doSave = async () => {
@@ -169,10 +205,27 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">created {ago(item.createdAt)} &middot; {words} words</p>
           <div className="mt-6">
             {mode === "edit" && canSave
-              ? <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" />
-              : content.trim() ? <AcademicAnswer content={content} inline={plainInline} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
+              ? <>{(order.length > 0 || figures.length > 0) && <p className="mb-2 rounded-md border border-[hsl(var(--turmeric)/0.5)] bg-[hsl(var(--turmeric)/0.08)] px-3 py-2 text-xs" data-testid="text-figure-marker-help">Lines like <span className="font-mono">[[figure:fig-1]]</span> place a figure. Keep each on its own line. Moving a marker moves the figure; deleting the line removes the figure. A marker without saved figure data blocks saving and export.</p>}
+                <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" /></>
+              : content.trim() ? <AcademicAnswer content={content} inline={plainInline} renderFigure={renderFigure} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
           </div>
         </div>
+        {canFigure && <div className="mx-5 mb-4 rounded-md border bg-[hsl(66_20%_97%)] p-3" data-testid="panel-add-figure">
+          {!figOpen ? <div className="flex flex-wrap items-center gap-2">
+            <LineChart className="h-4 w-4 text-[hsl(var(--cyan-ink))]" />
+            <span className="text-sm">{figures.length ? `${figures.length} figure${figures.length === 1 ? "" : "s"} in this revision.` : "No figures yet."}</span>
+            <button className="sx-btn ml-auto" disabled={dirty} title={dirty ? "Save or discard your edits first" : undefined} onClick={() => setFigOpen(true)} data-testid="button-open-add-figure"><LineChart />Add or revise a figure</button>
+          </div> : <div className="space-y-2">
+            <p className="sx-eyebrow">Add or revise a figure</p>
+            <p className="text-xs text-muted-foreground">Describe the figure. Paste table data or an equation, or point to a project source. Without data, Evidora will say what is needed rather than invent values. A new revision is created; this one is never overwritten.</p>
+            <textarea className="sx-input min-h-[90px]" value={figPrompt} maxLength={4000} onChange={e => setFigPrompt(e.target.value)} placeholder={"e.g. Line graph of yield vs. nitrogen dose:\n0, 2.1\n40, 3.4\n80, 4.0"} aria-label="Figure instructions" data-testid="input-figure-prompt" />
+            {figLimit && <p className="text-xs text-vermilion" role="status">{figLimit}</p>}
+            <div className="flex gap-2">
+              <button className="sx-btn sx-primary" disabled={dirty || gen.isPending || figPrompt.trim().length < 5 || !!figLimit} onClick={() => void doFigure()} data-testid="button-generate-figure">{gen.isPending ? "Starting..." : "Write new revision"}</button>
+              <button className="sx-btn" disabled={gen.isPending} onClick={() => setFigOpen(false)} data-testid="button-cancel-figure">Cancel</button>
+            </div>
+          </div>}
+        </div>}
         {conflict && <div className="mx-5 mb-4 rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.06)] p-3 text-sm" role="alert" data-testid="status-conflict">{conflict}</div>}
         <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
           <span className="text-xs text-muted-foreground" role="status">{dirty ? `Unsaved ${[textDirty && "text", detailsDirty && "details", profileDirty && "profile"].filter(Boolean).join(", ")} edits` : "All changes saved"}</span>
@@ -213,6 +266,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           </div>
         )}
         <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
+        {figNotices.length > 0 && <div className="sx-card p-4 text-sm" data-testid="panel-figure-notices"><p className="sx-eyebrow mb-1">Figure notes</p><ul className="list-disc space-y-1 pl-5 text-muted-foreground">{figNotices.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
         {(m.sources.length > 0 || m.warnings.length > 0) && (
           <div className="sx-card p-4 text-sm">
             {m.warnings.length > 0 && <><p className="sx-eyebrow mb-1">Notes from the writer</p><ul className="mb-3 list-disc space-y-1 pl-5 text-muted-foreground">{m.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></>}

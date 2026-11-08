@@ -1,4 +1,6 @@
 import "./watch.test";
+import "./figures.test";
+import "./document-review.test";
 import "./studio.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";

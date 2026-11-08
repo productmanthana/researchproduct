@@ -53,14 +53,16 @@ export function formatIssues(row:any):string[]{
   if(!/competing|conflict of interest/i.test(row.content)&&!thesis)issues.push("Competing-interest declaration is missing.");
   return issues;
 }
-export type MarkdownBlock={kind:"heading";level:number;text:string}|{kind:"paragraph";text:string}|{kind:"table";rows:string[][]};
+export type MarkdownBlock={kind:"heading";level:number;text:string}|{kind:"paragraph";text:string}|{kind:"table";rows:string[][]}|{kind:"figure";id:string};
 export const plainText=(s:string)=>s.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\[(.*?)\]\((.*?)\)/g,"$1 ($2)").replace(/`([^`]+)`/g,"$1");
 export function documentBlocks(content:string):MarkdownBlock[]{
   const lines=content.split("\n"),blocks:MarkdownBlock[]=[];let paragraph:string[]=[];
   const flush=()=>{if(paragraph.length){blocks.push({kind:"paragraph",text:plainText(paragraph.join(" "))});paragraph=[];}};
   for(let i=0;i<lines.length;i++){
     const line=lines[i],heading=/^(#{1,3})\s+(.+)$/.exec(line);
-    if(heading){flush();blocks.push({kind:"heading",level:heading[1].length,text:plainText(heading[2])});}
+    const figure=/^\s*\[\[figure:([a-zA-Z0-9_-]+)\]\]\s*$/.exec(line);
+    if(figure){flush();blocks.push({kind:"figure",id:figure[1]});}
+    else if(heading){flush();blocks.push({kind:"heading",level:heading[1].length,text:plainText(heading[2])});}
     else if(line.trim().startsWith("|")){
       flush();const rows:string[][]=[];
       while(i<lines.length&&lines[i].trim().startsWith("|")){
