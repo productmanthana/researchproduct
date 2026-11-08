@@ -10,6 +10,7 @@ export type UploadInputContentType = typeof UploadInputContentType[keyof typeof 
 
 export const UploadInputContentType = {
   'application/pdf': 'application/pdf',
+  'application/vndopenxmlformats-officedocumentwordprocessingmldocument': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/png': 'image/png',
   'image/jpeg': 'image/jpeg',
   'image/webp': 'image/webp',

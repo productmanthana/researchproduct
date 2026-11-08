@@ -20,3 +20,4 @@
 export * from "./research";
 export * from "./sources";
 export * from "./retrieval";
+export * from "./studio";

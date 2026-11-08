@@ -37,3 +37,9 @@ An explicit request to use the same papers must constrain follow-up discovery, e
 **Why:** A real follow-up test asked for the same papers, but the planner expanded the search and cited a new paper. Better evidence does not justify silently changing the requested evidence scope.
 
 **How to apply:** Enforce explicit reuse restrictions outside the LLM plan. When the selected papers cannot support the requested comparison, disclose insufficient evidence instead of expanding the scope without permission.
+
+Keep private project retrieval separated from public discovery even when both share the Evidora-only cluster's collection.
+
+**Why:** The chosen free cluster permits one collection; the user subsequently requested searchable project knowledge as well as public metadata. Public search must never return private drafts or uploads.
+
+**How to apply:** Public retrieval must explicitly select public records; private retrieval must enforce both owner and project boundaries and recheck authoritative ownership and deletion state. A vector hit is not permission to read a document. Original files and exports belong in private file storage, not vector payloads.

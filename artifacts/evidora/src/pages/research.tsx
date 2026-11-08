@@ -1,3 +1,4 @@
+import { SaveAnalysisToProject } from "@/components/studio/save-analysis";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -527,6 +528,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
             )}
           </>
         )}
+        {d.status === "completed" && <SaveAnalysisToProject analysis={d} compact />}
         <button
           onClick={() => {
             if (!confirm("Delete this analysis permanently?")) return;

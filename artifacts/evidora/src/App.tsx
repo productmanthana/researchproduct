@@ -20,6 +20,15 @@ import Landscape from "@/pages/landscape";
 import Plans from "@/pages/plans";
 import Sources from "@/pages/sources";
 import Ask from "@/pages/ask";
+import Ideas from "@/pages/ideas";
+import Literature from "@/pages/literature";
+import Synopsis from "@/pages/synopsis";
+import Journals from "@/pages/journals";
+import Thesis from "@/pages/thesis";
+import Originality from "@/pages/originality";
+import Patents from "@/pages/patents";
+import MyLibrary from "@/pages/my-library";
+import { ActiveProjectProvider } from "@/lib/active-project";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: {
   refetchOnWindowFocus: true,
@@ -192,6 +201,14 @@ function Router() {
       <Route path="/landscape"><Shelled><Landscape /></Shelled></Route>
       <Route path="/plans"><Shelled><Plans /></Shelled></Route>
       <Route path="/sources"><Shelled><Sources /></Shelled></Route>
+      <Route path="/ideas"><Shelled><Ideas /></Shelled></Route>
+      <Route path="/literature"><Shelled><Literature /></Shelled></Route>
+      <Route path="/synopsis"><Shelled><Synopsis /></Shelled></Route>
+      <Route path="/journals"><Shelled><Journals /></Shelled></Route>
+      <Route path="/thesis"><Shelled><Thesis /></Shelled></Route>
+      <Route path="/originality"><Shelled><Originality /></Shelled></Route>
+      <Route path="/patents"><Shelled><Patents /></Shelled></Route>
+      <Route path="/my-library"><Shelled><MyLibrary /></Shelled></Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -217,8 +234,10 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
-          <Router />
-          <Toaster />
+          <ActiveProjectProvider>
+            <Router />
+            <Toaster />
+          </ActiveProjectProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ClerkProvider>

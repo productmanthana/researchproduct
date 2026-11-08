@@ -29,9 +29,11 @@ import type {
   AnalysisDraftUpdate,
   AnalysisInput,
   AnalysisUpdate,
+  DeleteStudioItem200,
   Document,
   DocumentLink,
   ExportAnalysisParams,
+  ExportStudioDocumentParams,
   GetLandscapeParams,
   GetRelatedPapersParams,
   HealthStatus,
@@ -40,13 +42,21 @@ import type {
   LibraryItem,
   LibraryUpdate,
   ListLibraryParams,
+  ListStudioItemsParams,
   Paper,
   Plan,
   Project,
   ProjectInput,
   SearchPapersParams,
   SearchResults,
+  SearchStudioPatentsParams,
   Source,
+  StudioCheck,
+  StudioGenerationInput,
+  StudioItem,
+  StudioItemInput,
+  StudioPatentSearch,
+  StudioTemplate,
   Summary,
   UploadInput,
   UploadTicket,
@@ -79,6 +89,878 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListStudioItemsUrl = (params: ListStudioItemsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/studio/items?${stringifiedParams}` : `/api/studio/items`
+}
+
+export const listStudioItems = async (params: ListStudioItemsParams, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem[]> => {
+
+  return customFetch<StudioItem[]>(getListStudioItemsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudioItemsQueryKey = (params?: ListStudioItemsParams,) => {
+    return [
+    `/api/studio/items`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListStudioItemsQueryOptions = <TData = Awaited<ReturnType<typeof listStudioItems>>, TError = ErrorType<unknown>>(params: ListStudioItemsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudioItemsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudioItems>>> = ({ signal }) => listStudioItems(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStudioItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listStudioItems>>>
+export type ListStudioItemsQueryError = ErrorType<unknown>
+
+
+export function useListStudioItems<TData = Awaited<ReturnType<typeof listStudioItems>>, TError = ErrorType<unknown>>(
+ params: ListStudioItemsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStudioItems>>,
+          TError,
+          Awaited<ReturnType<typeof listStudioItems>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStudioItems<TData = Awaited<ReturnType<typeof listStudioItems>>, TError = ErrorType<unknown>>(
+ params: ListStudioItemsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStudioItems>>,
+          TError,
+          Awaited<ReturnType<typeof listStudioItems>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStudioItems<TData = Awaited<ReturnType<typeof listStudioItems>>, TError = ErrorType<unknown>>(
+ params: ListStudioItemsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListStudioItems<TData = Awaited<ReturnType<typeof listStudioItems>>, TError = ErrorType<unknown>>(
+ params: ListStudioItemsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioItems>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStudioItemsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveStudioItemUrl = () => {
+
+
+
+
+  return `/api/studio/items`
+}
+
+export const saveStudioItem = async (studioItemInput: StudioItemInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioItem>(getSaveStudioItemUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioItemInput)
+  }
+);}
+
+
+
+
+
+export const getSaveStudioItemMutationKey = () => ['saveStudioItem'] as const;
+
+export const getSaveStudioItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveStudioItem>>, TError,SaveStudioItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveStudioItem>>, TError,SaveStudioItemMutationVariables, TContext> => {
+
+const mutationKey = getSaveStudioItemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveStudioItem>>, SaveStudioItemMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveStudioItem(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveStudioItemMutationResult = NonNullable<Awaited<ReturnType<typeof saveStudioItem>>>
+    export type SaveStudioItemMutationBody = BodyType<StudioItemInput>
+    export type SaveStudioItemMutationError = ErrorType<unknown>
+    export type SaveStudioItemMutationVariables = {data: BodyType<StudioItemInput>}
+
+    export const useSaveStudioItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveStudioItem>>, TError,SaveStudioItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveStudioItem>>,
+        TError,
+        SaveStudioItemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveStudioItemMutationOptions(options), queryClient);
+    }
+
+export const getGetStudioItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}`
+}
+
+export const getStudioItem = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+  return customFetch<StudioItem>(getGetStudioItemUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStudioItemQueryKey = (id: string,) => {
+    return [
+    `/api/studio/items/${id}`
+    ] as const;
+    }
+
+
+export const getGetStudioItemQueryOptions = <TData = Awaited<ReturnType<typeof getStudioItem>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStudioItemQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStudioItem>>> = ({ signal }) => getStudioItem(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStudioItemQueryResult = NonNullable<Awaited<ReturnType<typeof getStudioItem>>>
+export type GetStudioItemQueryError = ErrorType<unknown>
+
+
+export function useGetStudioItem<TData = Awaited<ReturnType<typeof getStudioItem>>, TError = ErrorType<unknown>>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudioItem>>,
+          TError,
+          Awaited<ReturnType<typeof getStudioItem>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudioItem<TData = Awaited<ReturnType<typeof getStudioItem>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStudioItem>>,
+          TError,
+          Awaited<ReturnType<typeof getStudioItem>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStudioItem<TData = Awaited<ReturnType<typeof getStudioItem>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetStudioItem<TData = Awaited<ReturnType<typeof getStudioItem>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStudioItem>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStudioItemQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDeleteStudioItemUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}`
+}
+
+export const deleteStudioItem = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<DeleteStudioItem200> => {
+
+  return customFetch<DeleteStudioItem200>(getDeleteStudioItemUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteStudioItemMutationKey = () => ['deleteStudioItem'] as const;
+
+export const getDeleteStudioItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioItem>>, TError,DeleteStudioItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStudioItem>>, TError,DeleteStudioItemMutationVariables, TContext> => {
+
+const mutationKey = getDeleteStudioItemMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStudioItem>>, DeleteStudioItemMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteStudioItem(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStudioItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStudioItem>>>
+
+    export type DeleteStudioItemMutationError = ErrorType<unknown>
+    export type DeleteStudioItemMutationVariables = {id: string}
+
+    export const useDeleteStudioItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStudioItem>>, TError,DeleteStudioItemMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStudioItem>>,
+        TError,
+        DeleteStudioItemMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteStudioItemMutationOptions(options), queryClient);
+    }
+
+export const getGenerateStudioDocumentUrl = () => {
+
+
+
+
+  return `/api/studio/generate`
+}
+
+export const generateStudioDocument = async (studioGenerationInput: StudioGenerationInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioItem>(getGenerateStudioDocumentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(studioGenerationInput)
+  }
+);}
+
+
+
+
+
+export const getGenerateStudioDocumentMutationKey = () => ['generateStudioDocument'] as const;
+
+export const getGenerateStudioDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioDocument>>, TError,GenerateStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateStudioDocument>>, TError,GenerateStudioDocumentMutationVariables, TContext> => {
+
+const mutationKey = getGenerateStudioDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateStudioDocument>>, GenerateStudioDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateStudioDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateStudioDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof generateStudioDocument>>>
+    export type GenerateStudioDocumentMutationBody = BodyType<StudioGenerationInput>
+    export type GenerateStudioDocumentMutationError = ErrorType<unknown>
+    export type GenerateStudioDocumentMutationVariables = {data: BodyType<StudioGenerationInput>}
+
+    export const useGenerateStudioDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateStudioDocument>>, TError,GenerateStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof generateStudioDocument>>,
+        TError,
+        GenerateStudioDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGenerateStudioDocumentMutationOptions(options), queryClient);
+    }
+
+export const getExportStudioDocumentUrl = (id: string,
+    params: ExportStudioDocumentParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/studio/items/${id}/export?${stringifiedParams}` : `/api/studio/items/${id}/export`
+}
+
+export const exportStudioDocument = async (id: string,
+    params: ExportStudioDocumentParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportStudioDocumentUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportStudioDocumentQueryKey = (id: string,
+    params?: ExportStudioDocumentParams,) => {
+    return [
+    `/api/studio/items/${id}/export`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getExportStudioDocumentQueryOptions = <TData = Awaited<ReturnType<typeof exportStudioDocument>>, TError = ErrorType<unknown>>(id: string,
+    params: ExportStudioDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportStudioDocumentQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportStudioDocument>>> = ({ signal }) => exportStudioDocument(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportStudioDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof exportStudioDocument>>>
+export type ExportStudioDocumentQueryError = ErrorType<unknown>
+
+
+export function useExportStudioDocument<TData = Awaited<ReturnType<typeof exportStudioDocument>>, TError = ErrorType<unknown>>(
+ id: string,
+    params: ExportStudioDocumentParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportStudioDocument>>,
+          TError,
+          Awaited<ReturnType<typeof exportStudioDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportStudioDocument<TData = Awaited<ReturnType<typeof exportStudioDocument>>, TError = ErrorType<unknown>>(
+ id: string,
+    params: ExportStudioDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportStudioDocument>>,
+          TError,
+          Awaited<ReturnType<typeof exportStudioDocument>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportStudioDocument<TData = Awaited<ReturnType<typeof exportStudioDocument>>, TError = ErrorType<unknown>>(
+ id: string,
+    params: ExportStudioDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportStudioDocument<TData = Awaited<ReturnType<typeof exportStudioDocument>>, TError = ErrorType<unknown>>(
+ id: string,
+    params: ExportStudioDocumentParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportStudioDocument>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportStudioDocumentQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCheckStudioDocumentUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/check`
+}
+
+export const checkStudioDocument = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioCheck> => {
+
+  return customFetch<StudioCheck>(getCheckStudioDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckStudioDocumentMutationKey = () => ['checkStudioDocument'] as const;
+
+export const getCheckStudioDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStudioDocument>>, TError,CheckStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkStudioDocument>>, TError,CheckStudioDocumentMutationVariables, TContext> => {
+
+const mutationKey = getCheckStudioDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkStudioDocument>>, CheckStudioDocumentMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  checkStudioDocument(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckStudioDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof checkStudioDocument>>>
+
+    export type CheckStudioDocumentMutationError = ErrorType<unknown>
+    export type CheckStudioDocumentMutationVariables = {id: string}
+
+    export const useCheckStudioDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkStudioDocument>>, TError,CheckStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkStudioDocument>>,
+        TError,
+        CheckStudioDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCheckStudioDocumentMutationOptions(options), queryClient);
+    }
+
+export const getSyncStudioDocumentUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/sync`
+}
+
+export const syncStudioDocument = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+  return customFetch<StudioItem>(getSyncStudioDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSyncStudioDocumentMutationKey = () => ['syncStudioDocument'] as const;
+
+export const getSyncStudioDocumentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncStudioDocument>>, TError,SyncStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncStudioDocument>>, TError,SyncStudioDocumentMutationVariables, TContext> => {
+
+const mutationKey = getSyncStudioDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncStudioDocument>>, SyncStudioDocumentMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  syncStudioDocument(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncStudioDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof syncStudioDocument>>>
+
+    export type SyncStudioDocumentMutationError = ErrorType<unknown>
+    export type SyncStudioDocumentMutationVariables = {id: string}
+
+    export const useSyncStudioDocument = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncStudioDocument>>, TError,SyncStudioDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof syncStudioDocument>>,
+        TError,
+        SyncStudioDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncStudioDocumentMutationOptions(options), queryClient);
+    }
+
+export const getListStudioTemplatesUrl = () => {
+
+
+
+
+  return `/api/studio/templates`
+}
+
+export const listStudioTemplates = async ( options?: Parameters<typeof customFetch>[1]): Promise<StudioTemplate[]> => {
+
+  return customFetch<StudioTemplate[]>(getListStudioTemplatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStudioTemplatesQueryKey = () => {
+    return [
+    `/api/studio/templates`
+    ] as const;
+    }
+
+
+export const getListStudioTemplatesQueryOptions = <TData = Awaited<ReturnType<typeof listStudioTemplates>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStudioTemplatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStudioTemplates>>> = ({ signal }) => listStudioTemplates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListStudioTemplatesQueryResult = NonNullable<Awaited<ReturnType<typeof listStudioTemplates>>>
+export type ListStudioTemplatesQueryError = ErrorType<unknown>
+
+
+export function useListStudioTemplates<TData = Awaited<ReturnType<typeof listStudioTemplates>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStudioTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof listStudioTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStudioTemplates<TData = Awaited<ReturnType<typeof listStudioTemplates>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listStudioTemplates>>,
+          TError,
+          Awaited<ReturnType<typeof listStudioTemplates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListStudioTemplates<TData = Awaited<ReturnType<typeof listStudioTemplates>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListStudioTemplates<TData = Awaited<ReturnType<typeof listStudioTemplates>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStudioTemplates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStudioTemplatesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSearchStudioPatentsUrl = (params: SearchStudioPatentsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/studio/patents?${stringifiedParams}` : `/api/studio/patents`
+}
+
+export const searchStudioPatents = async (params: SearchStudioPatentsParams, options?: Parameters<typeof customFetch>[1]): Promise<StudioPatentSearch> => {
+
+  return customFetch<StudioPatentSearch>(getSearchStudioPatentsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchStudioPatentsQueryKey = (params?: SearchStudioPatentsParams,) => {
+    return [
+    `/api/studio/patents`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchStudioPatentsQueryOptions = <TData = Awaited<ReturnType<typeof searchStudioPatents>>, TError = ErrorType<unknown>>(params: SearchStudioPatentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchStudioPatentsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchStudioPatents>>> = ({ signal }) => searchStudioPatents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type SearchStudioPatentsQueryResult = NonNullable<Awaited<ReturnType<typeof searchStudioPatents>>>
+export type SearchStudioPatentsQueryError = ErrorType<unknown>
+
+
+export function useSearchStudioPatents<TData = Awaited<ReturnType<typeof searchStudioPatents>>, TError = ErrorType<unknown>>(
+ params: SearchStudioPatentsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchStudioPatents>>,
+          TError,
+          Awaited<ReturnType<typeof searchStudioPatents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchStudioPatents<TData = Awaited<ReturnType<typeof searchStudioPatents>>, TError = ErrorType<unknown>>(
+ params: SearchStudioPatentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchStudioPatents>>,
+          TError,
+          Awaited<ReturnType<typeof searchStudioPatents>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useSearchStudioPatents<TData = Awaited<ReturnType<typeof searchStudioPatents>>, TError = ErrorType<unknown>>(
+ params: SearchStudioPatentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useSearchStudioPatents<TData = Awaited<ReturnType<typeof searchStudioPatents>>, TError = ErrorType<unknown>>(
+ params: SearchStudioPatentsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchStudioPatents>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSearchStudioPatentsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getHealthCheckUrl = () => {
 

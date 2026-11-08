@@ -7,7 +7,8 @@ import { EMBEDDING_MODEL } from "./ai-budget";
 import { HttpError } from "./common";
 
 export const PAPER_COLLECTION="EvidoraPaper";
-const DESCRIPTION=`Evidora public scholarly metadata only; schema=1; ${EMBEDDING_MODEL}; dimensions=3072`;
+const LEGACY_DESCRIPTION=`Evidora public scholarly metadata only; schema=1; ${EMBEDDING_MODEL}; dimensions=3072`;
+const DESCRIPTION=`Evidora scholarly metadata and owner-scoped private project knowledge; schema=2; ${EMBEDDING_MODEL}; dimensions=3072`;
 const MAX_OBJECTS=95000; // Leave headroom below the selected free cluster's 100k limit.
 let connection:Promise<WeaviateClient>|undefined;
 
@@ -37,11 +38,12 @@ export async function initializePaperIndex() {
     if(classes.some(c=>c.class!==PAPER_COLLECTION))
       throw new Error("Refusing shared cluster: unrelated collections detected");
     const existing=classes.find(c=>c.class===PAPER_COLLECTION);
-    if(existing&&existing.description!==DESCRIPTION)throw new Error("Paper index configuration mismatch");
+    if(existing&&![DESCRIPTION,LEGACY_DESCRIPTION].includes(existing.description??""))throw new Error("Paper index configuration mismatch");
     const client=await weaviate.connectToWeaviateCloud(url.origin,{
       authCredentials:new weaviate.ApiKey(key),timeout:{init:15,query:25,insert:60},
     });
     try {
+      if(existing?.description===LEGACY_DESCRIPTION)await client.collections.use(PAPER_COLLECTION).config.update({description:DESCRIPTION});
       if(!existing)await client.collections.create({
         name:PAPER_COLLECTION,description:DESCRIPTION,
         vectorizers:vectors.selfProvided({name:"paper"}),

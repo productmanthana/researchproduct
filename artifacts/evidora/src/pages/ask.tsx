@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
-import { useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis } from "@workspace/api-client-react";
+import { useGenerateStudioDocument, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis } from "@workspace/api-client-react";
 import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, Leaf, LogOut, Menu, MoreHorizontal, Plus, Wind, X } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
@@ -14,6 +14,10 @@ import { errMessage } from "@/lib/format";
 import { allUsageLimitMessages, usageLimitMessage } from "@/lib/usage-limits";
 import { markdownSections, replaceMarkdownSection } from "./draft-markdown";
 import { askSendDisabled } from "./ask-workspace-state";
+import { SaveAnalysisToProject } from "@/components/studio/save-analysis";
+import { useActiveProject } from "@/lib/active-project";
+import { useUnsavedGuard } from "@/lib/unsaved";
+import { friendlyError, projectIntent } from "@/lib/studio";
 import "@/components/research-studio/studio.css";
 import "./ask-workspace.css";
 
@@ -108,6 +112,11 @@ function AskInner() {
   const evidenceTurns = currentThread.filter(t => t.status === "completed" && t.responseMode !== "guidance" && (t.sources.length > 0 || (t.discoveredPapers?.length ?? 0) > 0));
   const sourceAnalysis = evidenceTurns.find(t => t.id === sourceAnalysisId) ?? evidenceTurns.at(-1);
   const hasDirtyDraft = Object.values(draftBuffers).some(value => value.dirty);
+  useUnsavedGuard("ask-draft", hasDirtyDraft, "You have unsaved draft changes in AI Chat.");
+  const { project: activeProject } = useActiveProject();
+  const intent = projectIntent(question);
+  const generate = useGenerateStudioDocument();
+  const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -160,6 +169,29 @@ function AskInner() {
   };
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
+    if (intent) {
+      // Explicit "my idea / my references" request: generate from the active project, never silently fall back to public research.
+      // Quota is decided by the backend for the inferred kind (reviews vs answers); only warn locally from the matching allowance.
+      if (problem || generate.isPending) return;
+      if (!activeProject) {
+        toast({ title: "Choose a project first", description: "You asked to use your own material. Pick or create a project in the sidebar, then send again.", variant: "destructive" });
+        return;
+      }
+      if (sendLimit) { toast({ title: "Limit reached", description: sendLimit, variant: "destructive" }); return; }
+      if (!mayLeave()) return;
+      try {
+        const item = await generate.mutateAsync({ data: { projectId: activeProject.id, kind: intent.kind, prompt: question.trim().slice(0, 5000), evidenceMode: "project", includePatents: true } });
+        qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
+        void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+        void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+        setQuestion("");
+        setLocation(`${intent.route}${intent.route.includes("?") ? "&" : "?"}item=${encodeURIComponent(item.id)}`);
+      } catch (error) {
+        toast({ title: "Couldn't start from your project", description: friendlyError(error), variant: "destructive" });
+        void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      }
+      return;
+    }
     if (limitMessage) {
       toast({ title: "Limit reached", description: limitMessage, variant: "destructive" });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -278,10 +310,6 @@ function AskInner() {
   const title = thread?.turns[0]?.question ?? "A new research conversation";
   const name = user?.firstName || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Your workspace";
   const initials = name.slice(0, 2).toUpperCase();
-  const navLinks = [
-    ["Discover", "/discover"], ["Library", "/library"], ["Research", "/research"], ["Projects", "/projects"],
-    ["Landscape", "/landscape"], ["Sources", "/sources"], ["Plans & usage", "/plans"],
-  ];
 
   return <div className="es-root">
     {menuOpen && <button className="es-backdrop es-visible" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
@@ -291,7 +319,6 @@ function AskInner() {
       {historyOpen && <div className="es-recent" aria-label="Saved conversations"><span className="es-eyebrow">Your conversations</span>
         {threads.map(item => <button key={item.id} aria-current={thread?.id === item.id ? "page" : undefined} onClick={() => openThread(item.id)}>{item.turns[0]?.question}<small>{item.turns.length} {item.turns.length === 1 ? "turn" : "turns"}</small></button>)}
         {!threads.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
-        {navLinks.map(([label, href]) => <Link key={href} className="es-nav-plain es-drawer-link" href={href} onClick={event => { if (guardNavigation(event)) setMenuOpen(false); }}>{label}</Link>)}
       </div>}
       <div className="es-sidebar-bottom"><span className="es-avatar">{initials}</span><span className="es-account-name">{name}<small className="es-small">{usageData?.plan ?? "Research workspace"}</small></span><button className="es-icon es-signout" aria-label="Sign out" title="Sign out" onClick={() => { if (mayLeave()) void signOut(); }}><LogOut /></button></div>
     </aside>
@@ -313,6 +340,7 @@ function AskInner() {
               {analysis.status === "completed" && <div className="es-chat-actions">
                 <button className="es-button" onClick={() => exploreFurther(analysis)}><Wind />Explore further</button>
                 {analysis.responseMode !== "guidance" && analysis.sources.length > 0 && <button className="es-button es-primary" onClick={() => startDraft(analysis)}><FileText />{analysis.draftContent != null || draftBuffers[analysis.id] ? "Continue draft" : "Start a draft"}</button>}
+                {analysis.responseMode !== "guidance" && analysis.content && <SaveAnalysisToProject analysis={analysis} />}
                 {analysis.content && <details className="es-more-actions"><summary aria-label="More answer actions"><MoreHorizontal />More</summary><div role="group" aria-label="More answer actions">
                   <button className="es-button" onClick={() => void copyAnswer(analysis)}><Copy />Copy answer &amp; references</button>
                   <button className="es-button" onClick={() => {
@@ -325,9 +353,11 @@ function AskInner() {
             </div>)}
           </div></div>
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
-          <div className="es-composer-wrap"><form className="es-composer" onSubmit={submit}>
+          <div className="es-composer-wrap">{intent && <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
+            ? <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>
+            : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>}<form className="es-composer" onSubmit={submit}>
             <textarea ref={composer} aria-label="Message Evidora" placeholder="A question, an idea, a half-formed thought…" value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onComposerKey} rows={2} maxLength={2000} data-testid="input-ask-question" />
-            <div className="es-composer-bottom"><span role="status">{limitMessage ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${limitMessage ? "es-limit-send" : ""}`} type="submit" disabled={askSendDisabled({ limitReached: !!limitMessage, blocked: !!problem, pending: create.isPending, loading: list.isLoading || usage.isLoading })} aria-label={limitMessage ? "Limit reached" : "Send message"} data-testid="button-ask-send">{limitMessage ? "Limit reached" : <ArrowUp />}</button></div>
+            <div className="es-composer-bottom"><span role="status">{sendLimit ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${sendLimit ? "es-limit-send" : ""}`} type="submit" disabled={askSendDisabled({ limitReached: !!sendLimit, blocked: !!problem, pending: create.isPending || generate.isPending, loading: list.isLoading || usage.isLoading })} aria-label={sendLimit ? "Limit reached" : "Send message"} data-testid="button-ask-send">{sendLimit ? "Limit reached" : <ArrowUp />}</button></div>
           </form><p className="es-local-note">Enter to send · Shift+Enter for a new line · AI-assisted answers need original-source review.</p></div>
         </section>
         {panel === "sources" && sourceAnalysis && <aside className="es-panel" aria-label="Sources"><div className="es-panel-header"><h2>Sources <span className="es-small">/ {sourceAnalysis.discoveredPapers?.length ?? sourceAnalysis.sources.length} papers</span></h2><button className="es-icon" aria-label="Close sources and return to chat" onClick={closePanel}><X /></button></div><div className="es-source-panel"><EvidencePanel analysis={sourceAnalysis} selected={selectedSource} onSelect={setSelectedSource} revealRequest={sourceRevealRequest} /></div></aside>}

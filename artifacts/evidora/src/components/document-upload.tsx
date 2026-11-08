@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { bytes, errMessage } from "@/lib/format";
 
-const TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const TYPES = ["application/pdf", DOCX, "image/png", "image/jpeg", "image/webp"];
 const MAX = 15 * 1024 * 1024;
 
 export function DocumentUpload({ label = "Upload document" }: { label?: string }) {
@@ -24,9 +25,9 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
 
   // Some operating systems report a generic MIME type for valid files. The
   // server independently verifies their magic bytes before accepting them.
-  const extensionTypes:Record<string,string>={pdf:"application/pdf",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
+  const extensionTypes:Record<string,string>={pdf:"application/pdf",docx:DOCX,png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
   const contentType=file?(!file.type||file.type==="application/octet-stream"?extensionTypes[file.name.split(".").pop()?.toLowerCase()??""]??file.type:file.type):"";
-  const fileError = file && !TYPES.includes(contentType) ? "Only PDF, PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
+  const fileError = file && !TYPES.includes(contentType) ? "Only PDF, Word (.docx), PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
   const busy = stage !== "idle";
 
   const reset = () => {
@@ -69,7 +70,7 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Add a private document</DialogTitle>
-            <DialogDescription>PDFs up to 50 pages are read for their text. Screenshots (PNG, JPEG, WebP) are analysed as the original image. Max 15 MB.</DialogDescription>
+            <DialogDescription>PDFs up to 50 pages and Word (.docx) files are read for their text. Screenshots (PNG, JPEG, WebP) are analysed as the original image. Max 15 MB.</DialogDescription>
           </DialogHeader>
           <button
             type="button"
@@ -92,7 +93,7 @@ export function DocumentUpload({ label = "Upload document" }: { label?: string }
               <span className="mt-2 text-muted-foreground">Drop a file or click to choose</span>
             )}
           </button>
-          <input ref={inputRef} type="file" accept={TYPES.join(",")} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} data-testid="input-file" />
+          <input ref={inputRef} type="file" accept={[...TYPES, ".docx"].join(",")} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} data-testid="input-file" />
           {fileError && <p className="text-sm text-vermilion">{fileError}</p>}
           <label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
             <Checkbox checked={rights} onCheckedChange={(v) => setRights(v === true)} className="mt-0.5" data-testid="checkbox-rights" />

@@ -1,6 +1,6 @@
 import { pool } from "@workspace/db";
 import { getPaper } from "./catalogue";
-import { ownedDocument, readDocument } from "./documents";
+import { ownedDocument, readDocument, DOCX } from "./documents";
 import { HttpError } from "./common";
 import { logger } from "./logger";
 import { type EvidenceSource } from "./evidence";
@@ -74,6 +74,9 @@ export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSo
     if(d.content_type.startsWith("image/")) {
       const bytes=await readDocument(d);
       sources.push({id:d.id,title:d.name,url:`/api/documents/${d.id}/file`,evidenceLevel:"Original image",text:"",page:1,image:`data:${d.content_type};base64,${bytes.toString("base64")}`});
+    } else if(d.content_type===DOCX) {
+      const pages=await selectEvidencePages(job.owner_id,d.id,d.pages,retrievalQuestion,8,d.id);
+      for(const p of pages)if(p.text.trim())sources.push({id:`${d.id}-s${p.page}`,title:`${d.name} — text section ${p.page}`,url:`/api/documents/${d.id}/file`,evidenceLevel:"Uploaded Word text; physical page numbers unavailable",text:p.text.slice(0,10000),page:null});
     } else {
       const requested:number[]=job.input.pageNumbers??[];
       const pages=job.kind==="image"&&requested.length?d.pages.filter((p:any)=>requested.includes(p.page)):

@@ -1,0 +1,199 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useSaveStudioItem, useDeleteStudioItem, useSyncStudioDocument,
+  getListStudioItemsQueryKey, getGetStudioItemQueryKey,
+  StudioItemInputKind, type StudioItem,
+} from "@workspace/api-client-react";
+import { Link } from "wouter";
+import { Check, Download, FileText, History, RefreshCw, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AcademicAnswer } from "@/components/academic-answer";
+import { GenerationStatus } from "./generation-status";
+import { CheckPanel } from "./check-panel";
+import { useToast } from "@/hooks/use-toast";
+import { useUnsavedGuard } from "@/lib/unsaved";
+import { downloadStudioItem, friendlyError, isWorking, KIND_LABEL, lineageOf, meta, statusOf } from "@/lib/studio";
+import { ago } from "@/lib/format";
+
+const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
+const plainInline = (t: string): ReactNode => t;
+
+function IndexChip({ status }: { status: string }) {
+  const tone = status === "indexed" || status === "ready" || status === "completed" ? "ok" : status === "failed" || status === "unavailable" ? "bad" : "warn";
+  const label = status === "unavailable" ? "search index unavailable" : `search index: ${status || "unknown"}`;
+  return <span className={`sx-chip ${tone}`} data-testid="status-index">{label}</span>;
+}
+
+export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title">; disabled?: boolean }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
+  const run = async (f: "pdf" | "docx") => {
+    setBusy(f);
+    try { await downloadStudioItem(item, f); }
+    catch (e) { toast({ title: "Export failed", description: friendlyError(e), variant: "destructive" }); }
+    finally { setBusy(null); }
+  };
+  return (
+    <>
+      <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("pdf")} data-testid="button-export-pdf"><Download />{busy === "pdf" ? "Preparing..." : "PDF"}</button>
+      <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("docx")} data-testid="button-export-docx"><FileText />{busy === "docx" ? "Preparing..." : "Word"}</button>
+    </>
+  );
+}
+
+type Props = {
+  item: StudioItem;
+  allItems: StudioItem[];
+  onOpen: (id: string | null) => void;
+  onRetry?: () => void;
+  extra?: ReactNode;
+};
+
+export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const save = useSaveStudioItem();
+  const del = useDeleteStudioItem();
+  const sync = useSyncStudioDocument();
+  const [title, setTitle] = useState(item.title);
+  const [content, setContent] = useState(item.content);
+  const [mode, setMode] = useState<"read" | "edit">("read");
+  const [conflict, setConflict] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const initFor = useRef<string | null>(null);
+  const working = isWorking(item.status);
+
+  useEffect(() => {
+    // Initialise once per item id, and once more when a running item completes.
+    const key = `${item.id}:${working ? "w" : item.status}`;
+    if (initFor.current === key) return;
+    initFor.current = key;
+    setTitle(item.title); setContent(item.content); setConflict(null);
+  }, [item.id, item.status, item.title, item.content, working]);
+
+  const isProjectInfo = (item.metadata as Record<string, unknown> | null)?.projectInformation === true;
+  const canSave = SAVABLE.has(item.kind) && !isProjectInfo;
+  const dirty = canSave && !working && (title !== item.title || content !== item.content);
+  useUnsavedGuard(`studio-item-${item.id}`, dirty, `"${item.title}" has unsaved edits.`);
+  const lineage = lineageOf(allItems.length ? allItems : [item], item.id);
+  const m = meta(item);
+  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+
+  const doSave = async () => {
+    if (!dirty || !title.trim()) return;
+    try {
+      const saved = await save.mutateAsync({ data: {
+        projectId: item.projectId, kind: item.kind as StudioItemInputKind, title: title.trim(), content,
+        parentId: item.id, ...(m.templateId ? { templateId: m.templateId } : {}),
+      } });
+      setConflict(null);
+      qc.setQueryData(getGetStudioItemQueryKey(saved.id), saved);
+      await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      toast({ title: `Saved revision ${saved.revision}`, description: "Earlier versions are kept in history." });
+      onOpen(saved.id);
+    } catch (e) {
+      if (statusOf(e) === 409) setConflict(friendlyError(e));
+      else toast({ title: "Couldn't save", description: friendlyError(e), variant: "destructive" });
+    }
+  };
+
+  const doDelete = async () => {
+    try {
+      await del.mutateAsync({ id: item.id });
+      await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      qc.removeQueries({ queryKey: getGetStudioItemQueryKey(item.id) });
+      toast({ title: "Deleted", description: item.title });
+      onOpen(null);
+    } catch (e) { toast({ title: "Couldn't delete", description: friendlyError(e), variant: "destructive" }); }
+  };
+
+  const doSync = async () => {
+    try {
+      const s = await sync.mutateAsync({ id: item.id });
+      qc.setQueryData(getGetStudioItemQueryKey(s.id), s);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+    } catch (e) { toast({ title: "Sync failed", description: friendlyError(e), variant: "destructive" }); }
+  };
+
+  const switchVersion = (id: string) => {
+    if (dirty && !window.confirm("Switch versions and discard your unsaved edits?")) return;
+    onOpen(id);
+  };
+
+  if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} />;
+
+  return (
+    <div className="rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]" data-testid={`workspace-item-${item.id}`}>
+      <article className="sx-card overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b bg-[hsl(66_20%_95%)] px-4 py-2.5">
+          <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
+          <span className="sx-chip" data-testid="text-revision">rev {item.revision}</span>
+          <IndexChip status={item.indexStatus} />
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
+            <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
+          </div>
+        </div>
+        <div className="px-5 py-5 md:px-9 md:py-8">
+          {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save this revision before exporting. Exports use the last saved revision.</p>}
+          {mode === "edit" && canSave
+            ? <input className="sx-title w-full border-0 bg-transparent text-3xl outline-none" value={title} maxLength={300} onChange={e => setTitle(e.target.value)} aria-label="Title" data-testid="input-item-title" />
+            : <h2 className="sx-title text-3xl leading-tight" data-testid="text-item-title">{title}</h2>}
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">created {ago(item.createdAt)} &middot; {words} words</p>
+          <div className="mt-6">
+            {mode === "edit" && canSave
+              ? <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" />
+              : content.trim() ? <AcademicAnswer content={content} inline={plainInline} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
+          </div>
+        </div>
+        {conflict && <div className="mx-5 mb-4 rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.06)] p-3 text-sm" role="alert" data-testid="status-conflict">{conflict}</div>}
+        <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
+          <span className="text-xs text-muted-foreground" role="status">{dirty ? "Unsaved edits" : "All changes saved"}</span>
+          {isProjectInfo
+            ? <span className="text-xs text-muted-foreground" data-testid="text-project-info-note">This mirrors your project details. Edit them in <Link href="/my-library" className="underline">the project information form</Link>; it updates here automatically.</span>
+            : !canSave && <span className="text-xs text-muted-foreground">This item type is read-only. Confirm an idea to get an editable copy.</span>}
+          {extra}
+          {canSave && <button className="sx-btn sx-primary ml-auto" disabled={!canSave || !dirty || save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version"><Check />{save.isPending ? "Saving..." : "Save new version"}</button>}
+        </div>
+      </article>
+
+      <aside className="space-y-4">
+        <div className="sx-card p-4">
+          <p className="sx-eyebrow mb-2 flex items-center gap-1.5"><History className="h-3.5 w-3.5" />Version history</p>
+          <select className="sx-input" value={item.id} onChange={e => switchVersion(e.target.value)} data-testid="select-version">
+            {lineage.map(v => <option key={v.id} value={v.id}>Revision {v.revision} &middot; {new Date(v.createdAt).toLocaleString()}</option>)}
+          </select>
+          <p className="mt-2 text-xs text-muted-foreground">{isProjectInfo ? "Kept in step with the project details form." : "Each save creates a new revision. Older ones are never overwritten."}</p>
+        </div>
+        <div className="sx-card p-4">
+          <p className="sx-eyebrow mb-2">Project search index</p>
+          <p className="text-xs text-muted-foreground">Indexed items can be used as evidence for project-aware answers. Syncing does not count as an answer, but it does use AI service budget.{item.indexStatus === "unavailable" ? " The search index is currently unavailable on the server; the item is still saved." : ""}</p>
+          <button className="sx-btn mt-3 w-full" disabled={sync.isPending} onClick={() => void doSync()} data-testid="button-sync"><RefreshCw />{sync.isPending ? "Syncing..." : item.indexStatus === "failed" ? "Retry sync" : "Re-sync"}</button>
+        </div>
+        <CheckPanel itemId={item.id} disabled={dirty} />
+        {(m.sources.length > 0 || m.warnings.length > 0) && (
+          <div className="sx-card p-4 text-sm">
+            {m.warnings.length > 0 && <><p className="sx-eyebrow mb-1">Notes from the writer</p><ul className="mb-3 list-disc space-y-1 pl-5 text-muted-foreground">{m.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></>}
+            {m.sources.length > 0 && <><p className="sx-eyebrow mb-1">Sources reviewed ({m.sources.length})</p>
+              <ol className="list-decimal space-y-1.5 pl-5">{m.sources.map(s => <li key={s.id}>{s.url ? <a className="underline decoration-[hsl(var(--teal)/0.4)] underline-offset-2" href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : s.title}</li>)}</ol></>}
+          </div>
+        )}
+        <button className="sx-btn sx-danger w-full" onClick={() => setConfirmDelete(true)} data-testid="button-delete-item"><Trash2 />Delete this revision</button>
+      </aside>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete &ldquo;{item.title}&rdquo; (rev {item.revision})?</AlertDialogTitle>
+            <AlertDialogDescription>This removes the revision from your project. It cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void doDelete()} className="bg-[hsl(var(--vermilion))]" data-testid="button-confirm-delete">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

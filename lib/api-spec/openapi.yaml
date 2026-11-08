@@ -10,6 +10,32 @@
     }
   ],
   "paths": {
+    "/studio/items": {
+      "get": {"operationId":"listStudioItems","parameters":[{"name":"projectId","in":"query","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Project documents and versions","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/StudioItem"}}}}}}},
+      "post": {"operationId":"saveStudioItem","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItemInput"}}}},"responses":{"200":{"description":"Saved revision","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
+    "/studio/items/{id}": {
+      "get":{"operationId":"getStudioItem","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Document","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}},
+      "delete":{"operationId":"deleteStudioItem","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Deleted","content":{"application/json":{"schema":{"type":"object","required":["status"],"properties":{"status":{"type":"string"}}}}}}}}
+    },
+    "/studio/generate": {
+      "post":{"operationId":"generateStudioDocument","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioGenerationInput"}}}},"responses":{"200":{"description":"Queued document; poll getStudioItem","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
+    "/studio/items/{id}/export": {
+      "get":{"operationId":"exportStudioDocument","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}},{"name":"format","in":"query","required":true,"schema":{"type":"string","enum":["pdf","docx"]}}],"responses":{"200":{"description":"Private file download","content":{"application/octet-stream":{"schema":{"type":"string","format":"binary"}}}}}}
+    },
+    "/studio/items/{id}/check": {
+      "post":{"operationId":"checkStudioDocument","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Project-scoped review","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioCheck"}}}}}}
+    },
+    "/studio/items/{id}/sync": {
+      "post":{"operationId":"syncStudioDocument","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Index status","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
+    "/studio/templates": {
+      "get":{"operationId":"listStudioTemplates","responses":{"200":{"description":"Maintained template profiles","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/StudioTemplate"}}}}}}}
+    },
+    "/studio/patents": {
+      "get":{"operationId":"searchStudioPatents","parameters":[{"name":"q","in":"query","required":true,"schema":{"type":"string"}},{"name":"region","in":"query","schema":{"type":"string","enum":["world","US","IN"]}}],"responses":{"200":{"description":"Patent search and availability","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioPatentSearch"}}}}}}
+    },
     "/healthz": {
       "get": {
         "operationId": "healthCheck",
@@ -1192,6 +1218,15 @@
   },
   "components": {
     "schemas": {
+      "StudioItem":{"type":"object","required":["id","projectId","kind","title","content","status","error","revision","parentId","metadata","indexStatus","createdAt"],"properties":{
+        "id":{"type":"string"},"projectId":{"type":"string"},"kind":{"type":"string"},"title":{"type":"string"},"content":{"type":"string"},"status":{"type":"string"},"error":{"type":"string"},"revision":{"type":"integer"},"parentId":{"type":["string","null"]},"metadata":{"type":"object","additionalProperties":true},"indexStatus":{"type":"string"},"createdAt":{"type":"string"}
+      }},
+      "StudioItemInput":{"type":"object","required":["projectId","kind","title","content"],"properties":{"projectId":{"type":"string"},"kind":{"type":"string","enum":["idea","literature","synopsis","journal","thesis","note","document","patent","answer"]},"title":{"type":"string","minLength":1,"maxLength":300},"content":{"type":"string","maxLength":500000},"parentId":{"type":"string"},"documentId":{"type":"string"},"analysisId":{"type":"string"},"templateId":{"type":"string"}}},
+      "StudioGenerationInput":{"type":"object","required":["projectId","kind","prompt","evidenceMode"],"properties":{"projectId":{"type":"string"},"kind":{"type":"string","enum":["ideas","literature","synopsis","journal","thesis","answer"]},"prompt":{"type":"string","minLength":5,"maxLength":5000},"evidenceMode":{"type":"string","enum":["project","discover","combined"]},"templateId":{"type":"string"},"parentId":{"type":"string"},"includePatents":{"type":"boolean","default":true}}},
+      "StudioCheck":{"type":"object","required":["scope","issues","matches","externalAvailable"],"properties":{"scope":{"type":"string"},"issues":{"type":"array","items":{"type":"string"}},"matches":{"type":"array","items":{"type":"object","required":["title","excerpt"],"properties":{"title":{"type":"string"},"excerpt":{"type":"string"}}}},"externalAvailable":{"type":"boolean"}}},
+      "StudioTemplate":{"type":"object","required":["id","name","kind","publisher","country","guidelines","status","requirements"],"properties":{"id":{"type":"string"},"name":{"type":"string"},"kind":{"type":"string"},"publisher":{"type":"string"},"country":{"type":"string"},"guidelines":{"type":"string"},"status":{"type":"string"},"requirements":{"type":"array","items":{"type":"string"}}}},
+      "StudioPatentSearch":{"type":"object","required":["available","message","patents","links"],"properties":{"available":{"type":"boolean"},"message":{"type":"string"},"patents":{"type":"array","items":{"$ref":"#/components/schemas/StudioPatent"}},"links":{"type":"array","items":{"type":"object","required":["label","url"],"properties":{"label":{"type":"string"},"url":{"type":"string"}}}}}},
+      "StudioPatent":{"type":"object","required":["id","title","abstract","url","country","date","applicant"],"properties":{"id":{"type":"string"},"title":{"type":"string"},"abstract":{"type":"string"},"url":{"type":"string"},"country":{"type":"string"},"date":{"type":"string"},"applicant":{"type":"string"}}},
       "HealthStatus": {
         "type": "object",
         "properties": {
@@ -1565,6 +1600,7 @@
             "type": "string",
             "enum": [
               "application/pdf",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
               "image/png",
               "image/jpeg",
               "image/webp"

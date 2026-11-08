@@ -7,6 +7,203 @@
 import * as zod from 'zod';
 
 
+export const ListStudioItemsQueryParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const ListStudioItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListStudioItemsResponse = zod.array(ListStudioItemsResponseItem)
+
+
+export const saveStudioItemBodyTitleMax = 300;
+
+export const saveStudioItemBodyContentMax = 500000;
+
+
+
+export const SaveStudioItemBody = zod.object({
+  "projectId": zod.string(),
+  "kind": zod.enum(['idea', 'literature', 'synopsis', 'journal', 'thesis', 'note', 'document', 'patent', 'answer']),
+  "title": zod.string().min(1).max(saveStudioItemBodyTitleMax),
+  "content": zod.string().max(saveStudioItemBodyContentMax),
+  "parentId": zod.string().optional(),
+  "documentId": zod.string().optional(),
+  "analysisId": zod.string().optional(),
+  "templateId": zod.string().optional()
+})
+
+export const SaveStudioItemResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const GetStudioItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetStudioItemResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const DeleteStudioItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteStudioItemResponse = zod.object({
+  "status": zod.string()
+})
+
+
+export const generateStudioDocumentBodyPromptMin = 5;
+export const generateStudioDocumentBodyPromptMax = 5000;
+
+export const generateStudioDocumentBodyIncludePatentsDefault = true;
+
+export const GenerateStudioDocumentBody = zod.object({
+  "projectId": zod.string(),
+  "kind": zod.enum(['ideas', 'literature', 'synopsis', 'journal', 'thesis', 'answer']),
+  "prompt": zod.string().min(generateStudioDocumentBodyPromptMin).max(generateStudioDocumentBodyPromptMax),
+  "evidenceMode": zod.enum(['project', 'discover', 'combined']),
+  "templateId": zod.string().optional(),
+  "parentId": zod.string().optional(),
+  "includePatents": zod.boolean().default(generateStudioDocumentBodyIncludePatentsDefault)
+})
+
+export const GenerateStudioDocumentResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const ExportStudioDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportStudioDocumentQueryParams = zod.object({
+  "format": zod.enum(['pdf', 'docx'])
+})
+
+export const ExportStudioDocumentResponse = zod.unknown()
+
+
+export const CheckStudioDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CheckStudioDocumentResponse = zod.object({
+  "scope": zod.string(),
+  "issues": zod.array(zod.string()),
+  "matches": zod.array(zod.object({
+  "title": zod.string(),
+  "excerpt": zod.string()
+})),
+  "externalAvailable": zod.boolean()
+})
+
+
+export const SyncStudioDocumentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SyncStudioDocumentResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const ListStudioTemplatesResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "kind": zod.string(),
+  "publisher": zod.string(),
+  "country": zod.string(),
+  "guidelines": zod.string(),
+  "status": zod.string(),
+  "requirements": zod.array(zod.string())
+})
+export const ListStudioTemplatesResponse = zod.array(ListStudioTemplatesResponseItem)
+
+
+export const SearchStudioPatentsQueryParams = zod.object({
+  "q": zod.coerce.string(),
+  "region": zod.enum(['world', 'US', 'IN']).optional()
+})
+
+export const SearchStudioPatentsResponse = zod.object({
+  "available": zod.boolean(),
+  "message": zod.string(),
+  "patents": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "abstract": zod.string(),
+  "url": zod.string(),
+  "country": zod.string(),
+  "date": zod.string(),
+  "applicant": zod.string()
+})),
+  "links": zod.array(zod.object({
+  "label": zod.string(),
+  "url": zod.string()
+}))
+})
+
+
 export const HealthCheckResponse = zod.object({
   "status": zod.string()
 })
@@ -589,7 +786,7 @@ export const requestDocumentUploadBodySizeMax = 15728640;
 
 export const RequestDocumentUploadBody = zod.object({
   "name": zod.string(),
-  "contentType": zod.enum(['application/pdf', 'image/png', 'image/jpeg', 'image/webp']),
+  "contentType": zod.enum(['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/png', 'image/jpeg', 'image/webp']),
   "size": zod.number().int().min(1).max(requestDocumentUploadBodySizeMax),
   "rightsConfirmed": zod.literal(true)
 })

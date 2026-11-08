@@ -4,6 +4,135 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export type StudioItemMetadata = { [key: string]: unknown };
+
+export interface StudioItem {
+  id: string;
+  projectId: string;
+  kind: string;
+  title: string;
+  content: string;
+  status: string;
+  error: string;
+  revision: number;
+  /** @nullable */
+  parentId: string | null;
+  metadata: StudioItemMetadata;
+  indexStatus: string;
+  createdAt: string;
+}
+
+export type StudioItemInputKind = typeof StudioItemInputKind[keyof typeof StudioItemInputKind];
+
+
+export const StudioItemInputKind = {
+  idea: 'idea',
+  literature: 'literature',
+  synopsis: 'synopsis',
+  journal: 'journal',
+  thesis: 'thesis',
+  note: 'note',
+  document: 'document',
+  patent: 'patent',
+  answer: 'answer',
+} as const;
+
+export interface StudioItemInput {
+  projectId: string;
+  kind: StudioItemInputKind;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title: string;
+  /** @maxLength 500000 */
+  content: string;
+  parentId?: string;
+  documentId?: string;
+  analysisId?: string;
+  templateId?: string;
+}
+
+export type StudioGenerationInputKind = typeof StudioGenerationInputKind[keyof typeof StudioGenerationInputKind];
+
+
+export const StudioGenerationInputKind = {
+  ideas: 'ideas',
+  literature: 'literature',
+  synopsis: 'synopsis',
+  journal: 'journal',
+  thesis: 'thesis',
+  answer: 'answer',
+} as const;
+
+export type StudioGenerationInputEvidenceMode = typeof StudioGenerationInputEvidenceMode[keyof typeof StudioGenerationInputEvidenceMode];
+
+
+export const StudioGenerationInputEvidenceMode = {
+  project: 'project',
+  discover: 'discover',
+  combined: 'combined',
+} as const;
+
+export interface StudioGenerationInput {
+  projectId: string;
+  kind: StudioGenerationInputKind;
+  /**
+     * @minLength 5
+     * @maxLength 5000
+     */
+  prompt: string;
+  evidenceMode: StudioGenerationInputEvidenceMode;
+  templateId?: string;
+  parentId?: string;
+  includePatents?: boolean;
+}
+
+export type StudioCheckMatchesItem = {
+  title: string;
+  excerpt: string;
+};
+
+export interface StudioCheck {
+  scope: string;
+  issues: string[];
+  matches: StudioCheckMatchesItem[];
+  externalAvailable: boolean;
+}
+
+export interface StudioTemplate {
+  id: string;
+  name: string;
+  kind: string;
+  publisher: string;
+  country: string;
+  guidelines: string;
+  status: string;
+  requirements: string[];
+}
+
+export type StudioPatentSearchLinksItem = {
+  label: string;
+  url: string;
+};
+
+export interface StudioPatent {
+  id: string;
+  title: string;
+  abstract: string;
+  url: string;
+  country: string;
+  date: string;
+  applicant: string;
+}
+
+export interface StudioPatentSearch {
+  available: boolean;
+  message: string;
+  patents: StudioPatent[];
+  links: StudioPatentSearchLinksItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -118,6 +247,7 @@ export type UploadInputContentType = typeof UploadInputContentType[keyof typeof 
 
 export const UploadInputContentType = {
   'application/pdf': 'application/pdf',
+  'application/vndopenxmlformats-officedocumentwordprocessingmldocument': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/png': 'image/png',
   'image/jpeg': 'image/jpeg',
   'image/webp': 'image/webp',
@@ -410,6 +540,40 @@ export interface DocumentLink {
   /** @nullable */
   paperId: string | null;
 }
+
+export type ListStudioItemsParams = {
+projectId: string;
+};
+
+export type DeleteStudioItem200 = {
+  status: string;
+};
+
+export type ExportStudioDocumentParams = {
+format: ExportStudioDocumentFormat;
+};
+
+export type ExportStudioDocumentFormat = typeof ExportStudioDocumentFormat[keyof typeof ExportStudioDocumentFormat];
+
+
+export const ExportStudioDocumentFormat = {
+  pdf: 'pdf',
+  docx: 'docx',
+} as const;
+
+export type SearchStudioPatentsParams = {
+q: string;
+region?: SearchStudioPatentsRegion;
+};
+
+export type SearchStudioPatentsRegion = typeof SearchStudioPatentsRegion[keyof typeof SearchStudioPatentsRegion];
+
+
+export const SearchStudioPatentsRegion = {
+  world: 'world',
+  US: 'US',
+  IN: 'IN',
+} as const;
 
 export type SearchPapersParams = {
 q: string;

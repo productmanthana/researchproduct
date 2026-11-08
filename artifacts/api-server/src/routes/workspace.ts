@@ -5,6 +5,7 @@ import { CreateProjectBody, UpdateProjectBody, SavePaperBody, UpdateLibraryItemB
 import { uid, requireUser, routeId, iso, usage, HttpError } from "../lib/common";
 import { getPaper } from "../lib/catalogue";
 import { analysisView } from "../lib/analysis-view";
+import { saveProjectInformation } from "../lib/studio-store";
 const router=Router();
 export const projectView=(r:any)=>({id:r.id,name:r.name,description:r.description,color:r.color,paperCount:Number(r.paper_count??0),createdAt:iso(r.created_at)});
 const libraryView=(r:any)=>({id:r.id,paper:r.data,projectId:r.project_id,notes:r.notes,tags:r.tags,createdAt:iso(r.created_at)});
@@ -32,6 +33,7 @@ router.post("/projects",requireUser,async(req,res)=>{
   const b=CreateProjectBody.parse(req.body);
   if(!b.name.trim()) throw new HttpError(400,"A project name is required.");
   const {rows}=await pool.query("INSERT INTO research_projects(id,owner_id,name,description,color) VALUES($1,$2,$3,$4,$5) RETURNING *",[randomUUID(),uid(req),b.name.trim(),b.description??"",b.color??"teal"]);
+  await saveProjectInformation(rows[0]);
   res.json(projectView(rows[0]));
 });
 router.patch("/projects/:id",requireUser,async(req,res)=>{
@@ -39,9 +41,12 @@ router.patch("/projects/:id",requireUser,async(req,res)=>{
   if(!b.name.trim()) throw new HttpError(400,"A project name is required.");
   const {rows}=await pool.query("UPDATE research_projects SET name=$3,description=coalesce($4,description),color=coalesce($5,color) WHERE id=$1 AND owner_id=$2 RETURNING *, (SELECT count(*) FROM research_library WHERE project_id=$1 AND owner_id=$2) AS paper_count",[routeId(req),uid(req),b.name.trim(),b.description,b.color]);
   if(!rows[0]) throw new HttpError(404,"Project not found.");
+  await saveProjectInformation(rows[0]);
   res.json(projectView(rows[0]));
 });
 router.delete("/projects/:id",requireUser,async(req,res)=>{
+  const items=await pool.query("SELECT id FROM research_studio_items WHERE project_id=$1 AND owner_id=$2 LIMIT 1",[routeId(req),uid(req)]);
+  if(items.rowCount)throw new HttpError(409,"This folder contains saved project documents. Remove them from My Library before deleting the project.");
   const result=await pool.query("DELETE FROM research_projects WHERE id=$1 AND owner_id=$2",[routeId(req),uid(req)]);
   if(!result.rowCount) throw new HttpError(404,"Project not found.");
   res.json({status:"deleted"});

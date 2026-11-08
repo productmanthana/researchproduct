@@ -1,3 +1,4 @@
+import "./studio.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { pool } from "@workspace/db";
