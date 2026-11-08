@@ -2,6 +2,16 @@
 name: Research experience priorities
 description: User wants a simple question-to-answer flow with minimal waiting.
 ---
+## Ongoing research monitoring
+
+The user wants saved research ideas, literature surveys, journal drafts, theses and topics monitored daily for related journal publications and published patents.
+
+**Why:** They want to learn when others publish research related to their planned work, not only when they manually repeat a search.
+
+**How to apply:** Keep monitoring project-based to avoid duplicate alerts across related drafts. Explain substantive overlap without asserting copying or loss of novelty; distinguish publication dates from discovery dates and unavailable patent coverage from a successful search with no matches.
+
+## Research workflow
+
 The user wants research to be very easy, with a direct question-to-answer flow and instant answers; they report that the current flow takes too long.
 
 **Why:** The user identified waiting time as their main problem, rather than the choice of vector database.

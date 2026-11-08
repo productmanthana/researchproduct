@@ -43,9 +43,13 @@ export function StudioHeader({ kicker, title, intro }: { kicker: string; title: 
 
 function Inner({ cfg }: { cfg: StudioPageConfig }) {
   const { project } = useActiveProject();
-  const { id, setId } = useItemParam();
+  const { id, setId, params } = useItemParam();
   const items = useProjectItems(project?.id);
   const open = useStudioItem(id);
+  const sourceId = params.get("source");
+  const sourceQ = useStudioItem(sourceId);
+  const source = sourceQ.data && project && sourceQ.data.projectId === project.id ? sourceQ.data : undefined;
+  const sourcePrompt = source ? `Update the ${cfg.kicker.toLowerCase()} for this project, taking into account the newly found source "${source.title}":\n\n${source.content.slice(0, 3000)}` : "";
   const [templateId, setTemplateId] = useState<string | null>(null);
   const kinds = [cfg.kind as string, cfg.saveKind as string];
 
@@ -57,7 +61,12 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
       <StudioHeader {...cfg} />
       <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
         <div className="space-y-5">
-          <Composer key={project.id} projectId={project.id} kind={cfg.kind} saveKind={cfg.saveKind} placeholder={cfg.placeholder} cta={cfg.cta}
+          {source && <div className="sx-card rise border-l-4 border-l-[hsl(var(--turmeric))] p-3 text-[13px]" data-testid="notice-source-context">
+            <p className="font-medium">Source note added to the prompt below</p>
+            <p className="mt-0.5 text-muted-foreground">Review or edit it, then write a new document. Your existing drafts are kept.</p>
+          </div>}
+          {sourceId && sourceQ.isLoading && <div className="sx-card h-16 animate-pulse" />}
+          <Composer key={`${project.id}:${source?.id ?? ""}`} initialPrompt={sourcePrompt.slice(0, 5000)} projectId={project.id} kind={cfg.kind} saveKind={cfg.saveKind} placeholder={cfg.placeholder} cta={cfg.cta}
             templateId={templateId}
             templateSlot={cfg.templateKind ? <TemplatePicker kind={cfg.templateKind} value={templateId} onChange={t => setTemplateId(t?.id ?? null)} label={cfg.templateLabel ?? "Formatting profile"} /> : undefined}
             onCreated={it => setId(it.id, { guard: true })} />

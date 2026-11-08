@@ -28,6 +28,7 @@ import Thesis from "@/pages/thesis";
 import Originality from "@/pages/originality";
 import Patents from "@/pages/patents";
 import MyLibrary from "@/pages/my-library";
+import ResearchUpdates from "@/pages/research-updates";
 import { ActiveProjectProvider } from "@/lib/active-project";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: {
@@ -209,6 +210,7 @@ function Router() {
       <Route path="/originality"><Shelled><Originality /></Shelled></Route>
       <Route path="/patents"><Shelled><Patents /></Shelled></Route>
       <Route path="/my-library"><Shelled><MyLibrary /></Shelled></Route>
+      <Route path="/research-updates"><Shelled><ResearchUpdates /></Shelled></Route>
       <Route component={NotFound} />
     </Switch>
   );

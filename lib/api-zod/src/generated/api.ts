@@ -7,6 +7,139 @@
 import * as zod from 'zod';
 
 
+export const ListResearchWatchesResponseItem = zod.object({
+  "projectId": zod.string(),
+  "projectName": zod.string(),
+  "topic": zod.string(),
+  "enabled": zod.boolean(),
+  "patents": zod.boolean(),
+  "status": zod.string(),
+  "notices": zod.array(zod.string()),
+  "lastCheckedAt": zod.string().nullish(),
+  "lastSuccessfulAt": zod.string().nullish(),
+  "nextCheckAt": zod.string()
+})
+export const ListResearchWatchesResponse = zod.array(ListResearchWatchesResponseItem)
+
+
+export const SaveResearchWatchParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const saveResearchWatchBodyTopicMin = 5;
+export const saveResearchWatchBodyTopicMax = 2000;
+
+
+
+export const SaveResearchWatchBody = zod.object({
+  "topic": zod.string().min(saveResearchWatchBodyTopicMin).max(saveResearchWatchBodyTopicMax),
+  "enabled": zod.boolean(),
+  "patents": zod.boolean()
+})
+
+export const SaveResearchWatchResponse = zod.object({
+  "projectId": zod.string(),
+  "projectName": zod.string(),
+  "topic": zod.string(),
+  "enabled": zod.boolean(),
+  "patents": zod.boolean(),
+  "status": zod.string(),
+  "notices": zod.array(zod.string()),
+  "lastCheckedAt": zod.string().nullish(),
+  "lastSuccessfulAt": zod.string().nullish(),
+  "nextCheckAt": zod.string()
+})
+
+
+export const DeleteResearchWatchParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const DeleteResearchWatchResponse = zod.object({
+  "status": zod.string()
+})
+
+
+export const CheckResearchWatchParams = zod.object({
+  "projectId": zod.coerce.string()
+})
+
+export const CheckResearchWatchResponse = zod.object({
+  "projectId": zod.string(),
+  "projectName": zod.string(),
+  "topic": zod.string(),
+  "enabled": zod.boolean(),
+  "patents": zod.boolean(),
+  "status": zod.string(),
+  "notices": zod.array(zod.string()),
+  "lastCheckedAt": zod.string().nullish(),
+  "lastSuccessfulAt": zod.string().nullish(),
+  "nextCheckAt": zod.string()
+})
+
+
+export const ListResearchAlertsQueryParams = zod.object({
+  "projectId": zod.coerce.string().optional()
+})
+
+export const ListResearchAlertsResponse = zod.object({
+  "alerts": zod.array(zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "projectName": zod.string(),
+  "title": zod.string(),
+  "url": zod.string(),
+  "kind": zod.enum(['paper', 'patent']),
+  "reason": zod.string(),
+  "comparison": zod.string(),
+  "abstract": zod.string(),
+  "evidence": zod.string(),
+  "publishedAt": zod.string(),
+  "foundAt": zod.string(),
+  "read": zod.boolean(),
+  "category": zod.string(),
+  "watchedTopic": zod.string().optional(),
+  "ageLabel": zod.string().optional(),
+  "savedItemId": zod.string().nullish()
+})),
+  "unread": zod.number().int()
+})
+
+
+export const UpdateResearchAlertParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateResearchAlertBody = zod.object({
+  "read": zod.boolean().optional(),
+  "dismissed": zod.boolean().optional()
+})
+
+export const UpdateResearchAlertResponse = zod.object({
+  "status": zod.string()
+})
+
+
+export const SaveResearchAlertParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SaveResearchAlertResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
 export const ListStudioItemsQueryParams = zod.object({
   "projectId": zod.coerce.string()
 })

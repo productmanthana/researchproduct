@@ -10,6 +10,25 @@
     }
   ],
   "paths": {
+    "/watches": {
+      "get":{"operationId":"listResearchWatches","responses":{"200":{"description":"Owned project watches","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/ResearchWatch"}}}}}}}
+    },
+    "/watches/{projectId}": {
+      "put":{"operationId":"saveResearchWatch","parameters":[{"name":"projectId","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResearchWatchInput"}}}},"responses":{"200":{"description":"Saved watch","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResearchWatch"}}}}}},
+      "delete":{"operationId":"deleteResearchWatch","parameters":[{"name":"projectId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Deleted watch and alerts","content":{"application/json":{"schema":{"$ref":"#/components/schemas/WatchActionResult"}}}}}}
+    },
+    "/watches/{projectId}/check": {
+      "post":{"operationId":"checkResearchWatch","parameters":[{"name":"projectId","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Check queued","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResearchWatch"}}}}}}
+    },
+    "/research-alerts": {
+      "get":{"operationId":"listResearchAlerts","parameters":[{"name":"projectId","in":"query","schema":{"type":"string"}}],"responses":{"200":{"description":"Latest 200 non-dismissed alerts and total unread count","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResearchAlertList"}}}}}}
+    },
+    "/research-alerts/{id}": {
+      "patch":{"operationId":"updateResearchAlert","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/ResearchAlertInput"}}}},"responses":{"200":{"description":"Updated","content":{"application/json":{"schema":{"$ref":"#/components/schemas/WatchActionResult"}}}}}}
+    },
+    "/research-alerts/{id}/save": {
+      "post":{"operationId":"saveResearchAlert","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Saved source note in project","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
     "/studio/items": {
       "get": {"operationId":"listStudioItems","parameters":[{"name":"projectId","in":"query","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Project documents and versions","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/StudioItem"}}}}}}},
       "post": {"operationId":"saveStudioItem","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItemInput"}}}},"responses":{"200":{"description":"Saved revision","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
@@ -1218,6 +1237,12 @@
   },
   "components": {
     "schemas": {
+      "ResearchWatchInput":{"type":"object","required":["topic","enabled","patents"],"properties":{"topic":{"type":"string","minLength":5,"maxLength":2000},"enabled":{"type":"boolean"},"patents":{"type":"boolean"}}},
+      "ResearchWatch":{"type":"object","required":["projectId","projectName","topic","enabled","patents","status","notices","nextCheckAt"],"properties":{"projectId":{"type":"string"},"projectName":{"type":"string"},"topic":{"type":"string"},"enabled":{"type":"boolean"},"patents":{"type":"boolean"},"status":{"type":"string"},"notices":{"type":"array","items":{"type":"string"}},"lastCheckedAt":{"type":["string","null"]},"lastSuccessfulAt":{"type":["string","null"]},"nextCheckAt":{"type":"string"}}},
+      "ResearchAlert":{"type":"object","required":["id","projectId","projectName","title","url","kind","reason","comparison","abstract","evidence","publishedAt","foundAt","read","category"],"properties":{"id":{"type":"string"},"projectId":{"type":"string"},"projectName":{"type":"string"},"title":{"type":"string"},"url":{"type":"string"},"kind":{"type":"string","enum":["paper","patent"]},"reason":{"type":"string"},"comparison":{"type":"string"},"abstract":{"type":"string"},"evidence":{"type":"string"},"publishedAt":{"type":"string"},"foundAt":{"type":"string"},"read":{"type":"boolean"},"category":{"type":"string"},"watchedTopic":{"type":"string"},"ageLabel":{"type":"string"},"savedItemId":{"type":["string","null"]}}},
+      "ResearchAlertList":{"type":"object","required":["alerts","unread"],"properties":{"alerts":{"type":"array","items":{"$ref":"#/components/schemas/ResearchAlert"}},"unread":{"type":"integer"}}},
+      "ResearchAlertInput":{"type":"object","properties":{"read":{"type":"boolean"},"dismissed":{"type":"boolean"}}},
+      "WatchActionResult":{"type":"object","required":["status"],"properties":{"status":{"type":"string"}}},
       "StudioItem":{"type":"object","required":["id","projectId","kind","title","content","status","error","revision","parentId","metadata","indexStatus","createdAt"],"properties":{
         "id":{"type":"string"},"projectId":{"type":"string"},"kind":{"type":"string"},"title":{"type":"string"},"content":{"type":"string"},"status":{"type":"string"},"error":{"type":"string"},"revision":{"type":"integer"},"parentId":{"type":["string","null"]},"metadata":{"type":"object","additionalProperties":true},"indexStatus":{"type":"string"},"createdAt":{"type":"string"}
       }},

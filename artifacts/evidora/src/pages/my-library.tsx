@@ -11,6 +11,8 @@ import { ItemWorkspace } from "@/components/studio/item-workspace";
 import { AttachDocuments } from "@/components/studio/attach-documents";
 import { useProjectItems, useStudioItem } from "@/components/studio/use-studio";
 import { useItemParam } from "@/components/studio/use-item-param";
+import { WatchPanel } from "@/components/research/watch-panel";
+import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
 import { useUnsavedGuard } from "@/lib/unsaved";
 import { useToast } from "@/hooks/use-toast";
@@ -102,6 +104,7 @@ function Inner() {
   const items = useProjectItems(project?.id);
   const open = useStudioItem(id);
   const [creating, setCreating] = useState(false);
+  const watches = useWatches();
   const [tab, setTab] = useState<"items" | "papers" | "files">("items");
   const all = useMemo(() => items.data ?? [], [items.data]);
   const item = open.data && project && open.data.projectId === project.id ? open.data : undefined;
@@ -150,6 +153,8 @@ function Inner() {
               {id && open.isLoading && <div className="sx-card h-40 animate-pulse" />}
               {id && open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
               <ProjectInfo project={project} />
+              {watches.data && <WatchPanel key={project.id} compact projectId={project.id} projectName={project.name} watch={watches.data.find(w => w.projectId === project.id)}
+                proposal={proposeTopic({ name: project.name, description: project.description })} proposalSource="your project details" />}
               <div className="sx-card inline-grid grid-cols-3 gap-1 p-1" role="tablist">
                 {([["items", "Drafts and notes"], ["papers", "Papers"], ["files", "Files"]] as const).map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={`sx-btn border-0 ${tab === k ? "sx-primary" : ""}`} onClick={() => setTab(k)} data-testid={`tab-library-${k}`}>{l}</button>)}
               </div>

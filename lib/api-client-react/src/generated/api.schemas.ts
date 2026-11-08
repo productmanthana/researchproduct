@@ -4,6 +4,74 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export interface ResearchWatchInput {
+  /**
+     * @minLength 5
+     * @maxLength 2000
+     */
+  topic: string;
+  enabled: boolean;
+  patents: boolean;
+}
+
+export interface ResearchWatch {
+  projectId: string;
+  projectName: string;
+  topic: string;
+  enabled: boolean;
+  patents: boolean;
+  status: string;
+  notices: string[];
+  /** @nullable */
+  lastCheckedAt?: string | null;
+  /** @nullable */
+  lastSuccessfulAt?: string | null;
+  nextCheckAt: string;
+}
+
+export type ResearchAlertKind = typeof ResearchAlertKind[keyof typeof ResearchAlertKind];
+
+
+export const ResearchAlertKind = {
+  paper: 'paper',
+  patent: 'patent',
+} as const;
+
+export interface ResearchAlert {
+  id: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  url: string;
+  kind: ResearchAlertKind;
+  reason: string;
+  comparison: string;
+  abstract: string;
+  evidence: string;
+  publishedAt: string;
+  foundAt: string;
+  read: boolean;
+  category: string;
+  watchedTopic?: string;
+  ageLabel?: string;
+  /** @nullable */
+  savedItemId?: string | null;
+}
+
+export interface ResearchAlertList {
+  alerts: ResearchAlert[];
+  unread: number;
+}
+
+export interface ResearchAlertInput {
+  read?: boolean;
+  dismissed?: boolean;
+}
+
+export interface WatchActionResult {
+  status: string;
+}
+
 export type StudioItemMetadata = { [key: string]: unknown };
 
 export interface StudioItem {
@@ -582,6 +650,10 @@ export interface DocumentLink {
   /** @nullable */
   paperId: string | null;
 }
+
+export type ListResearchAlertsParams = {
+projectId?: string;
+};
 
 export type ListStudioItemsParams = {
 projectId: string;

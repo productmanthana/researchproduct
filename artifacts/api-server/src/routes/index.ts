@@ -5,6 +5,7 @@ import workspaceRouter from "./workspace";
 import documentsRouter from "./documents";
 import analysesRouter from "./analyses";
 import studioRouter from "./studio";
+import watchesRouter from "./watches";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(workspaceRouter);
 router.use(documentsRouter);
 router.use(analysesRouter);
 router.use(studioRouter);
+router.use(watchesRouter);
 
 export default router;

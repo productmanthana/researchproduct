@@ -42,11 +42,16 @@ import type {
   LibraryItem,
   LibraryUpdate,
   ListLibraryParams,
+  ListResearchAlertsParams,
   ListStudioItemsParams,
   Paper,
   Plan,
   Project,
   ProjectInput,
+  ResearchAlertInput,
+  ResearchAlertList,
+  ResearchWatch,
+  ResearchWatchInput,
   SearchPapersParams,
   SearchResults,
   SearchStudioPatentsParams,
@@ -60,7 +65,8 @@ import type {
   Summary,
   UploadInput,
   UploadTicket,
-  Usage
+  Usage,
+  WatchActionResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -89,6 +95,573 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListResearchWatchesUrl = () => {
+
+
+
+
+  return `/api/watches`
+}
+
+export const listResearchWatches = async ( options?: Parameters<typeof customFetch>[1]): Promise<ResearchWatch[]> => {
+
+  return customFetch<ResearchWatch[]>(getListResearchWatchesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchWatchesQueryKey = () => {
+    return [
+    `/api/watches`
+    ] as const;
+    }
+
+
+export const getListResearchWatchesQueryOptions = <TData = Awaited<ReturnType<typeof listResearchWatches>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchWatchesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearchWatches>>> = ({ signal }) => listResearchWatches({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListResearchWatchesQueryResult = NonNullable<Awaited<ReturnType<typeof listResearchWatches>>>
+export type ListResearchWatchesQueryError = ErrorType<unknown>
+
+
+export function useListResearchWatches<TData = Awaited<ReturnType<typeof listResearchWatches>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearchWatches>>,
+          TError,
+          Awaited<ReturnType<typeof listResearchWatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearchWatches<TData = Awaited<ReturnType<typeof listResearchWatches>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearchWatches>>,
+          TError,
+          Awaited<ReturnType<typeof listResearchWatches>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearchWatches<TData = Awaited<ReturnType<typeof listResearchWatches>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListResearchWatches<TData = Awaited<ReturnType<typeof listResearchWatches>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchWatches>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListResearchWatchesQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveResearchWatchUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/watches/${projectId}`
+}
+
+export const saveResearchWatch = async (projectId: string,
+    researchWatchInput: ResearchWatchInput, options?: Parameters<typeof customFetch>[1]): Promise<ResearchWatch> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ResearchWatch>(getSaveResearchWatchUrl(projectId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(researchWatchInput)
+  }
+);}
+
+
+
+
+
+export const getSaveResearchWatchMutationKey = () => ['saveResearchWatch'] as const;
+
+export const getSaveResearchWatchMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveResearchWatch>>, TError,SaveResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveResearchWatch>>, TError,SaveResearchWatchMutationVariables, TContext> => {
+
+const mutationKey = getSaveResearchWatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveResearchWatch>>, SaveResearchWatchMutationVariables> = (props) => {
+          const {projectId,data} = props ?? {};
+
+          return  saveResearchWatch(projectId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveResearchWatchMutationResult = NonNullable<Awaited<ReturnType<typeof saveResearchWatch>>>
+    export type SaveResearchWatchMutationBody = BodyType<ResearchWatchInput>
+    export type SaveResearchWatchMutationError = ErrorType<unknown>
+    export type SaveResearchWatchMutationVariables = {projectId: string;data: BodyType<ResearchWatchInput>}
+
+    export const useSaveResearchWatch = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveResearchWatch>>, TError,SaveResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveResearchWatch>>,
+        TError,
+        SaveResearchWatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveResearchWatchMutationOptions(options), queryClient);
+    }
+
+export const getDeleteResearchWatchUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/watches/${projectId}`
+}
+
+export const deleteResearchWatch = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<WatchActionResult> => {
+
+  return customFetch<WatchActionResult>(getDeleteResearchWatchUrl(projectId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteResearchWatchMutationKey = () => ['deleteResearchWatch'] as const;
+
+export const getDeleteResearchWatchMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteResearchWatch>>, TError,DeleteResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteResearchWatch>>, TError,DeleteResearchWatchMutationVariables, TContext> => {
+
+const mutationKey = getDeleteResearchWatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteResearchWatch>>, DeleteResearchWatchMutationVariables> = (props) => {
+          const {projectId} = props ?? {};
+
+          return  deleteResearchWatch(projectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteResearchWatchMutationResult = NonNullable<Awaited<ReturnType<typeof deleteResearchWatch>>>
+
+    export type DeleteResearchWatchMutationError = ErrorType<unknown>
+    export type DeleteResearchWatchMutationVariables = {projectId: string}
+
+    export const useDeleteResearchWatch = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteResearchWatch>>, TError,DeleteResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteResearchWatch>>,
+        TError,
+        DeleteResearchWatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteResearchWatchMutationOptions(options), queryClient);
+    }
+
+export const getCheckResearchWatchUrl = (projectId: string,) => {
+
+
+
+
+  return `/api/watches/${projectId}/check`
+}
+
+export const checkResearchWatch = async (projectId: string, options?: Parameters<typeof customFetch>[1]): Promise<ResearchWatch> => {
+
+  return customFetch<ResearchWatch>(getCheckResearchWatchUrl(projectId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckResearchWatchMutationKey = () => ['checkResearchWatch'] as const;
+
+export const getCheckResearchWatchMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkResearchWatch>>, TError,CheckResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkResearchWatch>>, TError,CheckResearchWatchMutationVariables, TContext> => {
+
+const mutationKey = getCheckResearchWatchMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkResearchWatch>>, CheckResearchWatchMutationVariables> = (props) => {
+          const {projectId} = props ?? {};
+
+          return  checkResearchWatch(projectId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckResearchWatchMutationResult = NonNullable<Awaited<ReturnType<typeof checkResearchWatch>>>
+
+    export type CheckResearchWatchMutationError = ErrorType<unknown>
+    export type CheckResearchWatchMutationVariables = {projectId: string}
+
+    export const useCheckResearchWatch = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkResearchWatch>>, TError,CheckResearchWatchMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof checkResearchWatch>>,
+        TError,
+        CheckResearchWatchMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCheckResearchWatchMutationOptions(options), queryClient);
+    }
+
+export const getListResearchAlertsUrl = (params?: ListResearchAlertsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/research-alerts?${stringifiedParams}` : `/api/research-alerts`
+}
+
+export const listResearchAlerts = async (params?: ListResearchAlertsParams, options?: Parameters<typeof customFetch>[1]): Promise<ResearchAlertList> => {
+
+  return customFetch<ResearchAlertList>(getListResearchAlertsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchAlertsQueryKey = (params?: ListResearchAlertsParams,) => {
+    return [
+    `/api/research-alerts`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListResearchAlertsQueryOptions = <TData = Awaited<ReturnType<typeof listResearchAlerts>>, TError = ErrorType<unknown>>(params?: ListResearchAlertsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchAlertsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearchAlerts>>> = ({ signal }) => listResearchAlerts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListResearchAlertsQueryResult = NonNullable<Awaited<ReturnType<typeof listResearchAlerts>>>
+export type ListResearchAlertsQueryError = ErrorType<unknown>
+
+
+export function useListResearchAlerts<TData = Awaited<ReturnType<typeof listResearchAlerts>>, TError = ErrorType<unknown>>(
+ params: undefined |  ListResearchAlertsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearchAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listResearchAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearchAlerts<TData = Awaited<ReturnType<typeof listResearchAlerts>>, TError = ErrorType<unknown>>(
+ params?: ListResearchAlertsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listResearchAlerts>>,
+          TError,
+          Awaited<ReturnType<typeof listResearchAlerts>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListResearchAlerts<TData = Awaited<ReturnType<typeof listResearchAlerts>>, TError = ErrorType<unknown>>(
+ params?: ListResearchAlertsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListResearchAlerts<TData = Awaited<ReturnType<typeof listResearchAlerts>>, TError = ErrorType<unknown>>(
+ params?: ListResearchAlertsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listResearchAlerts>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListResearchAlertsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateResearchAlertUrl = (id: string,) => {
+
+
+
+
+  return `/api/research-alerts/${id}`
+}
+
+export const updateResearchAlert = async (id: string,
+    researchAlertInput: ResearchAlertInput, options?: Parameters<typeof customFetch>[1]): Promise<WatchActionResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WatchActionResult>(getUpdateResearchAlertUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(researchAlertInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateResearchAlertMutationKey = () => ['updateResearchAlert'] as const;
+
+export const getUpdateResearchAlertMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearchAlert>>, TError,UpdateResearchAlertMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResearchAlert>>, TError,UpdateResearchAlertMutationVariables, TContext> => {
+
+const mutationKey = getUpdateResearchAlertMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResearchAlert>>, UpdateResearchAlertMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateResearchAlert(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateResearchAlertMutationResult = NonNullable<Awaited<ReturnType<typeof updateResearchAlert>>>
+    export type UpdateResearchAlertMutationBody = BodyType<ResearchAlertInput>
+    export type UpdateResearchAlertMutationError = ErrorType<unknown>
+    export type UpdateResearchAlertMutationVariables = {id: string;data: BodyType<ResearchAlertInput>}
+
+    export const useUpdateResearchAlert = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearchAlert>>, TError,UpdateResearchAlertMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateResearchAlert>>,
+        TError,
+        UpdateResearchAlertMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateResearchAlertMutationOptions(options), queryClient);
+    }
+
+export const getSaveResearchAlertUrl = (id: string,) => {
+
+
+
+
+  return `/api/research-alerts/${id}/save`
+}
+
+export const saveResearchAlert = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+  return customFetch<StudioItem>(getSaveResearchAlertUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSaveResearchAlertMutationKey = () => ['saveResearchAlert'] as const;
+
+export const getSaveResearchAlertMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveResearchAlert>>, TError,SaveResearchAlertMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveResearchAlert>>, TError,SaveResearchAlertMutationVariables, TContext> => {
+
+const mutationKey = getSaveResearchAlertMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveResearchAlert>>, SaveResearchAlertMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  saveResearchAlert(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveResearchAlertMutationResult = NonNullable<Awaited<ReturnType<typeof saveResearchAlert>>>
+
+    export type SaveResearchAlertMutationError = ErrorType<unknown>
+    export type SaveResearchAlertMutationVariables = {id: string}
+
+    export const useSaveResearchAlert = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveResearchAlert>>, TError,SaveResearchAlertMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveResearchAlert>>,
+        TError,
+        SaveResearchAlertMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveResearchAlertMutationOptions(options), queryClient);
+    }
 
 export const getListStudioItemsUrl = (params: ListStudioItemsParams,) => {
   const normalizedParams = new URLSearchParams();

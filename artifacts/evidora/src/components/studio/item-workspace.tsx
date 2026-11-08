@@ -18,6 +18,9 @@ import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
 import { savedReviewOf } from "./check-panel";
 import { ago } from "@/lib/format";
+import { WatchPanel } from "@/components/research/watch-panel";
+import { proposeTopic, useWatches } from "@/lib/research-watch";
+import { useActiveProject } from "@/lib/active-project";
 
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
 const plainInline = (t: string): ReactNode => t;
@@ -82,6 +85,9 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, item.status, item.title, item.content, working]);
 
+  const watches = useWatches();
+  const { projects } = useActiveProject();
+  const watchProject = projects.find(p => p.id === item.projectId);
   const isProjectInfo = (item.metadata as Record<string, unknown> | null)?.projectInformation === true;
   const canSave = SAVABLE.has(item.kind) && !isProjectInfo;
   const docKind = DETAIL_KINDS.has(item.kind) && canSave;
@@ -176,6 +182,12 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           {extra}
           {canSave && <button className="sx-btn sx-primary ml-auto" disabled={!canSave || !dirty || save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version"><Check />{save.isPending ? "Saving..." : "Save new version"}</button>}
         </div>
+        {!working && item.status !== "failed" && !isProjectInfo && watchProject && watches.data && (
+          <div className="border-t p-4">
+            <WatchPanel key={`${item.projectId}:${item.id}`} compact projectId={item.projectId} projectName={watchProject.name} watch={watches.data.find(w => w.projectId === item.projectId)}
+              proposal={proposeTopic({ title: item.title, content: item.content })} proposalSource={`"${item.title}"`} />
+          </div>
+        )}
       </article>
 
       <aside className="space-y-4">
