@@ -85,3 +85,15 @@ The user now requests persistent navigation across AI Chat, Literature Survey, S
 **Why:** The user reported that other sidebar pages disappear in AI Chat and explicitly described this revised product flow.
 
 **How to apply:** This supersedes hiding modules inside the chat-only shell. Keep modules independently accessible, preserve shared project context, and avoid forcing all users through every page. Journal and university templates, patent integration and integrity checking remain requested capabilities until implemented and verified.
+
+The user wants one project per My Library folder, usable from every research page. Ideas, references and generated documents should be reusable through requests such as “my idea” and “my references,” with PDF/Word export and Save to Library available from each creation page. They request Weaviate storage for project knowledge.
+
+**Why:** The user wants to start anywhere without re-uploading or repeating project information.
+
+**How to apply:** Preserve a selected project context across pages and ask when a reference is ambiguous. Treat Weaviate as searchable project knowledge, with original/exported files linked from durable file storage; explain this distinction before implementation. Enforce project and user boundaries and preserve draft versions.
+
+All research responses and drafts should use professional, natural academic prose rather than generic AI-style writing.
+
+**Why:** The user explicitly requests “professional human writing format” across literature surveys, journal papers and theses, with checking tools where appropriate.
+
+**How to apply:** Check clarity, evidence, citations, consistency and similarity without claiming AI-generated text is human-authored or guaranteeing AI-detector outcomes.
