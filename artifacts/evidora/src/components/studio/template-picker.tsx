@@ -40,10 +40,10 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
     <div className="space-y-3" data-testid={`picker-template-${kind}`}>
       <p className="sx-eyebrow">{label}</p>
       <div className="grid grid-cols-2 gap-2">
-        <select className="sx-input" value={publisher} onChange={e => setPublisher(e.target.value)} aria-label="Filter by publisher" data-testid="select-template-publisher">
+        <select className="sx-input min-w-0" value={publisher} onChange={e => setPublisher(e.target.value)} aria-label="Filter by publisher" data-testid="select-template-publisher">
           <option value="">All publishers</option>{publishers.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <select className="sx-input" value={country} onChange={e => setCountry(e.target.value)} aria-label="Filter by country" data-testid="select-template-country">
+        <select className="sx-input min-w-0" value={country} onChange={e => setCountry(e.target.value)} aria-label="Filter by country" data-testid="select-template-country">
           <option value="">All countries</option>{countries.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -67,9 +67,9 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
             <button key={t.id} type="button" onClick={() => onChange(on ? null : t)} aria-pressed={on}
               className={`w-full rounded-lg border p-3 text-left transition-colors ${on ? "border-[hsl(var(--teal))] bg-[hsl(var(--teal)/0.08)]" : "bg-[hsl(52_40%_98%)] hover:bg-[hsl(90_20%_93%)]"}`}
               data-testid={`button-template-${t.id}`}>
-              <div className="flex items-start gap-2">
+              <div className="flex flex-wrap items-start gap-2">
                 <BookMarked className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--teal))]" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[120px] flex-1">
                   <p className="text-sm font-medium">{t.name}</p>
                   <p className="text-xs text-muted-foreground">{[t.publisher, t.country].filter(Boolean).join(" · ")}</p>
                   <RankingLine t={t} />
