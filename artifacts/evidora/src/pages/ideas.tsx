@@ -9,7 +9,9 @@ import { useActiveProject } from "@/lib/active-project";
 import { NeedsProject } from "@/components/studio/project-switcher";
 import { StudioHeader } from "@/components/studio/studio-page";
 import { Composer } from "@/components/studio/composer";
-import { ItemList } from "@/components/studio/item-list";
+import { ConversationList, ItemList } from "@/components/studio/item-list";
+import { ConversationView } from "@/components/studio/conversation-view";
+import { answerConversations, buildConversations, conversationBusy, conversationFor, followUpParent, questionCount, requestParent, requestPrompt, type Turn } from "@/lib/conversation";
 import { ItemWorkspace } from "@/components/studio/item-workspace";
 import { GenerationStatus } from "@/components/studio/generation-status";
 import { IdeaPicker } from "@/components/studio/idea-picker";
@@ -94,13 +96,42 @@ function Inner() {
   const [tabState, setTab] = useState(tab);
   const [drawer, setDrawer] = useState(false);
   const [drawerKinds, setDrawerKinds] = useState<"ideas" | "answer">(tab);
+  const [scrollTo, setScrollTo] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const regen = useGenerateStudioDocument();
   useEffect(() => setTab(tab), [tab]);
+  // Include the open item even before the list refetches (just-created follow-ups).
+  const merged = useMemo(() => (open.data && !all.some(x => x.id === open.data!.id) ? [...all, open.data] : all), [all, open.data]);
+  const convs = useMemo(() => (project ? buildConversations(merged, project.id) : []), [merged, project]);
+  const answerConvs = useMemo(() => answerConversations(convs), [convs]);
 
   const header = <StudioHeader kicker="Ideas" title="Five directions from your own thinking." intro="Describe what you are curious about, in your own words. Evidora proposes five researchable ideas grounded in your project; confirm the ones worth keeping. Or ask a direct question about your ideas and references." />;
   if (!project) return <>{header}<NeedsProject what="Your ideas" /></>;
   const item = open.data && open.data.projectId === project.id ? open.data : undefined;
   const fromSet = item?.kind === "idea" ? recallSet(item.id) : null;
-  const backTarget = fromSet ?? (item?.parentId && all.find(x => x.id === item.parentId)?.kind === "idea" ? item.parentId : null);
+  const conv = item && item.kind !== "ideas" ? conversationFor(convs, item.id) : undefined;
+  const seed = conv?.turns[0].seed ? conv.turns[0].latest : undefined;
+  const chatView = !!conv && conv.turns.length > 1;
+  const backTarget = fromSet ?? (chatView && seed?.kind === "idea" ? seed.id : null);
+  const parentForFollowUp = conv ? followUpParent(conv) : item?.status === "completed" ? item.id : null;
+  const busy = conv ? conversationBusy(conv) : !!item && isWorking(item.status);
+  const retry = async (turn: Turn<StudioItem>) => {
+    const first = turn.revisions[0];
+    const prompt = requestPrompt(first);
+    if (!project || !prompt || regen.isPending) return;
+    const req = (first.metadata as { request?: { evidenceMode?: string } } | null)?.request;
+    const mode = req?.evidenceMode === "discover" || req?.evidenceMode === "combined" ? req.evidenceMode : "project";
+    const parentId = requestParent(first) ?? (first.status === "failed" ? first.id : null);
+    try {
+      const created = await regen.mutateAsync({ data: { projectId: project.id, kind: "answer", prompt: prompt.slice(0, 5000), evidenceMode: mode, ...(parentId && merged.some(x => x.id === parentId && x.projectId === project.id) ? { parentId } : {}) } });
+      qc.setQueryData(getGetStudioItemQueryKey(created.id), created);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      setScrollTo(created.id);
+      setId(created.id);
+    } catch (e) { toast({ title: "Couldn't retry", description: friendlyError(e), variant: "destructive" }); }
+  };
   const backLabel = fromSet ? "Back to five ideas" : "Back to the idea";
   const needsDevelop = item?.kind === "idea" && item.status === "completed" && wordCount(item.content) < 400;
 
@@ -118,7 +149,9 @@ function Inner() {
               <label className={drawerKinds === "answer" ? "on" : ""}><input type="radio" className="sr-only" checked={drawerKinds === "answer"} onChange={() => setDrawerKinds("answer")} data-testid="radio-history-answers" />Answers</label>
             </div>
             {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
-              : <ItemList items={all} kinds={drawerKinds === "ideas" ? ["ideas", "idea", "note"] : ["answer"]} activeId={id} loading={items.isLoading} onOpen={x => { setDrawer(false); setId(x, { guard: true }); }} emptyText="Nothing here yet." />}
+              : drawerKinds === "ideas"
+                ? <ItemList items={all} kinds={["ideas", "idea", "note"]} activeId={id} loading={items.isLoading} onOpen={x => { setDrawer(false); setId(x, { guard: true }); }} emptyText="Nothing here yet." />
+                : <ConversationList convs={answerConvs} activeRootId={conv?.rootId ?? null} loading={items.isLoading} onOpen={x => { setDrawer(false); setId(x, { guard: true }); }} emptyText="No conversations yet." />}
           </div>
           <AttachDocuments projectId={project.id} items={all} variant="compact" />
           <Link href="/my-library" className="sx-btn w-full" data-testid="link-project-library-drawer"><FolderOpen />Open {project.name} library</Link>
@@ -179,14 +212,29 @@ function Inner() {
         {!open.isLoading && !open.isError && open.data && !item && <ErrorState error={new Error("This item belongs to another project. Switch project or start a new topic.")} onRetry={() => setId(null)} title="Not in this project" />}
         {needsDevelop && item && <DevelopIdea item={item} onCreated={x => setId(x, { guard: true })} />}
         {item?.kind === "ideas" && <IdeaSetView set={item} confirmed={confirmed} onOpenIdea={x => setId(x)} />}
-        {item && item.kind !== "ideas" && <ItemWorkspace item={item} allItems={all} presentation="reading" onOpen={x => setId(x)} />}
+        {chatView && conv && item && (
+          <>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground" data-testid="text-conversation-count">Conversation &middot; {questionCount(conv)} question{questionCount(conv) === 1 ? "" : "s"}</p>
+            <ConversationView conv={conv} selectedId={item.id} allItems={merged} onOpen={x => setId(x)} onOpenSet={x => setId(x, { guard: true })}
+              onRetry={t => void retry(t)} scrollTo={scrollTo} onScrolled={() => setScrollTo(null)} />
+          </>
+        )}
+        {!chatView && item && item.kind !== "ideas" && (() => {
+          const only = conv?.turns[0];
+          const p = only && !only.seed ? only.prompt : null;
+          return <>
+            {p && <div className="flex justify-end" data-testid={`turn-user-${item.id}`}><div className="max-w-[85%] rounded-2xl rounded-br-md border border-[hsl(var(--teal)/0.25)] bg-[hsl(var(--teal)/0.07)] px-4 py-3"><p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[hsl(var(--teal))]">You</p><p className="whitespace-pre-wrap text-[15px] leading-relaxed">{p}</p></div></div>}
+            <ItemWorkspace item={item} allItems={all} presentation="reading" onOpen={x => setId(x)} onRetry={item.status === "failed" && only ? () => void retry(only) : undefined} />
+          </>;
+        })()}
 
-        {item && !isWorking(item.status) && (
+        {item && (item.kind !== "ideas" || !isWorking(item.status)) && (parentForFollowUp || busy) && (
           <section aria-label="Follow up" className="sticky bottom-3 z-10 pt-2">
-            <Composer key={`follow-${item.id}`} compact parentId={item.id} label="Ask a follow-up about this"
+            <Composer key={`follow-${conv?.rootId ?? item.id}`} compact parentId={parentForFollowUp ?? undefined} label="Ask a follow-up in this conversation"
               projectId={project.id} kind="answer" defaultMode="project" cta="Ask"
-              placeholder={item.kind === "ideas" ? "Ask about these five ideas, or compare two of them..." : `Ask a follow-up about "${item.title.slice(0, 60)}"...`}
-              onCreated={it => setId(it.id)} />
+              disabled={busy || regen.isPending || !parentForFollowUp} disabledNote={busy ? "Wait for the current answer to finish" : "Nothing completed to follow up yet"}
+              placeholder={item.kind === "ideas" ? "Ask about these five ideas, or compare two of them..." : "Ask a follow-up. Earlier questions and answers stay above."}
+              onCreated={it => { setScrollTo(it.id); setId(it.id); }} />
           </section>
         )}
       </div>

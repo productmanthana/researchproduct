@@ -1,5 +1,7 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 import { isolateMarkers } from "@/lib/figures";
+import { parseReferences, referenceSections, type ReferenceSection, type ReferenceSource } from "@/lib/references";
+import { AcademicReferences, referenceInline } from "./academic-references";
 
 /** Small, escaped Markdown subset: no raw HTML or untrusted HTML injection. */
 const cells=(row:string)=>row.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
@@ -13,11 +15,20 @@ function withBold(text:string,inline:(text:string)=>ReactNode):ReactNode {
     :<Fragment key={i}>{inline(part)}</Fragment>);
 }
 
-export function AcademicAnswer({content,inline:baseInline,className="",renderFigure}:{content:string;inline:(text:string)=>ReactNode;className?:string;renderFigure?:(id:string)=>ReactNode}) {
-  const inline=(text:string)=>withBold(text,baseInline);
-  const blocks=(renderFigure?isolateMarkers(content):content).trim().split(/\n\s*\n/).filter(Boolean);
+export function AcademicAnswer({content,inline:baseInline,className="",renderFigure,referenceSources=[],linkCitations=false}:{content:string;inline:(text:string)=>ReactNode;className?:string;renderFigure?:(id:string)=>ReactNode;referenceSources?:ReferenceSource[];linkCitations?:boolean}) {
+  const referenceId=useId();
+  const sections=referenceSections(renderFigure?isolateMarkers(content):content);
+  const numbers=new Set(sections.flatMap(section=>section.kind==="references"?parseReferences(section.content).map(r=>r.number):[]));
+  const citeInline=(text:string)=>!linkCitations?baseInline(text):text.split(/(\[\d+\])/g).map((part,i)=>{
+    const number=/^\[(\d+)\]$/.exec(part);
+    return number&&numbers.has(Number(number[1]))?<a key={i} className="academic-source-link" href={`#${referenceId}-${number[1]}`} aria-label={`Go to reference ${number[1]}`}>{part}</a>:<Fragment key={i}>{baseInline(part)}</Fragment>;
+  });
+  const inline=(text:string)=>withBold(text,part=>referenceInline(part,citeInline));
+  const blocks=sections.flatMap<ReferenceSection>(section=>section.kind==="references"?[section]:section.content.trim().split(/\n\s*\n/).filter(Boolean).map(block=>({kind:"prose" as const,content:block})));
   return <div className={`ev-reading academic-reading ${className}`}>
-    {blocks.map((block,i)=>{
+    {blocks.map((section,i)=>{
+      if(section.kind==="references")return <AcademicReferences key={i} entries={parseReferences(section.content,referenceSources)} title={section.title} idPrefix={referenceId}/>;
+      const block=section.content;
       const fig=/^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/.exec(block);
       if(fig&&renderFigure)return <Fragment key={i}>{renderFigure(fig[1])}</Fragment>;
       const heading=/^(#{1,3})\s+(.+)$/.exec(block);

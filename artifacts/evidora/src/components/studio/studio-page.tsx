@@ -8,11 +8,13 @@ import { useActiveProject } from "@/lib/active-project";
 import { NeedsProject } from "./project-switcher";
 import { Composer } from "./composer";
 import { ItemList } from "./item-list";
-import { ItemWorkspace } from "./item-workspace";
+import { StudioDiscussion } from "./studio-discussion";
 import { TemplatePicker } from "./template-picker";
 import { AttachDocuments } from "./attach-documents";
 import { useProjectItems, useStudioItem } from "./use-studio";
 import { useItemParam } from "./use-item-param";
+import { ProjectAttachMenu } from "./project-attach";
+import { HistoryDrawer, WorkspaceBar, WorkspaceIntro } from "./workspace-shell";
 
 export type StudioPageConfig = {
   kind: Exclude<StudioGenerationInputKind, "ideas" | "answer">;
@@ -51,23 +53,38 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
   const source = sourceQ.data && project && sourceQ.data.projectId === project.id ? sourceQ.data : undefined;
   const sourcePrompt = source ? `Update the ${cfg.kicker.toLowerCase()} for this project, taking into account the newly found source "${source.title}":\n\n${source.content.slice(0, 3000)}` : "";
   const [templateId, setTemplateId] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
   const kinds = [cfg.kind as string, cfg.saveKind as string];
+  const all = items.data ?? [];
 
   if (!project) return <><StudioHeader {...cfg} /><NeedsProject what={`Your ${cfg.kicker.toLowerCase()}`} /></>;
   const item: StudioItem | undefined = open.data && open.data.projectId === project.id ? open.data : undefined;
+  const attach = <ProjectAttachMenu projectId={project.id} items={all} />;
 
-  return (
-    <>
-      <StudioHeader {...cfg} />
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_284px] xl:grid-cols-[minmax(0,1fr)_312px]">
-        <section className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1" aria-label="Start a new draft">
+  const drawerEl = (
+    <HistoryDrawer open={drawer} onOpenChange={setDrawer} description={`Earlier ${cfg.kicker.toLowerCase()} drafts in ${project.name}, and the files attached to this project.`}>
+      <div>
+        <p className="sx-eyebrow mb-2">In this project</p>
+        {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
+          : <ItemList items={all} kinds={kinds} activeId={id} loading={items.isLoading} onOpen={x => { setDrawer(false); setId(x, { guard: true }); }} emptyText="Nothing here yet. Your first draft will appear here and in My Library." />}
+      </div>
+      <AttachDocuments projectId={project.id} items={all} variant="compact" />
+      <Link href="/my-library" className="sx-btn w-full" data-testid="link-project-library-drawer"><FolderOpen />Open {project.name} library</Link>
+    </HistoryDrawer>
+  );
+
+  if (!id) {
+    return (
+      <div className="mx-auto max-w-[860px]">
+        <WorkspaceIntro kicker={cfg.kicker} title={cfg.title} sub={cfg.intro} projectName={project.name} onHistory={() => setDrawer(true)} />
+        <section className="space-y-4" aria-label="Start a new draft">
           {source && <div className="sx-card rise border-l-4 border-l-[hsl(var(--turmeric))] p-3 text-[13px]" data-testid="notice-source-context">
             <p className="font-medium">Source note added to the prompt below</p>
             <p className="mt-0.5 text-muted-foreground">Review or edit it, then write a new document. Your existing drafts are kept.</p>
           </div>}
           {sourceId && sourceQ.isLoading && <div className="sx-card h-16 animate-pulse" />}
           <Composer key={`${project.id}:${source?.id ?? ""}`} variant="wide" label={`Describe your ${cfg.kicker.toLowerCase()} topic`} initialPrompt={sourcePrompt.slice(0, 5000)} projectId={project.id} kind={cfg.kind} saveKind={cfg.saveKind} placeholder={cfg.placeholder} cta={cfg.cta}
-            templateId={templateId}
+            templateId={templateId} attachSlot={attach}
             templateSlot={cfg.templateKind ? (
               <details className="rounded-lg border bg-[hsl(52_40%_98%)]" data-testid="panel-formatting-profile">
                 <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
@@ -80,31 +97,27 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
               </details>
             ) : undefined}
             onCreated={it => setId(it.id, { guard: true })} />
-        </section>
-        <div className="min-w-0 lg:col-start-2 lg:row-start-1">
-          <AttachDocuments projectId={project.id} items={items.data ?? []} variant="compact" />
-        </div>
-        <section className="min-w-0 lg:col-start-1 lg:row-start-2" aria-label="Working draft" aria-live="polite">
-          {id && open.isLoading && <div className="sx-card h-96 animate-pulse" />}
-          {id && open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
-          {id && open.data && !item && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it.</p>}
-          {item && <ItemWorkspace item={item} allItems={items.data ?? []} onOpen={x => setId(x)} />}
-          {!id && (
-            <div className="rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3 text-[13px] text-muted-foreground" data-testid="status-studio-empty">
-              <span className="font-medium text-[hsl(var(--ink-teal))]">Your draft will open here.</span>{" "}
-              Describe your topic above and generate, or open an earlier draft to keep working on it.
-            </div>
-          )}
-        </section>
-        <aside className="sx-card min-w-0 p-3.5 lg:col-start-2 lg:row-start-2" aria-label="Saved project drafts">
-          <p className="sx-eyebrow mb-2">In this project</p>
-          <div className="max-h-[340px] overflow-y-auto pr-0.5">
-            {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
-              : <ItemList items={items.data ?? []} kinds={kinds} activeId={id} loading={items.isLoading} onOpen={x => setId(x, { guard: true })} emptyText="Nothing here yet. Your first draft will appear here and in My Library." />}
+          <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-studio-empty">
+            <span className="shrink-0 text-[hsl(var(--teal))] [&_svg]:h-7 [&_svg]:w-7" aria-hidden>{cfg.emptyArt}</span>
+            <p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">Your draft opens as a reading page.</span> Keep asking follow-ups beneath it; each revision is saved and your original stays untouched. Files added with the paperclip become project evidence.</p>
           </div>
-        </aside>
+        </section>
+        {drawerEl}
       </div>
-    </>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-[960px] pb-6">
+      <WorkspaceBar newLabel="New draft" onNew={() => setId(null, { guard: true })} label={cfg.kicker} onHistory={() => setDrawer(true)} projectName={project.name} />
+      <section className="min-w-0 space-y-5" aria-label="Working draft" aria-live="polite">
+        {open.isLoading && <div className="space-y-3" data-testid="status-item-loading"><div className="h-10 w-2/3 animate-pulse rounded-md bg-[hsl(90_14%_88%)]" /><div className="sx-card h-80 animate-pulse" /></div>}
+        {open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
+        {open.data && !item && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it, or start a new draft.</p>}
+        {item && <StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} />}
+      </section>
+      {drawerEl}
+    </div>
   );
 }
 

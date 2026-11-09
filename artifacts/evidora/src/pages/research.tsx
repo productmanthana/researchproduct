@@ -4,6 +4,8 @@ import { useLocation, useSearch, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { usageLimitMessage } from "@/lib/usage-limits";
 import { AcademicAnswer } from "@/components/academic-answer";
+import { AcademicReferences } from "@/components/academic-references";
+import { analysisReferenceEntries, referenceSections } from "@/lib/references";
 import { LiveDraft } from "@/components/live-draft";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { researchWorkflow } from "@/lib/agent-workflow";
@@ -37,7 +39,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { RequireAuth } from "@/components/require-auth";
 import { DocumentUpload } from "@/components/document-upload";
 import { UsageMeters } from "@/components/usage-meters";
-import { EmptyState, ErrorState, PageHeader, RowSkeleton } from "@/components/states";
+import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
+import { HistoryDrawer, WorkspaceBar, WorkspaceIntro } from "@/components/studio/workspace-shell";
 import { useToast } from "@/hooks/use-toast";
 import { selection, useSelection } from "@/lib/selection";
 import { ago, errMessage, evidenceTone } from "@/lib/format";
@@ -438,7 +441,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
             <div data-testid="text-analysis-content"><AcademicAnswer content={d.content || "No content returned."} inline={text=>text.split(/(\[\d+\])/g).map((part,i)=>{
               const match=part.match(/^\[(\d+)\]$/),source=match?d.sources[Number(match[1])-1]:undefined;
               return source?.url?<a key={i} href={source.url} target="_blank" rel="noreferrer" title={source.title} className="font-semibold text-primary underline">{part}</a>:part;
-            })}/><p className="mt-5 text-xs text-muted-foreground">{d.sources.some(s=>s.evidenceLevel==="Abstract only")?"Includes abstract-only evidence. ":""}AI-assisted synthesis; verify original sources before academic use.</p></div>
+            })} referenceSources={d.sources}/>{!referenceSections(d.content??"").some(section=>section.kind==="references")&&<AcademicReferences entries={analysisReferenceEntries(d.sources,d.discoveredPapers)}/>}<p className="mt-5 text-xs text-muted-foreground">{d.sources.some(s=>s.evidenceLevel==="Abstract only")?"Includes abstract-only evidence. ":""}AI-assisted synthesis; verify original sources before academic use.</p></div>
           )}
 
           {(d.claims.length > 0 || (rows?.length ?? 0) > 0) && (
@@ -533,7 +536,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
             )}
           </>
         )}
-        {d.status === "completed" && <SaveAnalysisToProject analysis={d} compact />}
+        {d.status === "completed" && <div className="p-5"><SaveAnalysisToProject analysis={d} compact discussion /></div>}
         <button
           onClick={() => {
             if (!confirm("Delete this analysis permanently?")) return;
@@ -568,47 +571,47 @@ function ResearchInner() {
   const usage = useGetUsage({ query: { queryKey: getGetUsageQueryKey() } });
   const open = (id: string | null) => setLocation(id ? `/research?a=${id}` : "/research");
 
+  const [drawer, setDrawer] = useState(false);
+  const activeQ = list.data?.find((a) => a.id === activeId)?.question;
   return (
-    <>
-      <PageHeader kicker="Evidence workbench" title="Research">
-        {activeId && <Button variant="outline" onClick={() => open(null)} className="gap-1.5" data-testid="button-new-analysis"><Plus className="h-4 w-4" /> New analysis</Button>}
-      </PageHeader>
-      <div className="grid gap-8 lg:grid-cols-[1fr_280px]">
-        <div>{activeId ? <AnalysisView key={activeId} id={activeId} onDeleted={() => open(null)} /> : <Composer key={explain ?? "new"} initialQuestion={initialQuestion} onCreated={(id) => open(id)} />}</div>
-        <aside className="space-y-6">
-          {usage.data && (
-            <div className="rounded-md border bg-card p-4">
-              <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{usage.data.period === "starter" ? "Starter trial (lifetime)" : `${usage.data.plan} \u00B7 ${usage.data.period}`}</p>
-              <UsageMeters usage={usage.data} />
-              <Link href="/plans" className="mt-3 block text-xs text-primary hover:underline">Plan details</Link>
+    <div className="mx-auto max-w-[1180px] pb-6">
+      {activeId
+        ? <WorkspaceBar newLabel="New analysis" onNew={() => open(null)} label={activeQ ? `Research · ${activeQ}` : "Research"} onHistory={() => setDrawer(true)} />
+        : <WorkspaceIntro kicker="Evidence workbench" title="Research with selected evidence." sub="Pick papers, ask a precise question, and get claims tied to quotes. Comparison tables stay editable; everything here is saved to your history." onHistory={() => setDrawer(true)} />}
+      <div className="min-w-0">{activeId ? <AnalysisView key={activeId} id={activeId} onDeleted={() => open(null)} /> : <Composer key={explain ?? "new"} initialQuestion={initialQuestion} onCreated={(id) => open(id)} />}</div>
+      <HistoryDrawer open={drawer} onOpenChange={setDrawer} title="History and usage" description="Saved answers and reviews, your allowance, and how evidence is used.">
+        <div>
+          <p className="sx-eyebrow mb-2">History</p>
+          {list.isLoading ? (
+            <RowSkeleton rows={2} />
+          ) : list.isError ? (
+            <ErrorState error={list.error} onRetry={() => list.refetch()} />
+          ) : !list.data?.length ? (
+            <EmptyState icon={<BookOpen className="h-5 w-5" />} title="No analyses yet" body="Your saved answers and reviews will collect here." />
+          ) : (
+            <div className="space-y-1.5">
+              {list.data.map((a) => (
+                <button key={a.id} onClick={() => { setDrawer(false); open(a.id); }} aria-current={a.id === activeId || undefined} className={`block w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${a.id === activeId ? "border-[hsl(var(--teal))] bg-[hsl(var(--teal)/0.07)]" : "bg-[hsl(52_40%_98%)] hover:bg-[hsl(90_20%_93%)]"}`} data-testid={`button-history-${a.id}`}>
+                  <p className="line-clamp-2 text-sm font-medium leading-snug">{a.question}</p>
+                  <p className="mt-1 font-mono text-[10.5px] text-muted-foreground">{a.kind} &middot; {a.status} &middot; {ago(a.createdAt)}</p>
+                </button>
+              ))}
             </div>
           )}
-          <div className="rounded-md border bg-card p-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-ai-disclosure">
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-widest">AI and privacy</p>
-            Answers use available source evidence. Paper-linked PDFs and selected uploads are used for the research you request; unrelated private files are not included. Evidence coverage varies by source. Check citations and limitations before relying on an answer.
+        </div>
+        {usage.data && (
+          <div className="sx-card p-4">
+            <p className="sx-eyebrow mb-3">{usage.data.period === "starter" ? "Starter trial (lifetime)" : `${usage.data.plan} \u00B7 ${usage.data.period}`}</p>
+            <UsageMeters usage={usage.data} />
+            <Link href="/plans" className="mt-3 block text-xs text-primary hover:underline">Plan details</Link>
           </div>
-          <div>
-            <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"><History className="h-3 w-3" /> History</p>
-            {list.isLoading ? (
-              <RowSkeleton rows={2} />
-            ) : list.isError ? (
-              <ErrorState error={list.error} onRetry={() => list.refetch()} />
-            ) : !list.data?.length ? (
-              <EmptyState icon={<BookOpen className="h-5 w-5" />} title="No analyses yet" body="Your saved answers and reviews will collect here." />
-            ) : (
-              <div className="space-y-1">
-                {list.data.map((a) => (
-                  <button key={a.id} onClick={() => open(a.id)} className={`block w-full rounded-md border px-3 py-2 text-left transition-colors ${a.id === activeId ? "border-primary bg-card" : "border-transparent hover:bg-card"}`} data-testid={`button-history-${a.id}`}>
-                    <p className="line-clamp-2 text-sm leading-snug">{a.question}</p>
-                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">{a.kind} &middot; {a.status} &middot; {ago(a.createdAt)}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-    </>
+        )}
+        <div className="sx-card p-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-ai-disclosure">
+          <p className="sx-eyebrow mb-1">AI and privacy</p>
+          Answers use available source evidence. Paper-linked PDFs and selected uploads are used for the research you request; unrelated private files are not included. Evidence coverage varies by source. Check citations and limitations before relying on an answer.
+        </div>
+      </HistoryDrawer>
+    </div>
   );
 }
 

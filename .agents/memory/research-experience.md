@@ -38,13 +38,19 @@ The user wants generated responses to stream visibly across all pages rather tha
 
 **How to apply:** Show genuine generated text as it arrives, distinguish unfinished drafts from checked final output, and retain progress indicators during retrieval when no response text exists yet.
 
+Follow-up questions on every page must remember the earlier questions, answers and selected work in the same conversation. Keep earlier turns visible; start a separate conversation only through an explicit new topic, draft or search.
+
+**Why:** The user rejected the replacement of their project-release answer by the next M.Tech-project answer, with each reply appearing as a separate history item.
+
+**How to apply:** Restore threads from persisted links on reload and history navigation. Keep document edits as revisions of a turn, not new chat messages; do not join unrelated conversations merely because they share a project.
+
 **Why:** The user identified waiting time as their main problem, rather than the choice of vector database.
 
 **How to apply:** Prioritize end-to-end answer latency and simple interactions when evaluating architecture. Preserve the existing accuracy requirement; distinguish progress updates or provisional content from evidence-checked answers, and do not promise instant full-paper analysis.
 
-The user wants numbered citations, a polished research interface, and research-related AI-agent names, using the supplied AnswerThis portal screenshots as a workflow reference.
+The user wants numbered citations, a polished research interface, and research-related AI-agent names, using the supplied AnswerThis portal screenshots as a workflow reference. References across all pages must look professional and provide clickable links to open their sources.
 
-**Why:** They explicitly requested numbering, better UI/UX, and named research agents after reviewing the competitor's answer/source and processing panels.
+**Why:** They explicitly requested numbering, better UI/UX, and named research agents after reviewing the competitor's answer/source and processing panels, then rejected plain-text bibliographies with non-clickable URLs.
 
 **How to apply:** Keep citations connected to their sources and research-role labels tied to actual processing. Design previews must not be presented as functioning new agents or measured speed improvements.
 
@@ -137,3 +143,13 @@ The user wants topic entry and document upload to be prominent, not squeezed int
 **Why:** They rejected the Ideas screen because important controls and uploads were pushed below the fold while the empty output area took most of the width.
 
 **How to apply:** Prioritize the action users need before generation; keep empty states and secondary settings compact, with useful input space on laptop screens. After selection, show the idea or answer at the top in a wide conversation-style workspace, not beneath the original large input form. Keep follow-up entry compact and ancillary tools on demand.
+
+Chat attachments should use a ChatGPT/Claude-style icon in the composer, opening clear PDF and Word choices instead of separate text buttons above it.
+
+**Why:** The user requested this as the professional attachment interaction for AI Chat.
+
+Use the Ideas workspace as the common ChatGPT-like interaction reference across AI Chat, literature reviews, synopses, journals, theses, originality, patents and other research tools.
+
+**Why:** The user explicitly wants this professional experience everywhere, not only on Ideas or AI Chat.
+
+**How to apply:** Keep topic entry, reading and follow-ups prominent; expose secondary history, uploads and feature-specific settings on demand without removing the actual research capabilities.

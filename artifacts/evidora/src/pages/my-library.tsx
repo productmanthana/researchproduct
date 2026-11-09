@@ -2,15 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateProject, getListProjectsQueryKey, useListLibrary, getListLibraryQueryKey, useSaveStudioItem, getListStudioItemsQueryKey, type Project } from "@workspace/api-client-react";
-import { BookOpen, Folder, FolderOpen, NotebookPen, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Folder, FolderOpen, NotebookPen, Plus } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { ErrorState, RowSkeleton } from "@/components/states";
 import { NewProjectDialog } from "@/components/studio/project-switcher";
 import { ItemList } from "@/components/studio/item-list";
-import { ItemWorkspace } from "@/components/studio/item-workspace";
+import { StudioDiscussion } from "@/components/studio/studio-discussion";
 import { AttachDocuments } from "@/components/studio/attach-documents";
 import { useProjectItems, useStudioItem } from "@/components/studio/use-studio";
 import { useItemParam } from "@/components/studio/use-item-param";
+import { ProjectAttachMenu } from "@/components/studio/project-attach";
+import { WorkspaceIntro } from "@/components/studio/workspace-shell";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
@@ -122,12 +124,10 @@ function Inner() {
 
   return (
     <>
-      <header className="rise mb-7 flex flex-col gap-3 border-b border-[hsl(90_14%_84%)] pb-6 md:flex-row md:items-end md:justify-between">
-        <div><p className="sx-eyebrow">My Library</p><h1 className="sx-title mt-1.5 text-4xl md:text-5xl">Every project, every version.</h1><p className="mt-3 max-w-2xl text-[15px] text-muted-foreground">Each folder is a project. Inside: your ideas, drafts, notes, uploaded files and saved papers. Everything is private to your account.</p></div>
-        <button className="sx-btn sx-primary" onClick={() => setCreating(true)} data-testid="button-new-folder"><Plus />New project</button>
-      </header>
-      <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <nav aria-label="Project folders" className="space-y-1">
+      {!(id && project) && <WorkspaceIntro kicker="My Library" title="Every project, every version." sub="Each folder is a project: ideas, drafts, notes, uploaded files, saved papers and follow-up discussions. Private to your account."
+        actions={<button className="sx-btn sx-primary" onClick={() => setCreating(true)} data-testid="button-new-folder"><Plus />New project</button>} />}
+      <div className={id && project ? "mx-auto max-w-[960px]" : "grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]"}>
+        <nav aria-label="Project folders" className={id && project ? "hidden" : "space-y-1"}>
           {loading && <RowSkeleton rows={3} />}
           {!!error && <ErrorState error={error} onRetry={refetch} />}
           {projects.map(p => (
@@ -145,7 +145,10 @@ function Inner() {
             <div className="sx-card grid-paper flex min-h-[320px] flex-col items-center justify-center p-10 text-center"><FolderOpen className="h-10 w-10 text-[hsl(var(--teal))]" strokeWidth={1.2} /><p className="sx-title mt-4 text-2xl">Open a folder</p><p className="mt-1 text-sm text-muted-foreground">Choose a project on the left, or create a new one.</p></div>
           ) : item ? (
             <>
-              <button className="sx-btn" onClick={() => setId(null, { guard: true })} data-testid="button-back-to-folder">Back to {project.name}</button>
+              <nav className="sticky top-0 z-20 -mx-2 flex flex-wrap items-center gap-2 bg-[hsl(var(--background)/0.92)] px-2 py-2 backdrop-blur" aria-label="Library navigation">
+                <button className="sx-btn" onClick={() => setId(null, { guard: true })} data-testid="button-back-to-folder"><ArrowLeft />Back to {project.name}</button>
+                <span className="hidden truncate font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground md:inline">{KIND_LABEL[item.kind] ?? item.kind}</span>
+              </nav>
               {item.kind === "document-review"
                 ? <div className="sx-card space-y-3 p-6" data-testid={`panel-review-record-${item.id}`}>
                     <span className="sx-chip">Document review</span>
@@ -153,7 +156,7 @@ function Inner() {
                     <p className="text-sm text-muted-foreground">Review records are read-only. Suggestions are approved or dismissed one at a time in AI Chat; each approval writes a new working-draft revision and your original file stays unchanged.</p>
                     <Link href={`/ask?review=${encodeURIComponent(item.id)}`} className="sx-btn sx-primary inline-flex" data-testid={`link-open-review-${item.id}`}>Open review</Link>
                   </div>
-                : <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />}
+                : <StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={<ProjectAttachMenu projectId={project.id} items={all} />} />}
             </>
           ) : (
             <>

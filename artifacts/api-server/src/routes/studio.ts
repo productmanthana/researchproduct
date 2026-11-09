@@ -16,6 +16,8 @@ import { storage } from "../lib/documents";
 import { figureRequested } from "../lib/studio-figures";
 import { figureCsv, referencedFigures, type ScientificFigure } from "../lib/scientific-figures";
 import { figurePng, figureSvg } from "../lib/figure-renderer";
+import { validStudioContext } from "../lib/studio-conversation";
+import { conversationContext } from "../lib/ask-discovery";
 const router=Router();
 router.use("/studio",requireUser);
 router.get("/studio/templates",async(_req,res)=>res.json(studioTemplates));
@@ -56,6 +58,11 @@ router.post("/studio/items",async(req,res)=>{
     const {rows}=await pool.query("SELECT * FROM research_analyses WHERE id=$1 AND owner_id=$2 AND status='completed'",[b.analysisId,owner]);
     if(!rows[0])throw new HttpError(404,"Completed research answer not found.");
     const result=rows[0].result;
+    metadata.analysisQuestion=rows[0].question;
+    if(rows[0].input?.autoDiscover){
+      const {history}=await conversationContext({owner_id:owner,input:{parentAnalysisId:b.analysisId}});
+      metadata.analysisHistory=history.slice(0,-1);
+    }
     // User edits are allowed; bibliography and evidence remain preserved separately.
     content=b.content||result.content;
     const sources=result.sources??[];
@@ -88,7 +95,7 @@ router.post("/studio/generate",async(req,res)=>{
   }
   if(b.parentId){
     parent=await ownedStudio(b.parentId,owner);
-    if(parent.project_id!==b.projectId||parent.status!=="completed")throw new HttpError(400,"The context document must be completed and belong to this project.");
+    if(!validStudioContext(parent,b))throw new HttpError(400,"Use a completed message in this project, or retry the exact question of a failed answer.");
     if(figureRequested(b.prompt)){
       b.templateId??=parent.metadata?.templateId??undefined;
       b.documentDetails??=parent.metadata?.documentDetails;
@@ -107,7 +114,7 @@ router.post("/studio/generate",async(req,res)=>{
     if(active.rowCount)throw new HttpError(409,"Please wait for your current research request to finish.");
     const id=randomUUID();
     await client.query("INSERT INTO research_usage(id,owner_id,period,kind) VALUES($1,$2,$3,$4)",[id,owner,u.period,kind]);
-    const revisionParent=parent&&figureRequested(b.prompt)?parent:undefined;
+    const revisionParent=parent?.status==="completed"&&figureRequested(b.prompt)?parent:undefined;
     if(revisionParent&&(await client.query("SELECT id FROM research_studio_items WHERE parent_id=$1",[parent.id])).rowCount)throw new HttpError(409,"A newer revision already exists. Open the newest version before adding figures.");
     const {rows}=await client.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,status,metadata,parent_id,revision)
       VALUES($1,$2,$3,$4,$5,'queued',$6,$7,$8) RETURNING *`,[id,owner,b.projectId,b.kind,b.prompt.slice(0,200),JSON.stringify({request:b,stage:"Queued",templateId:b.templateId??null,documentDetails:b.documentDetails??{},...(revisionParent?{figureRevisionOf:revisionParent.id}:{})}),null,(revisionParent?.revision??0)+1]);

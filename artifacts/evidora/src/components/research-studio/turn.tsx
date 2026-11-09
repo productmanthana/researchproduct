@@ -8,6 +8,8 @@ import { processingLabel } from "./processing-progress";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { researchWorkflow } from "@/lib/agent-workflow";
 import { AcademicAnswer } from "@/components/academic-answer";
+import { AcademicReferences } from "@/components/academic-references";
+import { analysisReferenceEntries, referenceSections } from "@/lib/references";
 import { LiveDraft } from "@/components/live-draft";
 
 const done=(s:string)=>s==="completed"||s==="failed";
@@ -58,17 +60,8 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
         {d.status==="failed"&&<><ErrorState error={{message:d.error}} title="Research could not complete"/><button className="ev-quiet" disabled={retryDisabled} onClick={()=>onRetry(d.question)}>Put question back in composer</button></>}
         {d.status==="completed"&&<div data-testid={`text-answer-${d.id}`}>
           {d.responseMode!=="guidance"&&<p className="ev-evidence-context">{paperCount} cited {paperCount===1?"paper":"papers"} · Bounded research synthesis{d.sources.some(s=>s.evidenceLevel==="Abstract only")?" · Includes abstract-only evidence":""}</p>}
-          <AcademicAnswer content={d.content} inline={inline}/>
-          {d.sources.length>0&&<section className="ev-references" aria-label="References"><h3>References</h3><ol>
-            {d.sources.map((s,i)=>{
-              const paper=d.discoveredPapers?.find(p=>p.id===s.paperId);
-              return <li key={s.id}><button className="ev-cite" onClick={()=>select(s.id)} aria-label={`Inspect reference ${i+1}`}>{i+1}</button><div>
-                <button className="ev-reference-title" onClick={()=>select(s.id)}>{s.title}</button>
-                <p>{paper?.authors.slice(0,4).join(", ")}{paper?.publicationDate?` (${paper.publicationDate})`:paper?.year?` (${paper.year}; year only)`:""}{paper?.publisher?` · ${paper.publisher}`:""}</p>
-                {/^https?:\/\//i.test(s.url)&&<a href={s.url} target="_blank" rel="noopener noreferrer">{paper?.doi?`doi:${paper.doi}`:"View original source"}</a>}
-              </div></li>;
-            })}
-          </ol></section>}
+          <AcademicAnswer content={d.content} inline={inline} referenceSources={d.sources}/>
+          {!referenceSections(d.content).some(section=>section.kind==="references")&&<AcademicReferences entries={analysisReferenceEntries(d.sources,d.discoveredPapers)} onInspect={number=>{const source=d.sources[number-1];if(source)select(source.id);}}/>}
         </div>}
         {!chatMode&&<details className="ev-disclosure"><summary><Layers/>Research workflow<small>Agent roles</small><ChevronDown/></summary><div className="ev-detail-body"><p>Agent names describe roles within the research workflow.</p>{roles.map(([name,description],i)=><div className="ev-role" key={name}><span className="ev-role-number">0{i+1}</span><div><strong>{name}</strong><p>{description}</p></div></div>)}</div></details>}
         <details className="ev-disclosure ev-scope"><summary><Info/>{chatMode?"Research notes":"Search &amp; processing details"} <small>{d.warnings.length} notes</small><ChevronDown/></summary><div className="ev-detail-body"><p>Search coverage, retrieval and verification notes are kept separately from the scientific synthesis.</p><ul>{d.warnings.map((w,i)=><li key={i}>{w}</li>)}</ul></div></details>

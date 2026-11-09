@@ -5,6 +5,7 @@ import "./web-evidence.test";
 import "./live-generation.test";
 import "./studio.test";
 import "./idea-generation.test";
+import "./studio-conversation.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { pool } from "@workspace/db";

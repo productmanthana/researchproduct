@@ -14,8 +14,13 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 const TYPES = ["application/pdf", DOCX, "image/png", "image/jpeg", "image/webp"];
 const MAX = 15 * 1024 * 1024;
 
-export function DocumentUpload({ label = "Upload document", onReady, className }: { label?: string; onReady?: (doc: Document) => void; className?: string }) {
-  const [open, setOpen] = useState(false);
+export function DocumentUpload({ label = "Upload document", onReady, className, fileKind, open: controlledOpen, onOpenChange, hideTrigger = false }: {
+  label?: string; onReady?: (doc: Document) => void; className?: string;
+  fileKind?: "pdf" | "word"; open?: boolean; onOpenChange?: (open: boolean) => void; hideTrigger?: boolean;
+}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => { setInternalOpen(next); onOpenChange?.(next); };
   const [file, setFile] = useState<File | null>(null);
   const [rights, setRights] = useState(false);
   const [stage, setStage] = useState<"idle" | "ticket" | "put" | "complete">("idle");
@@ -29,7 +34,8 @@ export function DocumentUpload({ label = "Upload document", onReady, className }
   // server independently verifies their magic bytes before accepting them.
   const extensionTypes:Record<string,string>={pdf:"application/pdf",docx:DOCX,png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp"};
   const contentType=file?(!file.type||file.type==="application/octet-stream"?extensionTypes[file.name.split(".").pop()?.toLowerCase()??""]??file.type:file.type):"";
-  const fileError = file && !TYPES.includes(contentType) ? "Only PDF, Word (.docx), PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
+  const allowed = fileKind === "pdf" ? ["application/pdf"] : fileKind === "word" ? [DOCX] : TYPES;
+  const fileError = file && !allowed.includes(contentType) ? fileKind === "pdf" ? "Choose a PDF (.pdf) file." : fileKind === "word" ? "Choose a Word (.docx) file." : "Only PDF, Word (.docx), PNG, JPEG or WebP." : file && file.size > MAX ? "File is larger than 15 MB." : null;
   const busy = stage !== "idle";
 
   const reset = () => {
@@ -66,14 +72,14 @@ export function DocumentUpload({ label = "Upload document", onReady, className }
 
   return (
     <>
-      <Button onClick={() => setOpen(true)} className={className ?? "gap-2"} data-testid="button-open-upload">
+      {!hideTrigger && <Button type="button" onClick={() => setOpen(true)} className={className ?? "gap-2"} data-testid="button-open-upload">
         <Upload className="h-4 w-4" /> {label}
-      </Button>
+      </Button>}
       <Dialog open={open} onOpenChange={(o) => { if (!busy) { setOpen(o); if (!o) reset(); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">Add a private document</DialogTitle>
-            <DialogDescription>PDFs up to 50 pages and Word (.docx) files are read for their text. Screenshots (PNG, JPEG, WebP) are analysed as the original image. Max 15 MB.</DialogDescription>
+            <DialogTitle className="font-display text-xl">{fileKind === "pdf" ? "Upload a PDF" : fileKind === "word" ? "Upload a Word document" : "Add a private document"}</DialogTitle>
+            <DialogDescription>{fileKind === "pdf" ? "Add a research paper or PDF document, up to 50 pages and 15 MB." : fileKind === "word" ? "Add a Word (.docx) draft, proposal or notes, up to 15 MB." : "PDFs up to 50 pages and Word (.docx) files are read for their text. Screenshots (PNG, JPEG, WebP) are analysed as the original image. Max 15 MB."}</DialogDescription>
           </DialogHeader>
           <button
             type="button"
@@ -96,7 +102,7 @@ export function DocumentUpload({ label = "Upload document", onReady, className }
               <span className="mt-2 text-muted-foreground">Drop a file or click to choose</span>
             )}
           </button>
-          <input ref={inputRef} type="file" accept={[...TYPES, ".docx"].join(",")} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} data-testid="input-file" />
+          <input ref={inputRef} type="file" accept={fileKind === "pdf" ? "application/pdf,.pdf" : fileKind === "word" ? `${DOCX},.docx` : [...TYPES, ".docx"].join(",")} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} data-testid="input-file" />
           {fileError && <p className="text-sm text-vermilion">{fileError}</p>}
           <label className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 text-sm">
             <Checkbox checked={rights} onCheckedChange={(v) => setRights(v === true)} className="mt-0.5" data-testid="checkbox-rights" />

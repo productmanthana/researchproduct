@@ -51,3 +51,8 @@
 .sx-tab svg{width:15px;height:15px}
 .ev-focus:focus-visible{outline:2px solid hsl(var(--teal));outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.rise,.lift,.sx-composer-wide{animation:none!important;transition:none!important}.lift:hover{transform:none}}
+
+/* Shared workspace shell (Ideas reference pattern) */
+.sx-attach .es-attachment-trigger{color:hsl(var(--teal))}
+.sx-attach .es-attachment-trigger:focus-visible{outline-color:hsl(var(--teal))}
+.sx-attach .es-attachment-trigger:hover,.sx-attach .es-attachment-trigger[data-state=open]{background:hsl(var(--teal)/0.08);border-color:hsl(var(--teal)/0.25)}

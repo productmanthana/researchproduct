@@ -220,7 +220,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             {mode === "edit" && canSave
               ? <>{(order.length > 0 || figures.length > 0) && <p className="mb-2 rounded-md border border-[hsl(var(--turmeric)/0.5)] bg-[hsl(var(--turmeric)/0.08)] px-3 py-2 text-xs" data-testid="text-figure-marker-help">Lines like <span className="font-mono">[[figure:fig-1]]</span> place a figure. Keep each on its own line. Moving a marker moves the figure; deleting the line removes the figure. A marker without saved figure data blocks saving and export.</p>}
                 <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" /></>
-              : content.trim() ? <AcademicAnswer content={reading ? withoutRepeatedTitle(content, title) : content} inline={plainInline} renderFigure={renderFigure} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
+              : content.trim() ? <AcademicAnswer content={reading ? withoutRepeatedTitle(content, title) : content} inline={plainInline} renderFigure={renderFigure} referenceSources={m.sources} linkCitations /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
           </div>
           {mode !== "edit" && !isProjectInfo && <div className="mt-6"><SavedWebEvidence metadata={item.metadata} /></div>}
         </div>

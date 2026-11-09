@@ -1,3 +1,4 @@
+import { WorkspaceIntro } from "@/components/studio/workspace-shell";
 import { useState, type FormEvent } from "react";
 import { LiveWebEvidence } from "@/components/web-evidence";
 import { Link, useLocation, useSearch } from "wouter";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PaperRow, useSavedIds } from "@/components/paper-row";
-import { EmptyState, ErrorState, PageHeader, RowSkeleton } from "@/components/states";
+import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
 import { selection, useSelection } from "@/lib/selection";
 import { num } from "@/lib/format";
 
@@ -104,26 +105,28 @@ export default function Discover() {
 
   return (
     <>
-      <PageHeader kicker="Scholarly search" title="Discover" />
-      <DeskStrip />
-      <form onSubmit={submit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Topic, method, material, or DOI" className="h-11 bg-card pl-9 text-base" data-testid="input-discover-search" />
+      <WorkspaceIntro kicker="Scholarly search" title="Discover papers worth reading." sub="Search open scholarly catalogues by topic, method, material or DOI. Save what matters to a project; filters narrow the catalogue, nothing is generated." />
+      <form onSubmit={submit} className="sx-card sx-composer-wide mb-2 overflow-hidden" data-testid="form-discover-search">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <label htmlFor="input-discover-search" className="sr-only">Search papers</label>
+          <input id="input-discover-search" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Topic, method, material, or DOI" className="h-14 w-full bg-transparent pl-11 pr-4 text-base outline-none placeholder:text-muted-foreground" data-testid="input-discover-search" />
         </div>
-        <Button type="button" variant="outline" className="h-11 gap-2" onClick={() => setShowFilters((v) => !v)} data-testid="button-toggle-filters">
-          <SlidersHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Filters</span>
-          {activeFilters.length > 0 && <span className="rounded bg-vermilion px-1.5 font-mono text-[10px] text-white">{activeFilters.length}</span>}
-        </Button>
-        <Button type="submit" className="h-11 px-6" data-testid="button-discover-search">
-          Search
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[hsl(90_14%_86%)] bg-[hsl(66_22%_95%)] px-3 py-2">
+          <button type="button" className="sx-btn" onClick={() => setShowFilters((v) => !v)} aria-expanded={showFilters} data-testid="button-toggle-filters">
+            <SlidersHorizontal /> Filters
+            {activeFilters.length > 0 && <span className="rounded bg-vermilion px-1.5 font-mono text-[10px] text-white">{activeFilters.length}</span>}
+          </button>
+          <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:inline">Catalogue search only. For a cited answer, ask the question in AI Chat.</span>
+          <button type="submit" className="sx-btn sx-primary ml-auto" data-testid="button-discover-search"><Search />Search</button>
+        </div>
       </form>
       <p className="mt-2 text-xs text-muted-foreground" data-testid="text-ask-hint">
         Have a full research question?{" "}
         <Link href={`/ask${input.trim() ? `?q=${encodeURIComponent(input.trim())}` : ""}`} className="font-medium text-primary underline" data-testid="link-ask-question">Ask it directly</Link>
         {" "}and get a cited answer without picking papers.
       </p>
+      {!urlQ && <div className="mt-6"><DeskStrip /></div>}
 
       {urlQ&&sort==="recent"&&<p className="mt-3 text-xs text-muted-foreground">Recent publications first; older research remains included. Exact dates are shown where available. Source catalogues may take time to index new papers.</p>}
       {showFilters && (
