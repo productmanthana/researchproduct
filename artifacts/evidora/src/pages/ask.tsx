@@ -362,7 +362,7 @@ function AskInner() {
         <div className="es-top-actions">{!reviewId && sourceAnalysis && panel !== "sources" && <button className="es-button" onClick={() => setPanel("sources")}><BookOpen />Sources</button>}{!reviewId && activeDraftId && panel !== "draft" && <button className="es-button" onClick={() => setPanel("draft")}><FileText />Draft</button>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
       </header>
       {allUsageLimitMessages(usageData).length > 0 && <div className="es-limit-notice" role="status">{allUsageLimitMessages(usageData).map(message => <p key={message}>{message} <Link href="/plans" onClick={guardNavigation}>Plans &amp; usage</Link></p>)}</div>}
-      {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} onClose={() => setLocation("/ask")} /></div> :
+      {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} chatMode onClose={() => setLocation("/ask")} /></div> :
       <div className={`es-workspace ${panel === "draft" ? "es-written" : ""}`}>
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">

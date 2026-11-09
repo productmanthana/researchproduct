@@ -153,3 +153,9 @@ Use the Ideas workspace as the common ChatGPT-like interaction reference across 
 **Why:** The user explicitly wants this professional experience everywhere, not only on Ideas or AI Chat.
 
 **How to apply:** Keep topic entry, reading and follow-ups prominent; expose secondary history, uploads and feature-specific settings on demand without removing the actual research capabilities.
+
+Ordinary AI Chat should stream in the conversation without a blocking agent popup. Research and document checks in chat should use compact live status; long report generation can retain the agent popup.
+
+**Why:** The user found the chat processing bar slow and explicitly approved the distinction between conversation and long-running research.
+
+**How to apply:** Preserve evidence verification and mark research text as provisional until checks finish; do not add research overhead to conversational guidance.

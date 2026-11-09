@@ -27,7 +27,7 @@ function proposedFigure(s: ReviewSuggestion, figures: StudioFigure[]): StudioFig
 const FIG = /^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/;
 const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 1000) / 10) : 0);
 
-export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: string; onClose: () => void }) {
+export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: { reviewId: string; onClose: () => void; chatMode?: boolean }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const q = useGetStudioItem(reviewId, { query: { queryKey: getGetStudioItemQueryKey(reviewId), refetchInterval: x => (isWorking(x.state.data?.status) ? 3000 : false) } });
@@ -96,7 +96,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
   };
 
   const reviewJob = item && item.kind === "document-review" && isWorking(item.status) ? reviewWorkflow(item) : null;
-  useAgentJob(reviewJob);
+  useAgentJob(chatMode?null:reviewJob);
 
   if (q.isLoading) return <section className="es-conversation dr-doc"><div className="dr-doc-scroll"><RowSkeleton rows={4} /></div></section>;
   if (q.isError || !item) return <section className="es-conversation dr-doc"><div className="dr-doc-scroll"><ErrorState error={q.error} onRetry={() => q.refetch()} title="Couldn't open this review" /><button className="es-button" onClick={onClose} data-testid="button-review-back-error"><ArrowLeft />Back to chat</button></div></section>;
@@ -130,8 +130,8 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
       <div className="dr-doc-scroll">
         <div className="dr-paper">
           <p className="dr-eyebrow"><FileText />{review.originalName}</p>
-          {working && reviewJob && <div className="mb-4" data-testid="status-review-working"><AgentProgressChip jobKey={reviewJob.key} /><p className="dr-note mt-2">Larger documents and source retrieval can take several minutes. You can return to this saved review later.</p></div>}
-          {working && <LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id)]} fallback={null} progressKey={reviewJob?.key} />}
+          {working && reviewJob && !chatMode && <div className="mb-4" data-testid="status-review-working"><AgentProgressChip jobKey={reviewJob.key} /><p className="dr-note mt-2">Larger documents and source retrieval can take several minutes. You can return to this saved review later.</p></div>}
+          {working && <LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id)]} fallback={null} progressKey={chatMode?undefined:reviewJob?.key} presentation={chatMode?"chat":"panel"} />}
           {item.status === "failed" && <div className="dr-alert" role="alert">{item.error || "This review could not be completed."}</div>}
           {view === "original" && !working && <>
             <p className="dr-note">Extracted text from your file, shown for review. Highlights mark exact quotes with a suggestion; select one to open it. Layout and formatting of the original file are not reproduced here.</p>

@@ -10,6 +10,8 @@ import { getPaper } from "../lib/catalogue";
 import { comparisonFields } from "../lib/comparison";
 import { analysisSnapshot } from "../lib/analysis-input";
 import { makeDraftRevision } from "../lib/analysis-draft";
+import { processNextAnalysis } from "../lib/research-engine";
+import { logger } from "../lib/logger";
 const router=Router();
 async function ownedAnalysis(id:string,owner:string) {
   const {rows}=await pool.query("SELECT * FROM research_analyses WHERE id=$1 AND owner_id=$2",[id,owner]);
@@ -60,6 +62,9 @@ router.post("/analyses",requireUser,async(req,res)=>{
     const {rows}=await client.query("INSERT INTO research_analyses(id,owner_id,kind,question,input) VALUES($1,$2,$3,$4,$5) RETURNING *",[id,owner,b.kind,b.question,JSON.stringify(snapshot)]);
     await client.query("COMMIT");
     res.json(analysisView(rows[0]));
+    // Wake the existing single worker without waiting for its periodic tick.
+    // Its busy guard and DB claim remain authoritative: never run the job twice.
+    void processNextAnalysis().catch(()=>logger.error("Research worker wake-up failed"));
   } catch(e) {await client.query("ROLLBACK");throw e;} finally {client.release();}
 });
 router.get("/analyses/:id",requireUser,async(req,res)=>res.json(analysisView(await ownedAnalysis(routeId(req),uid(req)))));

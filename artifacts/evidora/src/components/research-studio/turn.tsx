@@ -25,7 +25,7 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
   useEffect(()=>{if(done(d.status)&&wasActive.current){wasActive.current=false;void qc.invalidateQueries({queryKey:getListAnalysesQueryKey()});void qc.invalidateQueries({queryKey:getGetUsageQueryKey()});void qc.invalidateQueries({queryKey:getGetSummaryQueryKey()});}},[d.status,qc]);
   const reused=["reading","writing","checking"].includes(d.stage??"")&&!d.searchQueries?.length;
   const job=done(d.status)?null:researchWorkflow({id:d.id,status:d.status,stage:d.stage,question:d.question,reusedSources:reused,workflow:chatMode?"Research chat":"Research answer"});
-  useAgentJob(job);
+  useAgentJob(chatMode?null:job);
   function select(id:string|null){if(id&&onSourceSelect){onSourceSelect(d,id);return;}setSelected(id);setRevealRequest(n=>n+1);}
   const inline=(text:string)=>text.split(/(\[\d+\]|\*\*[^*]+\*\*)/g).map((part,i)=>{
     const match=/^\[(\d+)\]$/.exec(part);
@@ -55,8 +55,8 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
         {!chatMode&&<div className="ev-answer-head"><div className="ev-section-label"><span className="ev-number">02</span><span className="ev-micro">The answer</span></div>{d.content&&<button className="ev-quiet" onClick={async()=>{try{await navigator.clipboard.writeText(d.content+(referenceText?`\n\n## References\n\n${referenceText}`:""));setCopyStatus("Answer and references copied.");}catch{setCopyStatus("Copy unavailable. Select the answer text to copy.");}}}><Copy/>Copy</button>}</div>}
         {copyStatus&&<p role="status" className="ev-status">{copyStatus}</p>}
         {result.isError&&!done(d.status)&&<ErrorState error={result.error} onRetry={()=>result.refetch()} title="Could not refresh progress"/>}
-        {job&&<div className={chatMode?"es-progress":"ev-progress-chip"} style={chatMode?{marginLeft:0}:{margin:"16px 0 20px"}}><AgentProgressChip jobKey={job.key}/></div>}
-        {!done(d.status)&&<LiveDraft kind="analysis" id={d.id} working invalidate={[getGetAnalysisQueryKey(d.id),getListAnalysesQueryKey()]} fallback={null} progressKey={job?.key}/>}
+        {job&&!chatMode&&<div className="ev-progress-chip" style={{margin:"16px 0 20px"}}><AgentProgressChip jobKey={job.key}/></div>}
+        {!done(d.status)&&<LiveDraft kind="analysis" id={d.id} working invalidate={[getGetAnalysisQueryKey(d.id),getListAnalysesQueryKey()]} fallback={null} progressKey={chatMode?undefined:job?.key} presentation={chatMode?"chat":"panel"}/>}
         {d.status==="failed"&&<><ErrorState error={{message:d.error}} title="Research could not complete"/><button className="ev-quiet" disabled={retryDisabled} onClick={()=>onRetry(d.question)}>Put question back in composer</button></>}
         {d.status==="completed"&&<div data-testid={`text-answer-${d.id}`}>
           {d.responseMode!=="guidance"&&<p className="ev-evidence-context">{paperCount} cited {paperCount===1?"paper":"papers"} · Bounded research synthesis{d.sources.some(s=>s.evidenceLevel==="Abstract only")?" · Includes abstract-only evidence":""}</p>}

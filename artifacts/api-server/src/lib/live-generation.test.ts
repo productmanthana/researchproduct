@@ -11,6 +11,11 @@ test("partial generation JSON reveals only user-facing strings, not evidence IDs
 const streamResponse=(s:string)=>new Response(new ReadableStream({start(controller){
   const data=new TextEncoder().encode(s);for(let i=0;i<data.length;i+=3)controller.enqueue(data.slice(i,i+3));controller.close();
 }}));
+test("intent guidance streams before closing JSON; research routing does not leak as an answer",()=>{
+  assert.equal(visibleDraft('{"intent":"guidance","reply":"What field interests'),"What field interests");
+  assert.equal(visibleDraft('{"intent":"research","reply":"Unverified finding","standaloneQuestion":"question"}'),"");
+  assert.equal(visibleDraft('{"intent":"rese'),"");
+});
 test("OpenAI fragmented UTF8 SSE delivers deltas before completion and retains billable usage",async()=>{
   const deltas:string[]=[];
   const events=[

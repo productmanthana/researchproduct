@@ -8,6 +8,11 @@ export async function clearLive(kind:LiveKind,id:string){await pool.query("DELET
 
 /** Whitelisted user-facing JSON string fields only. Never exposes raw JSON, quotes or reasoning. */
 export function visibleDraft(json:string){
+  // Intent routing is also streamed. Research routing replies are not evidence
+  // answers and must not briefly appear as scientific findings in the chat.
+  if(/^\s*\{\s*"intent"\s*:/.test(json)){
+    if(!/^\s*\{\s*"intent"\s*:\s*"guidance"/.test(json))return "";
+  }
   const pattern=/"(content|text|reply|title|caption|description|explanation|proposedText)"\s*:\s*"/g;
   const parts:string[]=[];let m:RegExpExecArray|null;
   while((m=pattern.exec(json))){
