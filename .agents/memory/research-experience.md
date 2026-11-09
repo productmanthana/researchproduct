@@ -131,3 +131,9 @@ All research responses and drafts should use professional, natural academic pros
 **Why:** The user explicitly requests “professional human writing format” across literature surveys, journal papers and theses, with checking tools where appropriate.
 
 **How to apply:** Check clarity, evidence, citations, consistency and similarity without claiming AI-generated text is human-authored or guaranteeing AI-detector outcomes.
+
+The user wants topic entry and document upload to be prominent, not squeezed into a narrow column beside a large unused placeholder.
+
+**Why:** They rejected the Ideas screen because important controls and uploads were pushed below the fold while the empty output area took most of the width.
+
+**How to apply:** Prioritize the action users need before generation; keep empty states and secondary settings compact, with useful input space on laptop screens.

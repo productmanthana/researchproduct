@@ -8,7 +8,7 @@ import { bytes } from "@/lib/format";
 import { friendlyError, meta } from "@/lib/studio";
 
 /** Upload via the existing pipeline, then attach ready documents to the active project. */
-export function AttachDocuments({ projectId, items, onOpen }: { projectId: string; items: StudioItem[]; onOpen?: (id: string) => void }) {
+export function AttachDocuments({ projectId, items, onOpen, variant = "stacked" }: { projectId: string; items: StudioItem[]; onOpen?: (id: string) => void; variant?: "stacked" | "compact" }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const docs = useListDocuments({ query: { queryKey: getListDocumentsQueryKey(), refetchInterval: q => ((q.state.data ?? []).some(d => d.status !== "ready" && d.status !== "failed") ? 4000 : false) } });
@@ -25,16 +25,16 @@ export function AttachDocuments({ projectId, items, onOpen }: { projectId: strin
   };
 
   return (
-    <div className="sx-card space-y-3 p-4" data-testid="panel-attach-documents">
+    <div className={`sx-card space-y-3 ${variant === "compact" ? "p-3.5" : "p-4"}`} data-testid="panel-attach-documents">
       <div className="flex items-center justify-between gap-2">
-        <p className="sx-eyebrow">Your uploaded documents</p>
-        <DocumentUpload label="Upload" />
+        <p className="sx-eyebrow">{variant === "compact" ? "Reference documents" : "Your uploaded documents"}</p>
+        <DocumentUpload label={variant === "compact" ? "Upload file" : "Upload"} />
       </div>
       <p className="text-xs text-muted-foreground">Files stay private to your account. Attach a ready file so drafts can draw on it.</p>
       {docs.isLoading && <RowSkeleton rows={1} />}
       {docs.isError && <ErrorState error={docs.error} onRetry={() => void docs.refetch()} title="Couldn't load documents" />}
       {docs.data && !docs.data.length && <p className="text-xs text-muted-foreground">No uploads yet.</p>}
-      <ul className="max-h-56 space-y-1 overflow-y-auto">
+      <ul className={`${variant === "compact" ? "max-h-44" : "max-h-56"} space-y-1 overflow-y-auto`}>
         {(docs.data ?? []).map(d => {
           const attached = attachedIds.has(d.id);
           const ready = d.status === "ready";

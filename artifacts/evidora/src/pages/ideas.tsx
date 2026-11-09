@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { StudioItem } from "@workspace/api-client-react";
-import { Lightbulb, MessagesSquare, Sparkles } from "lucide-react";
+import { Link } from "wouter";
+import { FolderOpen, Lightbulb, MessagesSquare, Sparkles } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { ErrorState } from "@/components/states";
 import { useActiveProject } from "@/lib/active-project";
@@ -62,39 +63,51 @@ function Inner() {
   const item = open.data && open.data.projectId === project.id ? open.data : undefined;
 
   return (
-    <>
-      {header}
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <div className="sx-card grid grid-cols-2 gap-1 p-1" role="tablist">
-            <button role="tab" aria-selected={tabState === "ideas"} onClick={() => setTab("ideas")} className={`sx-btn border-0 ${tabState === "ideas" ? "sx-primary" : ""}`} data-testid="tab-ideas"><Lightbulb />Five ideas</button>
-            <button role="tab" aria-selected={tabState === "answer"} onClick={() => setTab("answer")} className={`sx-btn border-0 ${tabState === "answer" ? "sx-primary" : ""}`} data-testid="tab-answer"><MessagesSquare />Ask my project</button>
+    <div className="mx-auto max-w-[1180px]">
+      <header className="rise mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="sx-eyebrow">Ideas</p>
+          <h1 className="sx-title mt-0.5 text-2xl leading-tight md:text-[28px]">Five directions from your own thinking</h1>
+        </div>
+        <Link href="/my-library" className="sx-btn shrink-0" data-testid="link-project-library"><FolderOpen />{project.name}</Link>
+      </header>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_284px] xl:grid-cols-[minmax(0,1fr)_312px]">
+        <section className="min-w-0 space-y-4" aria-label="Write your topic">
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-[hsl(90_14%_84%)]">
+            <div className="flex gap-5" role="tablist" aria-label="What would you like to do?">
+              <button role="tab" aria-selected={tabState === "ideas"} onClick={() => setTab("ideas")} className="sx-tab" data-testid="tab-ideas"><Lightbulb />Suggest five ideas</button>
+              <button role="tab" aria-selected={tabState === "answer"} onClick={() => setTab("answer")} className="sx-tab" data-testid="tab-answer"><MessagesSquare />Ask my project</button>
+            </div>
+            <p className="hidden pb-2 text-xs text-muted-foreground md:block">{tabState === "ideas" ? "In your own words. Plain language is fine." : "Answers draw on your ideas and references."}</p>
           </div>
           {tabState === "ideas"
-            ? <Composer key={`ideas-${project.id}`} projectId={project.id} kind="ideas" saveKind="note" placeholder="e.g. I teach in a village school near Patna. Many children fall sick after monsoon and I wonder whether our handpump water is safe..." cta="Suggest five ideas" defaultMode="combined" onCreated={it => setId(it.id, { guard: true })} />
-            : <Composer key={`answer-${project.id}-${q}`} projectId={project.id} kind="answer" saveKind="answer" initialPrompt={q} placeholder="e.g. Using my references, which of my ideas has the strongest evidence?" cta="Answer from my project" defaultMode="project" onCreated={it => setId(it.id, { guard: true })} />}
-          <AttachDocuments projectId={project.id} items={all} />
-          <div>
-            <p className="sx-eyebrow mb-2">{tabState === "ideas" ? "Idea sets and confirmed ideas" : "Project answers"}</p>
-            {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
-              : <ItemList items={all} kinds={tabState === "ideas" ? ["ideas", "idea", "note"] : ["answer"]} activeId={id} loading={items.isLoading} onOpen={x => setId(x, { guard: true })} emptyText="Nothing here yet." />}
+            ? <Composer key={`ideas-${project.id}`} variant="wide" label="Describe what you are curious about" projectId={project.id} kind="ideas" saveKind="note" placeholder="Describe what you are curious about. e.g. I teach in a village school near Patna. Many children fall sick after monsoon and I wonder whether our handpump water is safe..." cta="Suggest five ideas" defaultMode="combined" onCreated={it => setId(it.id, { guard: true })} />
+            : <Composer key={`answer-${project.id}-${q}`} variant="wide" label="Ask a question about your project" projectId={project.id} kind="answer" saveKind="answer" initialPrompt={q} placeholder="e.g. Using my references, which of my ideas has the strongest evidence?" cta="Answer from my project" defaultMode="project" onCreated={it => setId(it.id, { guard: true })} />}
+          <div className="min-w-0" aria-live="polite">
+            {id && open.isLoading && <div className="sx-card h-72 animate-pulse" />}
+            {id && open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
+            {item?.kind === "ideas" && <IdeaSetView set={item} confirmed={confirmed} onOpenIdea={x => setId(x)} />}
+            {item && item.kind !== "ideas" && <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />}
+            {!id && (
+              <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-ideas-empty">
+                <div className="flex shrink-0 -space-x-2" aria-hidden>{TONES.map((t, i) => <span key={i} className="h-7 w-5 rounded-[3px] border border-[hsl(52_40%_98%)]" style={{ background: `hsl(${t})`, transform: `rotate(${(i - 2) * 7}deg)` }} />)}</div>
+                <p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">Your five ideas will appear here.</span> Read each one and confirm the ones you like; your choices are remembered.</p>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="min-w-0">
-          {id && open.isLoading && <div className="sx-card h-96 animate-pulse" />}
-          {id && open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
-          {item?.kind === "ideas" && <IdeaSetView set={item} confirmed={confirmed} onOpenIdea={x => setId(x)} />}
-          {item && item.kind !== "ideas" && <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />}
-          {!id && (
-            <div className="sx-card grid-paper flex min-h-[420px] flex-col items-center justify-center p-10 text-center" data-testid="status-ideas-empty">
-              <div className="flex -space-x-3">{TONES.map((t, i) => <span key={i} className="h-12 w-9 rounded-md border-2 border-[hsl(52_40%_98%)] shadow-sm" style={{ background: `hsl(${t})`, transform: `rotate(${(i - 2) * 7}deg)` }} />)}</div>
-              <p className="sx-title mt-6 text-2xl">Five cards, one decision at a time</p>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">Nothing is forced. Read each idea, confirm the ones you like, and come back any time; your choices are remembered.</p>
+        </section>
+        <aside className="min-w-0 space-y-4" aria-label="References and history">
+          <AttachDocuments projectId={project.id} items={all} variant="compact" />
+          <div className="sx-card p-3.5">
+            <p className="sx-eyebrow mb-2">{tabState === "ideas" ? "Idea sets and confirmed ideas" : "Project answers"}</p>
+            <div className="max-h-[340px] overflow-y-auto pr-0.5">
+              {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
+                : <ItemList items={all} kinds={tabState === "ideas" ? ["ideas", "idea", "note"] : ["answer"]} activeId={id} loading={items.isLoading} onOpen={x => setId(x, { guard: true })} emptyText="Nothing here yet." />}
             </div>
-          )}
-        </div>
+          </div>
+        </aside>
       </div>
-    </>
+    </div>
   );
 }
 

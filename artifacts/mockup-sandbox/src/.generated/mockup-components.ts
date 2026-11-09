@@ -11,5 +11,7 @@ export const modules: ModuleMap = {
   "./components/mockups/evidora-flow/TopicExplorer.tsx": () => import("../components/mockups/evidora-flow/TopicExplorer.tsx"),
   "./components/mockups/evidora-simple/Chat.tsx": () => import("../components/mockups/evidora-simple/Chat.tsx"),
   "./components/mockups/evidora-simple/Evidence.tsx": () => import("../components/mockups/evidora-simple/Evidence.tsx"),
-  "./components/mockups/evidora-simple/Writing.tsx": () => import("../components/mockups/evidora-simple/Writing.tsx")
+  "./components/mockups/evidora-simple/Writing.tsx": () => import("../components/mockups/evidora-simple/Writing.tsx"),
+  "./components/mockups/ideas-layout-repair/Current.tsx": () => import("../components/mockups/ideas-layout-repair/Current.tsx"),
+  "./components/mockups/ideas-layout-repair/Redesign.tsx": () => import("../components/mockups/ideas-layout-repair/Redesign.tsx")
 };
