@@ -48,11 +48,11 @@ The user wants numbered citations, a polished research interface, and research-r
 
 **How to apply:** Keep citations connected to their sources and research-role labels tied to actual processing. Design previews must not be presented as functioning new agents or measured speed improvements.
 
-Show the named research roles in a processing progress bar, including names such as “Literature Survey Agent,” rather than only a text processing notice.
+Show processing in a popup with five colour-coded research-agent roles, tailored to the feature on each page, including names such as “Literature Survey Agent.”
 
-**Why:** The user explicitly requested agent names in a processing bar.
+**Why:** The user explicitly replaced the inline processing-bar preference with a five-agent popup, using a screenshot from their other product as the reference.
 
-**How to apply:** Drive the active role from reported backend stages, not timed simulations; distinguish workflow position from estimated completion time and omit skipped discovery roles for same-paper follow-ups.
+**How to apply:** Drive the active role from reported backend stages, not timed simulations; distinguish workflow position from estimated completion time and mark skipped discovery roles honestly for same-paper follow-ups. Keep live text available and use the same popup pattern across processing features.
 
 Publisher-specific requests such as “focus on IEEE publications from 2020 onward” are hard evidence restrictions, not just ranking preferences.
 
@@ -60,9 +60,9 @@ Publisher-specific requests such as “focus on IEEE publications from 2020 onwa
 
 **How to apply:** Restrict discovered, selected and cited papers consistently; exclude missing required publisher/year metadata instead of silently broadening the request. Keep historical answers intact and clearly flag answers generated before filtering was enforced.
 
-Research answers should read as professional academic syntheses: organised evidence-based paragraphs, numbered citations, references and concise scientific limitations—not lists of internal processing notices. Default to expanded explanations of mechanisms, study conditions, measured results and defensible comparisons rather than a few isolated findings.
+Research answers should read as professional academic syntheses: organised evidence-based paragraphs, numbered citations, references and concise scientific limitations—not lists of internal processing notices. Default to expanded explanations of mechanisms, study conditions, measured results and defensible comparisons rather than a few isolated findings. Confirmed ideas should be developed research briefs, not a few one-line fields.
 
-**Why:** The user requested university-quality research writing after seeing embedding, database and internal-ID details mixed into the answer, and explicitly chose “Expand research answers” after receiving only three short findings.
+**Why:** The user requested university-quality research writing after seeing embedding, database and internal-ID details mixed into the answer, explicitly chose “Expand research answers,” and rejected thin confirmed-idea content.
 
 **How to apply:** Separate reproducibility/processing notes from the scientific narrative. Follow clear claim–evidence–analysis structure without implying Harvard endorsement, inventing research methods, or padding unsupported sections. Preserve verified claims and user-edited drafts when improving older presentations.
 
@@ -136,4 +136,4 @@ The user wants topic entry and document upload to be prominent, not squeezed int
 
 **Why:** They rejected the Ideas screen because important controls and uploads were pushed below the fold while the empty output area took most of the width.
 
-**How to apply:** Prioritize the action users need before generation; keep empty states and secondary settings compact, with useful input space on laptop screens.
+**How to apply:** Prioritize the action users need before generation; keep empty states and secondary settings compact, with useful input space on laptop screens. After selection, show the idea or answer at the top in a wide conversation-style workspace, not beneath the original large input form. Keep follow-up entry compact and ancillary tools on demand.

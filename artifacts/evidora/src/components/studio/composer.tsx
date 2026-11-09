@@ -9,6 +9,7 @@ import { BookmarkPlus, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cleanDetails, DETAIL_KINDS, detailsOf, friendlyError, hasDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
+import { useUnsavedGuard } from "@/lib/unsaved";
 import { useProjectItems } from "./use-studio";
 
 const MODES: { value: StudioGenerationInputEvidenceMode; label: string; hint: string }[] = [
@@ -31,9 +32,13 @@ type Props = {
   /** Presentation only. "stacked" (default) is the original sidebar layout; "wide" gives the prompt priority. */
   variant?: "stacked" | "wide";
   label?: string;
+  /** Links generated items to an existing item (follow-ups). */
+  parentId?: string;
+  /** Presentation only: "compact" renders a single-line follow-up bar. Defaults unchanged. */
+  compact?: boolean;
 };
 
-export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label }: Props) {
+export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label, parentId, compact }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const gen = useGenerateStudioDocument();
@@ -58,7 +63,9 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
   const trimmed = prompt.trim();
   const problem = trimmed.length < 5 ? "Write at least 5 characters." : trimmed.length > 5000 ? "Keep it under 5,000 characters." : null;
 
+  useUnsavedGuard(`composer-followup-${kind}-${parentId ?? "none"}`, !!compact && trimmed.length > 0 && !gen.isPending, "Your follow-up message has not been sent.");
   const finish = (item: StudioItem) => {
+    if (compact) setPrompt("");
     qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
     void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
     onCreated(item);
@@ -68,7 +75,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
     if (problem || gen.isPending) return;
     setLimitError(null);
     try {
-      const item = await gen.mutateAsync({ data: { projectId, kind, prompt: trimmed, evidenceMode: mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload } });
+      const item = await gen.mutateAsync({ data: { projectId, kind, prompt: trimmed, ...(parentId ? { parentId } : {}), evidenceMode: mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload } });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
       finish(item);
     } catch (e) {
@@ -85,6 +92,32 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
       finish(item);
     } catch (e) { toast({ title: "Couldn't save", description: friendlyError(e), variant: "destructive" }); }
   };
+
+  if (compact) {
+    const promptId = `prompt-compact-${kind}`;
+    return (
+      <div className="sx-card sx-composer-wide overflow-hidden" data-testid={`composer-${kind}`}>
+        {label && <label htmlFor={promptId} className="sr-only">{label}</label>}
+        <div className="flex items-end gap-2 p-2">
+          <textarea id={promptId} rows={2} className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground" placeholder={placeholder} value={prompt} maxLength={5000} onChange={e => setPrompt(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void generate(); } }} data-testid="input-studio-prompt" />
+          <button className="sx-btn sx-primary shrink-0" disabled={!!problem || gen.isPending} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{gen.isPending ? "Sending..." : cta}</button>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[hsl(90_14%_88%)] bg-[hsl(66_22%_96%)] px-3 py-2">
+          <div className="sx-seg" role="radiogroup" aria-label="Evidence to use">
+            {MODES.map(m => (
+              <label key={m.value} title={m.hint} className={mode === m.value ? "on" : ""}>
+                <input type="radio" name={`mode-c-${kind}`} className="sr-only" checked={mode === m.value} onChange={() => setMode(m.value)} data-testid={`radio-mode-${m.value}`} />{m.label}
+              </label>
+            ))}
+          </div>
+          <label className="flex items-center gap-1.5 text-xs"><input type="checkbox" className="accent-[hsl(var(--teal))]" checked={patents} onChange={e => setPatents(e.target.checked)} data-testid="checkbox-include-patents" />Patents</label>
+          <span className="ml-auto font-mono text-[10.5px] text-muted-foreground" role="status">{problem && trimmed.length > 0 ? problem : "Ctrl + Enter to send"}</span>
+        </div>
+        {limitError && <div className="m-2 rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-3 text-sm" role="alert" data-testid="status-limit">{limitError} <Link href="/plans" className="font-medium underline">Plans &amp; usage</Link></div>}
+      </div>
+    );
+  }
 
   if (variant === "wide") {
     const active = MODES.find(m => m.value === mode);

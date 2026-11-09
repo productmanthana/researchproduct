@@ -8,7 +8,8 @@ import {
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, Download, FileText, History, LineChart, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FigureView, MissingFigure } from "./figure-view";
 import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
 import { usageLimitMessage } from "@/lib/usage-limits";
@@ -30,6 +31,12 @@ import { useActiveProject } from "@/lib/active-project";
 const GENERATABLE = new Set<string>(Object.values(StudioGenerationInputKind));
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
 const plainInline = (t: string): ReactNode => t;
+const norm = (t: string) => t.replace(/[*_`#]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+/** Display-only: drops a leading "# Title" line when it merely repeats the outer title. Saved content is untouched. */
+export function withoutRepeatedTitle(content: string, title: string): string {
+  const m = content.match(/^\s*#\s+([^\n]+)\n?/);
+  return m && norm(m[1]) === norm(title) ? content.slice(m[0].length).replace(/^\s+/, "") : content;
+}
 
 function IndexChip({ status }: { status: string }) {
   const tone = status === "indexed" || status === "ready" || status === "completed" ? "ok" : status === "failed" || status === "unavailable" ? "bad" : "warn";
@@ -60,9 +67,13 @@ type Props = {
   onOpen: (id: string | null) => void;
   onRetry?: () => void;
   extra?: ReactNode;
+  /** "default" keeps the two-column layout. "reading" gives the document full width and moves tools into a drawer. */
+  presentation?: "default" | "reading";
 };
 
-export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props) {
+export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presentation = "default" }: Props) {
+  const reading = presentation === "reading";
+  const [toolsOpen, setToolsOpen] = useState(false);
   const qc = useQueryClient();
   const { toast } = useToast();
   const save = useSaveStudioItem();
@@ -186,7 +197,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
   if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} />;
 
   return (
-    <div className="rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]" data-testid={`workspace-item-${item.id}`}>
+    <div className={reading ? "rise" : "rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]"} data-testid={`workspace-item-${item.id}`}>
       <article className="sx-card overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b bg-[hsl(66_20%_95%)] px-4 py-2.5">
           <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
@@ -194,21 +205,22 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
           <IndexChip status={item.indexStatus} />
           <div className="ml-auto flex flex-wrap gap-1.5">
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
+            {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>
-        <div className="px-5 py-5 md:px-9 md:py-8">
+        <div className={reading ? "mx-auto max-w-[760px] px-5 py-6 md:px-10 md:py-10" : "px-5 py-5 md:px-9 md:py-8"}>
           {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save this revision before exporting. Exports use the last saved revision{detailsDirty || profileDirty ? ", including its title-page details and formatting profile" : ""}.</p>}
           {!dirty && missing.length > 0 && <p className="mb-3 text-xs text-[hsl(var(--turmeric))]" role="status" data-testid="text-export-missing">Before export: {missing.join("; ")}. You can still export.</p>}
           {mode === "edit" && canSave
             ? <input className="sx-title w-full border-0 bg-transparent text-3xl outline-none" value={title} maxLength={300} onChange={e => setTitle(e.target.value)} aria-label="Title" data-testid="input-item-title" />
-            : <h2 className="sx-title text-3xl leading-tight" data-testid="text-item-title">{title}</h2>}
+            : <h2 className={`sx-title leading-tight ${reading ? "text-[32px] md:text-[38px]" : "text-3xl"}`} data-testid="text-item-title">{title}</h2>}
           <p className="mt-1 font-mono text-[11px] text-muted-foreground">created {ago(item.createdAt)} &middot; {words} words</p>
           <div className="mt-6">
             {mode === "edit" && canSave
               ? <>{(order.length > 0 || figures.length > 0) && <p className="mb-2 rounded-md border border-[hsl(var(--turmeric)/0.5)] bg-[hsl(var(--turmeric)/0.08)] px-3 py-2 text-xs" data-testid="text-figure-marker-help">Lines like <span className="font-mono">[[figure:fig-1]]</span> place a figure. Keep each on its own line. Moving a marker moves the figure; deleting the line removes the figure. A marker without saved figure data blocks saving and export.</p>}
                 <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" /></>
-              : content.trim() ? <AcademicAnswer content={content} inline={plainInline} renderFigure={renderFigure} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
+              : content.trim() ? <AcademicAnswer content={reading ? withoutRepeatedTitle(content, title) : content} inline={plainInline} renderFigure={renderFigure} /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
           </div>
           {mode !== "edit" && !isProjectInfo && <div className="mt-6"><SavedWebEvidence metadata={item.metadata} /></div>}
         </div>
@@ -245,7 +257,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
         )}
       </article>
 
-      <aside className="space-y-4">
+      {(() => { const tools = (<div className="space-y-4">
         <div className="sx-card p-4">
           <p className="sx-eyebrow mb-2 flex items-center gap-1.5"><History className="h-3.5 w-3.5" />Version history</p>
           <select className="sx-input" value={item.id} onChange={e => switchVersion(e.target.value)} data-testid="select-version">
@@ -276,8 +288,17 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra }: Props)
               <ol className="list-decimal space-y-1.5 pl-5">{m.sources.map(s => <li key={s.id}>{s.url ? <a className="underline decoration-[hsl(var(--teal)/0.4)] underline-offset-2" href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : s.title}</li>)}</ol></>}
           </div>
         )}
-        <button className="sx-btn sx-danger w-full" onClick={() => setConfirmDelete(true)} data-testid="button-delete-item"><Trash2 />Delete this revision</button>
-      </aside>
+        <button className="sx-btn sx-danger w-full" onClick={() => { setToolsOpen(false); setConfirmDelete(true); }} data-testid="button-delete-item"><Trash2 />Delete this revision</button>
+      </div>);
+        return reading
+          ? <Sheet open={toolsOpen} onOpenChange={setToolsOpen}>
+              <SheetContent side="right" className="w-full overflow-y-auto bg-[hsl(52_30%_96%)] sm:max-w-[400px]" data-testid="drawer-item-tools">
+                <SheetHeader className="mb-4 text-left"><SheetTitle className="sx-title text-xl">Versions, checks and sources</SheetTitle>
+                  <SheetDescription>Revision {item.revision} of &ldquo;{item.title}&rdquo;</SheetDescription></SheetHeader>
+                {tools}
+              </SheetContent>
+            </Sheet>
+          : <aside>{tools}</aside>; })()}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

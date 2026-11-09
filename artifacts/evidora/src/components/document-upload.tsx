@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { bytes, errMessage } from "@/lib/format";
+import { buildWorkflowView, uploadWorkflow } from "@/lib/agent-workflow";
+import { WorkflowPanel } from "@/components/agent-progress/workflow-panel";
 
 const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const TYPES = ["application/pdf", DOCX, "image/png", "image/jpeg", "image/webp"];
@@ -102,13 +104,9 @@ export function DocumentUpload({ label = "Upload document", onReady, className }
               I have the right to upload this file for my own study.
             </span>
           </label>
-          {busy && (
-            <div className="relative h-1 overflow-hidden rounded bg-muted">
-              <div className="scanline absolute inset-y-0 w-1/3 bg-primary" />
-            </div>
-          )}
+          {busy && file && (() => { const u = uploadWorkflow(stage, file.name); return <WorkflowPanel compact view={buildWorkflowView(u.input, u.observed)} />; })()}
           <DialogFooter>
-            <span className="mr-auto self-center text-xs text-muted-foreground">{stageLabel}</span>
+            <span className="mr-auto self-center text-xs text-muted-foreground" role="status">{busy ? "Keep this dialog open until the upload finishes." : stageLabel}</span>
             <Button onClick={go} disabled={!file || !!fileError || !rights || busy} data-testid="button-upload">
               {busy ? "Uploading..." : "Upload"}
             </Button>

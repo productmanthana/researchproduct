@@ -15,6 +15,8 @@ import { DECISION_LABEL, SEVERITY_LABEL, quoteRanges, reviewOf, type ReviewSourc
 import "./document-review.css";
 import { SavedWebEvidence } from "@/components/web-evidence";
 import { LiveDraft } from "@/components/live-draft";
+import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
+import { reviewWorkflow } from "@/lib/agent-workflow";
 
 const plain = (t: string): ReactNode => t;
 function proposedFigure(s: ReviewSuggestion, figures: StudioFigure[]): StudioFigure | undefined {
@@ -93,6 +95,9 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
     finally { setOrigBusy(false); }
   };
 
+  const reviewJob = item && item.kind === "document-review" && isWorking(item.status) ? reviewWorkflow(item) : null;
+  useAgentJob(reviewJob);
+
   if (q.isLoading) return <section className="es-conversation dr-doc"><div className="dr-doc-scroll"><RowSkeleton rows={4} /></div></section>;
   if (q.isError || !item) return <section className="es-conversation dr-doc"><div className="dr-doc-scroll"><ErrorState error={q.error} onRetry={() => q.refetch()} title="Couldn't open this review" /><button className="es-button" onClick={onClose} data-testid="button-review-back-error"><ArrowLeft />Back to chat</button></div></section>;
   if (item.kind !== "document-review") return <section className="es-conversation dr-doc"><div className="dr-doc-scroll"><p className="dr-note">This item is not a document review.</p><button className="es-button" onClick={onClose}><ArrowLeft />Back to chat</button></div></section>;
@@ -125,8 +130,8 @@ export function DocumentReviewWorkspace({ reviewId, onClose }: { reviewId: strin
       <div className="dr-doc-scroll">
         <div className="dr-paper">
           <p className="dr-eyebrow"><FileText />{review.originalName}</p>
-          {working && <div className="dr-working" role="status" data-testid="status-review-working"><span className="dr-scan" />{typeof item.metadata?.stage === "string" ? item.metadata.stage : "Reading your text and visuals and retrieving related evidence."} Larger documents and source retrieval can take several minutes. You can return to this saved review later.</div>}
-          {working && <LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id)]} fallback={null} />}
+          {working && reviewJob && <div className="mb-4" data-testid="status-review-working"><AgentProgressChip jobKey={reviewJob.key} /><p className="dr-note mt-2">Larger documents and source retrieval can take several minutes. You can return to this saved review later.</p></div>}
+          {working && <LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id)]} fallback={null} progressKey={reviewJob?.key} />}
           {item.status === "failed" && <div className="dr-alert" role="alert">{item.error || "This review could not be completed."}</div>}
           {view === "original" && !working && <>
             <p className="dr-note">Extracted text from your file, shown for review. Highlights mark exact quotes with a suggestion; select one to open it. Layout and formatting of the original file are not reproduced here.</p>

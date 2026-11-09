@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
 import { friendlyError } from "@/lib/studio";
+import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
+import { watchWorkflow } from "@/lib/agent-workflow";
 import { fmtDate, invalidateWatchData, isActive, STATUS_LABEL } from "@/lib/research-watch";
 
 type Props = {
@@ -40,6 +42,8 @@ export function WatchPanel({ projectId, projectName, watch, proposal, proposalSo
   const [patents, setPatents] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [open, setOpen] = useState(!compact);
+  const job = watch && isActive(watch) ? watchWorkflow({ projectId, status: watch.status, patents: watch.patents, topic: watch.topic }) : null;
+  useAgentJob(job);
   const initFor = useRef<string | null>(null);
 
   // Initialise once per project + watch existence; never reset in-progress edits on background refetch.
@@ -93,7 +97,7 @@ export function WatchPanel({ projectId, projectName, watch, proposal, proposalSo
 
   return (
     <section className="sx-card rise overflow-hidden" data-testid={`panel-watch-${projectId}`}>
-      {watch && isActive(watch) && <div className="sx-progress rounded-none" />}
+      {job && <div className="border-b px-5 py-3"><AgentProgressChip jobKey={job.key} /></div>}
       <div className="flex flex-wrap items-start gap-3 border-b px-5 py-4">
         <div className="min-w-0 flex-1">
           <p className="sx-eyebrow">Research watch &middot; {projectName}</p>

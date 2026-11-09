@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useAgentProgressContext } from "@/components/agent-progress/provider";
 import type { QueryKey } from "@tanstack/react-query";
 import { useLiveGeneration, type LiveKind, type LiveConnection } from "@/hooks/use-live-generation";
 import "./live-draft.css";
@@ -12,10 +13,14 @@ const CONN_LABEL: Record<LiveConnection, string> = {
  * Shows the server's partial draft for a running job as plain text. Before any text arrives, `fallback`
  * (the existing progress label) is rendered unchanged. No actions are offered on partial text.
  */
-export function LiveDraft({ kind, id, working, fallback, invalidate, testId }: {
+export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey }: {
   kind: LiveKind; id: string; working: boolean; fallback: ReactNode; invalidate?: QueryKey[]; testId?: string;
+  /** Shared progress popup job key; the streamed text is mirrored there as an optional preview. */
+  progressKey?: string;
 }) {
   const { draft, connection, snapshot } = useLiveGeneration(kind, id, { enabled: working, invalidate });
+  const setPreview = useAgentProgressContext()?.setPreview;
+  useEffect(() => { if (progressKey && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, setPreview, working, draft, connection]);
   const textBox=useRef<HTMLDivElement>(null);
   const follow=useRef(true);
   useLayoutEffect(()=>{follow.current=true;},[id]);

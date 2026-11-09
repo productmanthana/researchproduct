@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Mirrors the evidora :root tokens the popup uses. */
+.rap-root{--background:42 33% 95%;--foreground:216 42% 15%;--border:38 20% 84%;--card:44 40% 98%;--card-border:38 20% 85%;--muted:40 24% 90%;--muted-foreground:216 14% 40%;--primary:208 68% 31%;--primary-foreground:42 40% 97%;--ring:208 68% 38%;--vermilion:8 74% 50%;--turmeric:43 88% 58%;--cyan-ink:208 68% 31%;--leaf:158 45% 32%;--sidebar:214 48% 17%;--sidebar-foreground:40 30% 90%;--sidebar-border:214 35% 25%;--app-font-sans:'IBM Plex Sans',system-ui,sans-serif;--app-font-serif:'Fraunces',Georgia,serif;--app-font-mono:'JetBrains Mono',ui-monospace,monospace;--shadow-xl:0 24px 48px -18px hsl(216 40% 20% / .25);
+  min-height:100dvh;font-family:var(--app-font-sans);color:hsl(var(--foreground));background:hsl(var(--background))}
+:where(.rap-root) button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.rap-root *{box-sizing:border-box}.rap-root p,.rap-root h2,.rap-root ol{margin:0}
+@keyframes scan{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.4}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.rap-picker{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:80;display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 20px);padding:5px;border-radius:10px;background:hsl(var(--card));box-shadow:var(--shadow-xl)}
+.rap-picker button{padding:5px 9px;border-radius:7px;font-size:12px}
+.rap-picker button[aria-pressed=true]{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}
+.rap-modal-static{position:fixed;left:50%;top:50%;z-index:71;width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 80px);overflow-y:auto;transform:translate(-50%,-46%);border:1px solid hsl(var(--card-border));border-radius:14px;background:hsl(var(--card));box-shadow:0 40px 80px -30px hsl(216 50% 12% / .55)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.rap-root.grid-paper{background-image:linear-gradient(hsl(208 68% 31%/.06) 1px,transparent 1px),linear-gradient(90deg,hsl(208 68% 31%/.06) 1px,transparent 1px);background-size:24px 24px}

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { StudioItem } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGenerateStudioDocument, getGetStudioItemQueryKey, getListStudioItemsQueryKey, getGetUsageQueryKey, type StudioItem } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { FolderOpen, Lightbulb, MessagesSquare, Sparkles } from "lucide-react";
+import { ArrowLeft, FolderOpen, History, Lightbulb, MessagesSquare, Plus, Sparkles, Wand2 } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { ErrorState } from "@/components/states";
 import { useActiveProject } from "@/lib/active-project";
@@ -13,35 +14,70 @@ import { ItemWorkspace } from "@/components/studio/item-workspace";
 import { GenerationStatus } from "@/components/studio/generation-status";
 import { IdeaPicker } from "@/components/studio/idea-picker";
 import { AttachDocuments } from "@/components/studio/attach-documents";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useProjectItems, useStudioItem } from "@/components/studio/use-studio";
 import { useItemParam } from "@/components/studio/use-item-param";
-import { isWorking, meta } from "@/lib/studio";
+import { useToast } from "@/hooks/use-toast";
+import { friendlyError, isWorking, KIND_LABEL, meta } from "@/lib/studio";
 
 const TONES = ["170 36% 28%", "16 58% 44%", "43 70% 38%", "210 40% 34%", "330 30% 38%"];
+const SET_KEY = (ideaId: string) => `evidora-idea-from-set:${ideaId}`;
+const rememberSet = (ideaId: string, setId: string) => { try { sessionStorage.setItem(SET_KEY(ideaId), setId); } catch { /* storage unavailable */ } };
+const recallSet = (ideaId: string) => { try { return sessionStorage.getItem(SET_KEY(ideaId)); } catch { return null; } };
+const wordCount = (t: string) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+
+const DEVELOP_PROMPT = (title: string) => `Develop this selected research idea, "${title}", into a full idea brief. Use these sections: Rationale; Objectives; Research question or hypothesis; Proposed method; Evaluation plan; Feasibility; Limitations; Related work. Build on the idea text as written and on project and published evidence. Do not invent results, data, numbers or citations; where evidence is missing, say what is needed.`;
 
 function IdeaSetView({ set, confirmed, onOpenIdea }: { set: StudioItem; confirmed: StudioItem[]; onOpenIdea: (id: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [start, setStart] = useState(0);
   const ideas = meta(set).ideas;
-  useEffect(() => { if (set.status === "completed" && ideas.length) setOpen(true); }, [set.id, set.status, ideas.length]);
+  useEffect(() => { if (set.status === "completed" && ideas.length) { setStart(0); setOpen(true); } }, [set.id, set.status, ideas.length]);
   if (isWorking(set.status) || set.status === "failed") return <GenerationStatus item={set} />;
-  if (!ideas.length) return <p className="sx-card p-5 text-sm text-muted-foreground">This idea set has no structured ideas. Try generating again with more detail.</p>;
+  if (!ideas.length) return <p className="sx-card p-5 text-sm text-muted-foreground">This idea set has no structured ideas. Start a new topic with a little more detail.</p>;
   const isConfirmed = (t: string) => confirmed.some(c => c.title.trim().toLowerCase() === t.trim().toLowerCase());
+  const openAt = (i: number) => { setStart(i); setOpen(true); };
   return (
-    <div className="rise space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><p className="sx-eyebrow">Five directions</p><h2 className="sx-title text-2xl">{set.title}</h2></div>
-        <button className="sx-btn sx-primary" onClick={() => setOpen(true)} data-testid="button-review-ideas"><Sparkles />Review one by one</button>
+    <div className="rise space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0"><p className="sx-eyebrow">Five directions</p><h2 className="sx-title text-[28px] leading-tight md:text-[34px]">{set.title}</h2></div>
+        <button className="sx-btn sx-primary" onClick={() => openAt(0)} data-testid="button-review-ideas"><Sparkles />Review one by one</button>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <ol className="space-y-3">
         {ideas.map((idea, i) => (
-          <button key={i} onClick={() => setOpen(true)} className="sx-card lift p-4 text-left" style={{ borderTop: `5px solid hsl(${TONES[i % 5]})` }} data-testid={`card-idea-summary-${i}`}>
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em]" style={{ color: `hsl(${TONES[i % 5]})` }}>Idea {i + 1}{isConfirmed(idea.title) ? " · confirmed" : ""}</p>
-            <p className="sx-title mt-1 text-lg leading-snug">{idea.title}</p>
-            <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground">{idea.question}</p>
-          </button>
+          <li key={i}>
+            <button onClick={() => openAt(i)} className="sx-card lift ev-focus block w-full p-5 text-left" style={{ borderLeft: `5px solid hsl(${TONES[i % 5]})` }} data-testid={`card-idea-summary-${i}`}>
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.14em]" style={{ color: `hsl(${TONES[i % 5]})` }}>Idea {i + 1}{isConfirmed(idea.title) ? " · confirmed" : ""}</p>
+              <p className="sx-title mt-1 text-xl leading-snug">{idea.title}</p>
+              <p className="mt-2 line-clamp-3 text-[15px] leading-relaxed text-muted-foreground">{idea.question}</p>
+            </button>
+          </li>
         ))}
-      </div>
-      <IdeaPicker open={open} onOpenChange={setOpen} set={set} ideas={ideas} confirmed={confirmed} onOpenIdea={onOpenIdea} />
+      </ol>
+      <IdeaPicker open={open} onOpenChange={setOpen} set={set} ideas={ideas} confirmed={confirmed} startIndex={start} onOpenIdea={x => { rememberSet(x, set.id); onOpenIdea(x); }} />
+    </div>
+  );
+}
+
+function DevelopIdea({ item, onCreated }: { item: StudioItem; onCreated: (id: string) => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const gen = useGenerateStudioDocument();
+  const run = async () => {
+    try {
+      const created = await gen.mutateAsync({ data: { projectId: item.projectId, kind: "answer", parentId: item.id, evidenceMode: "combined", prompt: DEVELOP_PROMPT(item.title).slice(0, 4900) } });
+      qc.setQueryData(getGetStudioItemQueryKey(created.id), created);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      toast({ title: "Developing this idea", description: "A new linked brief is being written. Your original idea is unchanged." });
+      onCreated(created.id);
+    } catch (e) { toast({ title: "Couldn't start", description: friendlyError(e), variant: "destructive" }); }
+  };
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-lg border border-[hsl(var(--teal)/0.3)] bg-[hsl(var(--teal)/0.05)] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center" data-testid="panel-develop-idea">
+      <Wand2 className="hidden h-4 w-4 shrink-0 text-[hsl(var(--teal))] sm:block" aria-hidden />
+      <p className="min-w-0 flex-1 text-sm">This idea is a short outline ({wordCount(item.content)} words). Develop it into rationale, objectives, method, evaluation, feasibility, limitations and related work. The original stays as written.</p>
+      <button className="sx-btn sx-primary" disabled={gen.isPending} onClick={() => void run()} data-testid="button-develop-idea"><Sparkles />{gen.isPending ? "Starting..." : "Develop this idea"}</button>
     </div>
   );
 }
@@ -56,23 +92,55 @@ function Inner() {
   const all = useMemo(() => items.data ?? [], [items.data]);
   const confirmed = all.filter(i => i.kind === "idea");
   const [tabState, setTab] = useState(tab);
+  const [drawer, setDrawer] = useState(false);
+  const [drawerKinds, setDrawerKinds] = useState<"ideas" | "answer">(tab);
   useEffect(() => setTab(tab), [tab]);
 
   const header = <StudioHeader kicker="Ideas" title="Five directions from your own thinking." intro="Describe what you are curious about, in your own words. Evidora proposes five researchable ideas grounded in your project; confirm the ones worth keeping. Or ask a direct question about your ideas and references." />;
   if (!project) return <>{header}<NeedsProject what="Your ideas" /></>;
   const item = open.data && open.data.projectId === project.id ? open.data : undefined;
+  const fromSet = item?.kind === "idea" ? recallSet(item.id) : null;
+  const backTarget = fromSet ?? (item?.parentId && all.find(x => x.id === item.parentId)?.kind === "idea" ? item.parentId : null);
+  const backLabel = fromSet ? "Back to five ideas" : "Back to the idea";
+  const needsDevelop = item?.kind === "idea" && item.status === "completed" && wordCount(item.content) < 400;
 
-  return (
-    <div className="mx-auto max-w-[1180px]">
-      <header className="rise mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="sx-eyebrow">Ideas</p>
-          <h1 className="sx-title mt-0.5 text-2xl leading-tight md:text-[28px]">Five directions from your own thinking</h1>
+  const drawerEl = (
+    <Sheet open={drawer} onOpenChange={setDrawer}>
+      <SheetContent side="right" className="w-full overflow-y-auto bg-[hsl(52_30%_96%)] sm:max-w-[400px]" data-testid="drawer-history">
+        <SheetHeader className="mb-4 text-left">
+          <SheetTitle className="sx-title text-xl">History and uploads</SheetTitle>
+          <SheetDescription>Earlier idea sets, confirmed ideas, answers and your project documents.</SheetDescription>
+        </SheetHeader>
+        <div className="space-y-5">
+          <div>
+            <div className="sx-seg mb-3" role="radiogroup" aria-label="Show">
+              <label className={drawerKinds === "ideas" ? "on" : ""}><input type="radio" className="sr-only" checked={drawerKinds === "ideas"} onChange={() => setDrawerKinds("ideas")} data-testid="radio-history-ideas" />Ideas</label>
+              <label className={drawerKinds === "answer" ? "on" : ""}><input type="radio" className="sr-only" checked={drawerKinds === "answer"} onChange={() => setDrawerKinds("answer")} data-testid="radio-history-answers" />Answers</label>
+            </div>
+            {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
+              : <ItemList items={all} kinds={drawerKinds === "ideas" ? ["ideas", "idea", "note"] : ["answer"]} activeId={id} loading={items.isLoading} onOpen={x => { setDrawer(false); setId(x, { guard: true }); }} emptyText="Nothing here yet." />}
+          </div>
+          <AttachDocuments projectId={project.id} items={all} variant="compact" />
+          <Link href="/my-library" className="sx-btn w-full" data-testid="link-project-library-drawer"><FolderOpen />Open {project.name} library</Link>
         </div>
-        <Link href="/my-library" className="sx-btn shrink-0" data-testid="link-project-library"><FolderOpen />{project.name}</Link>
-      </header>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_284px] xl:grid-cols-[minmax(0,1fr)_312px]">
-        <section className="min-w-0 space-y-4" aria-label="Write your topic">
+      </SheetContent>
+    </Sheet>
+  );
+
+  if (!id) {
+    return (
+      <div className="mx-auto max-w-[860px]">
+        <header className="rise mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <p className="sx-eyebrow">Ideas</p>
+            <h1 className="sx-title mt-0.5 text-[28px] leading-tight md:text-[34px]">What are you curious about?</h1>
+          </div>
+          <div className="flex gap-2">
+            <button className="sx-btn" onClick={() => setDrawer(true)} data-testid="button-open-history"><History />History and uploads</button>
+            <Link href="/my-library" className="sx-btn shrink-0" data-testid="link-project-library"><FolderOpen /><span className="max-w-[160px] truncate">{project.name}</span></Link>
+          </div>
+        </header>
+        <section className="space-y-4" aria-label="Write your topic">
           <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-[hsl(90_14%_84%)]">
             <div className="flex gap-5" role="tablist" aria-label="What would you like to do?">
               <button role="tab" aria-selected={tabState === "ideas"} onClick={() => setTab("ideas")} className="sx-tab" data-testid="tab-ideas"><Lightbulb />Suggest five ideas</button>
@@ -81,32 +149,48 @@ function Inner() {
             <p className="hidden pb-2 text-xs text-muted-foreground md:block">{tabState === "ideas" ? "In your own words. Plain language is fine." : "Answers draw on your ideas and references."}</p>
           </div>
           {tabState === "ideas"
-            ? <Composer key={`ideas-${project.id}`} variant="wide" label="Describe what you are curious about" projectId={project.id} kind="ideas" saveKind="note" placeholder="Describe what you are curious about. e.g. I teach in a village school near Patna. Many children fall sick after monsoon and I wonder whether our handpump water is safe..." cta="Suggest five ideas" defaultMode="combined" onCreated={it => setId(it.id, { guard: true })} />
-            : <Composer key={`answer-${project.id}-${q}`} variant="wide" label="Ask a question about your project" projectId={project.id} kind="answer" saveKind="answer" initialPrompt={q} placeholder="e.g. Using my references, which of my ideas has the strongest evidence?" cta="Answer from my project" defaultMode="project" onCreated={it => setId(it.id, { guard: true })} />}
-          <div className="min-w-0" aria-live="polite">
-            {id && open.isLoading && <div className="sx-card h-72 animate-pulse" />}
-            {id && open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
-            {item?.kind === "ideas" && <IdeaSetView set={item} confirmed={confirmed} onOpenIdea={x => setId(x)} />}
-            {item && item.kind !== "ideas" && <ItemWorkspace item={item} allItems={all} onOpen={x => setId(x)} />}
-            {!id && (
-              <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-ideas-empty">
-                <div className="flex shrink-0 -space-x-2" aria-hidden>{TONES.map((t, i) => <span key={i} className="h-7 w-5 rounded-[3px] border border-[hsl(52_40%_98%)]" style={{ background: `hsl(${t})`, transform: `rotate(${(i - 2) * 7}deg)` }} />)}</div>
-                <p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">Your five ideas will appear here.</span> Read each one and confirm the ones you like; your choices are remembered.</p>
-              </div>
-            )}
+            ? <Composer key={`ideas-${project.id}`} variant="wide" label="Describe what you are curious about" projectId={project.id} kind="ideas" saveKind="note" placeholder="Describe what you are curious about. e.g. I teach in a village school near Patna. Many children fall sick after monsoon and I wonder whether our handpump water is safe..." cta="Suggest five ideas" defaultMode="combined" onCreated={it => setId(it.id)} />
+            : <Composer key={`answer-${project.id}-${q}`} variant="wide" label="Ask a question about your project" projectId={project.id} kind="answer" saveKind="answer" initialPrompt={q} placeholder="e.g. Using my references, which of my ideas has the strongest evidence?" cta="Answer from my project" defaultMode="project" onCreated={it => setId(it.id)} />}
+          <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-ideas-empty">
+            <div className="flex shrink-0 -space-x-2" aria-hidden>{TONES.map((t, i) => <span key={i} className="h-7 w-5 rounded-[3px] border border-[hsl(52_40%_98%)]" style={{ background: `hsl(${t})`, transform: `rotate(${(i - 2) * 7}deg)` }} />)}</div>
+            <p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">Five ideas open one by one.</span> Confirm one and it opens as a full page you can develop, edit and export.</p>
           </div>
         </section>
-        <aside className="min-w-0 space-y-4" aria-label="References and history">
-          <AttachDocuments projectId={project.id} items={all} variant="compact" />
-          <div className="sx-card p-3.5">
-            <p className="sx-eyebrow mb-2">{tabState === "ideas" ? "Idea sets and confirmed ideas" : "Project answers"}</p>
-            <div className="max-h-[340px] overflow-y-auto pr-0.5">
-              {items.isError ? <ErrorState error={items.error} onRetry={() => void items.refetch()} title="Couldn't load items" />
-                : <ItemList items={all} kinds={tabState === "ideas" ? ["ideas", "idea", "note"] : ["answer"]} activeId={id} loading={items.isLoading} onOpen={x => setId(x, { guard: true })} emptyText="Nothing here yet." />}
-            </div>
-          </div>
-        </aside>
+        {drawerEl}
       </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-[960px] pb-6">
+      <nav className="rise sticky top-0 z-20 -mx-2 mb-5 flex flex-wrap items-center gap-2 bg-[hsl(var(--background)/0.92)] px-2 py-2 backdrop-blur" aria-label="Ideas navigation">
+        <button className="sx-btn sx-primary" onClick={() => setId(null, { guard: true })} data-testid="button-new-topic"><Plus />New topic</button>
+        {backTarget && <button className="sx-btn" onClick={() => setId(backTarget, { guard: true })} data-testid="button-back-ideas"><ArrowLeft />{backLabel}</button>}
+        {item && <span className="hidden truncate font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground md:inline">{KIND_LABEL[item.kind] ?? item.kind}</span>}
+        <div className="ml-auto flex gap-2">
+          <button className="sx-btn" onClick={() => { setDrawerKinds(item?.kind === "answer" ? "answer" : "ideas"); setDrawer(true); }} data-testid="button-open-history"><History /><span className="hidden sm:inline">History and uploads</span><span className="sm:hidden">History</span></button>
+          <Link href="/my-library" className="sx-btn hidden shrink-0 sm:inline-flex" data-testid="link-project-library"><FolderOpen /><span className="max-w-[140px] truncate">{project.name}</span></Link>
+        </div>
+      </nav>
+
+      <div className="min-w-0 space-y-5" aria-live="polite">
+        {open.isLoading && <div className="space-y-3" data-testid="status-item-loading"><div className="h-10 w-2/3 animate-pulse rounded-md bg-[hsl(90_14%_88%)]" /><div className="sx-card h-80 animate-pulse" /></div>}
+        {open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
+        {!open.isLoading && !open.isError && open.data && !item && <ErrorState error={new Error("This item belongs to another project. Switch project or start a new topic.")} onRetry={() => setId(null)} title="Not in this project" />}
+        {needsDevelop && item && <DevelopIdea item={item} onCreated={x => setId(x, { guard: true })} />}
+        {item?.kind === "ideas" && <IdeaSetView set={item} confirmed={confirmed} onOpenIdea={x => setId(x)} />}
+        {item && item.kind !== "ideas" && <ItemWorkspace item={item} allItems={all} presentation="reading" onOpen={x => setId(x)} />}
+
+        {item && !isWorking(item.status) && (
+          <section aria-label="Follow up" className="sticky bottom-3 z-10 pt-2">
+            <Composer key={`follow-${item.id}`} compact parentId={item.id} label="Ask a follow-up about this"
+              projectId={project.id} kind="answer" defaultMode="project" cta="Ask"
+              placeholder={item.kind === "ideas" ? "Ask about these five ideas, or compare two of them..." : `Ask a follow-up about "${item.title.slice(0, 60)}"...`}
+              onCreated={it => setId(it.id)} />
+          </section>
+        )}
+      </div>
+      {drawerEl}
     </div>
   );
 }

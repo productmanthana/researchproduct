@@ -5,6 +5,8 @@ import { Check, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError, type IdeaCard } from "@/lib/studio";
+import { meta } from "@/lib/studio";
+import { AcademicAnswer } from "@/components/academic-answer";
 
 export function ideaProse(idea: IdeaCard) {
   return `## Research problem\n\n${idea.problem}\n\n## Research question\n\n${idea.question}\n\n## Proposed method\n\n${idea.method}\n\n## Feasibility\n\n${idea.feasibility}`;
@@ -17,24 +19,32 @@ type Props = {
   ideas: IdeaCard[];
   confirmed: StudioItem[];
   onOpenIdea: (id: string) => void;
+  /** Card to show when the dialog opens. */
+  startIndex?: number;
 };
 
-export function IdeaPicker({ open, onOpenChange, set, ideas, confirmed, onOpenIdea }: Props) {
+export function IdeaPicker({ open, onOpenChange, set, ideas, confirmed, onOpenIdea, startIndex = 0 }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const save = useSaveStudioItem();
   const [index, setIndex] = useState(0);
-  useEffect(() => { if (open) setIndex(0); }, [open, set.id]);
+  useEffect(() => { if (open) setIndex(Math.min(Math.max(0, startIndex), Math.max(0, ideas.length - 1))); }, [open, set.id, startIndex, ideas.length]);
   const idea = ideas[index];
   if (!idea) return null;
   const saved = confirmed.find(c => c.title.trim().toLowerCase() === idea.title.trim().toLowerCase());
 
   const confirm = async () => {
     try {
-      const item = await save.mutateAsync({ data: { projectId: set.projectId, kind: "idea", title: idea.title.slice(0, 300), content: `# ${idea.title}\n\n${ideaProse(idea)}` } });
+      const prose=ideaProse(idea);
+      const sourceNumbers=[...new Set([...prose.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1])))].sort((a,b)=>a-b);
+      const sources=meta(set).sources;
+      const references=sourceNumbers.filter(n=>sources[n-1]).map(n=>`[${n}] ${sources[n-1].title}. ${sources[n-1].url??""}`).join("\n\n");
+      const item = await save.mutateAsync({ data: { projectId: set.projectId, kind: "idea", title: idea.title.slice(0, 300), content: `# ${idea.title}\n\n${prose}${references?`\n\n## References\n\n${references}`:""}` } });
       qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
       await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
-      toast({ title: "Idea confirmed", description: `"${idea.title}" is saved to your project.` });
+      toast({ title: "Idea confirmed", description: `"${idea.title}" is saved. Opening it now; use Back to five ideas to review the others.` });
+      onOpenChange(false);
+      onOpenIdea(item.id);
     } catch (e) { toast({ title: "Couldn't save idea", description: friendlyError(e), variant: "destructive" }); }
   };
 
@@ -42,25 +52,25 @@ export function IdeaPicker({ open, onOpenChange, set, ideas, confirmed, onOpenId
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl gap-0 overflow-hidden border-0 p-0 sm:rounded-2xl">
-        <div className={`sx-idea sx-idea-${index % 5} p-7`} data-testid={`card-idea-${index}`}>
+      <DialogContent className="flex max-w-3xl flex-col gap-0 overflow-hidden border-0 p-0 sm:rounded-2xl">
+        <div className={`sx-idea sx-idea-${index % 5} min-h-0 overflow-y-auto p-5 sm:p-7`} data-testid={`card-idea-${index}`}>
           <DialogHeader className="text-left">
             <p className="tone font-mono text-[11px] uppercase tracking-[0.16em]">Idea {index + 1} of {ideas.length}</p>
             <DialogTitle className="sx-title text-3xl leading-tight">{idea.title}</DialogTitle>
             <DialogDescription className="sr-only">Review this research idea and confirm it if you want to keep it.</DialogDescription>
           </DialogHeader>
           <dl className="mt-5 space-y-3.5">
-            {rows.map(([k, v]) => <div key={k}><dt className="tone font-mono text-[10.5px] uppercase tracking-[0.14em]">{k}</dt><dd className="mt-0.5 text-[15px] leading-relaxed">{v}</dd></div>)}
+            {rows.map(([k, v]) => <div key={k}><dt className="tone font-mono text-[10.5px] uppercase tracking-[0.14em]">{k}</dt><dd className="mt-0.5 text-[15px] leading-relaxed"><AcademicAnswer content={v} inline={text=>text}/></dd></div>)}
           </dl>
         </div>
-        <div className="flex flex-wrap items-center gap-2 border-t bg-[hsl(66_20%_95%)] px-5 py-3.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-t bg-[hsl(66_20%_95%)] px-5 py-3.5">
           <button className="sx-btn" disabled={index === 0} onClick={() => setIndex(i => i - 1)} data-testid="button-idea-prev"><ChevronLeft />Prev</button>
           <div className="flex gap-1.5 px-1" aria-hidden>{ideas.map((_, i) => <span key={i} className={`h-2 w-2 rounded-full transition-transform ${i === index ? "scale-125 bg-[hsl(var(--teal))]" : "bg-[hsl(var(--teal)/0.25)]"}`} />)}</div>
           <button className="sx-btn" disabled={index >= ideas.length - 1} onClick={() => setIndex(i => i + 1)} data-testid="button-idea-next">Next<ChevronRight /></button>
           <div className="ml-auto flex gap-2">
             {saved
               ? <><span className="sx-chip ok" data-testid="status-idea-confirmed"><Check className="h-3 w-3" />Confirmed</span><button className="sx-btn" onClick={() => { onOpenChange(false); onOpenIdea(saved.id); }} data-testid="button-idea-open"><ExternalLink />Open</button></>
-              : <button className="sx-btn sx-primary" disabled={save.isPending} onClick={() => void confirm()} data-testid="button-idea-confirm"><Check />{save.isPending ? "Saving..." : "Confirm this idea"}</button>}
+              : <button className="sx-btn sx-primary" disabled={save.isPending} onClick={() => void confirm()} data-testid="button-idea-confirm"><Check />{save.isPending ? "Saving..." : "Confirm and open"}</button>}
           </div>
         </div>
       </DialogContent>

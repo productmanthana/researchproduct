@@ -49,3 +49,5 @@
 .sx-tab[aria-selected=true]{border-color:hsl(var(--teal));color:hsl(var(--teal));font-weight:500}
 .sx-tab:focus-visible{outline:2px solid hsl(var(--teal)/.6);outline-offset:2px;border-radius:3px}
 .sx-tab svg{width:15px;height:15px}
+.ev-focus:focus-visible{outline:2px solid hsl(var(--teal));outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.rise,.lift,.sx-composer-wide{animation:none!important;transition:none!important}.lift:hover{transform:none}}

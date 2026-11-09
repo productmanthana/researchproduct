@@ -30,6 +30,7 @@ import Patents from "@/pages/patents";
 import MyLibrary from "@/pages/my-library";
 import ResearchUpdates from "@/pages/research-updates";
 import { ActiveProjectProvider } from "@/lib/active-project";
+import { AgentProgressProvider } from "@/components/agent-progress/provider";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: {
   refetchOnWindowFocus: true,
@@ -237,8 +238,10 @@ function ClerkProviderWithRoutes() {
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
           <ActiveProjectProvider>
-            <Router />
-            <Toaster />
+            <AgentProgressProvider>
+              <Router />
+              <Toaster />
+            </AgentProgressProvider>
           </ActiveProjectProvider>
         </TooltipProvider>
       </QueryClientProvider>
