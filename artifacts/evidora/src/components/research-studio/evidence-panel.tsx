@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Analysis } from "@workspace/api-client-react";
 import { ExternalLink, Search, X } from "lucide-react";
+import { RelatedPapersExplorer } from "@/components/related-explorer";
 
 export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{analysis:Analysis;selected:string|null;onSelect:(id:string|null)=>void;revealRequest?:number}) {
   const [query,setQuery]=useState("");
@@ -47,6 +48,7 @@ export function EvidencePanel({analysis:d,selected,onSelect,revealRequest=0}:{an
       <div className="ev-inspector-head"><strong>{active.title}</strong><button aria-label="Close evidence details" onClick={()=>onSelect(null)}><X/></button></div>
       {active.refs.map(s=><p key={s.id}>[{s.n}] {s.evidenceLevel}{s.verification?` · ${s.verification}`:""}</p>)}
       {excerpts.length?excerpts.map((e,i)=><div key={i} className="ev-claim"><blockquote>“{e.quote}”</blockquote><p>[{e.n}] {e.page==null?"Page not available":`Page ${e.page}`}</p><p>{e.claim}</p></div>):<p>No supporting quote from this paper is cited in the answer. {active.abstract||"No abstract available."}</p>}
+      {(()=>{const pid="selected" in active&&(d.discoveredPapers??[]).some(x=>x.id===active.id)?active.id:active.refs.find(s=>s.paperId)?.paperId;return pid?<RelatedPapersExplorer paperId={pid} rootTitle={active.title} label="Related papers map" compact/>:null;})()}
       {/^https?:\/\//i.test(active.url)&&<a className="ev-quiet" href={active.url} target="_blank" rel="noopener noreferrer">Open original source <ExternalLink/></a>}
     </section>}
       </article>)}

@@ -6,6 +6,7 @@ import { ArrowLeft, ExternalLink, FileText, Quote, Sparkles, Unlock } from "luci
 import { PaperRow, SavePaperButton, SelectToggle, useSavedIds } from "@/components/paper-row";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
 import { selection } from "@/lib/selection";
+import { RelatedPapersExplorer } from "@/components/related-explorer";
 import { evidenceTone, num } from "@/lib/format";
 
 const TABS: { k: GetRelatedPapersKind; label: string }[] = [
@@ -22,6 +23,8 @@ export default function PaperPage() {
   const relParams = { kind };
   const related = useGetRelatedPapers(paperId, relParams, { query: { enabled: !!paperId, queryKey: getGetRelatedPapersQueryKey(paperId, relParams) } });
   const saved = useSavedIds();
+  // Read once on mount: only the "Open relationship map" instance honours ?view=related.
+  const [deepLinked] = useState(() => new URLSearchParams(window.location.search).get("view") === "related");
   // Internet comparison only after the user explicitly opens the Similar tab; the paper title is the submitted query.
   const [webOpened, setWebOpened] = useState(false);
   const webQ = webOpened && kind === "similar" ? (paper.data?.title ?? "") : "";
@@ -67,6 +70,7 @@ export default function PaperPage() {
           <div className="mt-5 flex flex-wrap gap-2">
             <SelectToggle paper={p} />
             <SavePaperButton paper={p} saved={saved.has(p.id)} />
+            <RelatedPapersExplorer paperId={p.id} rootTitle={p.title} compact />
             {p.pdfUrl && (
               <a href={p.pdfUrl} target="_blank" rel="noreferrer" className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs hover:border-foreground/40" data-testid="link-paper-pdf">
                 <FileText className="h-3.5 w-3.5" /> PDF
@@ -120,6 +124,7 @@ export default function PaperPage() {
       </div>
 
       <section className="mt-14">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Linked papers</h2><RelatedPapersExplorer paperId={p.id} rootTitle={p.title} label="Open relationship map" syncUrl defaultOpen={deepLinked} /></div>
         <div className="mb-4 flex gap-1 border-b">
           {TABS.map((t) => (
             <button

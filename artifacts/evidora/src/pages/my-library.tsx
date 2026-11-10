@@ -1,3 +1,4 @@
+import { RelatedPapersExplorer } from "@/components/related-explorer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -93,6 +94,7 @@ function Papers({ projectId }: { projectId: string }) {
         <li key={it.id} className="p-3.5">
           <Link href={`/papers/${encodeURIComponent(it.paper.id)}`} className="font-medium hover:underline" data-testid={`link-paper-${it.id}`}>{it.paper.title}</Link>
           <p className="text-xs text-muted-foreground">{authorsShort(it.paper.authors)} &middot; {it.paper.year || "n.d."}{it.paper.venue ? ` · ${it.paper.venue}` : ""}</p>
+          {it.paper.id && <div className="mt-1.5"><RelatedPapersExplorer paperId={it.paper.id} rootTitle={it.paper.title} label="Related papers" compact /></div>}
           {it.notes && <p className="mt-1 text-sm italic text-muted-foreground">{it.notes}</p>}
         </li>
       ))}

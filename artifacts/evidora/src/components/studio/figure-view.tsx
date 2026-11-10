@@ -60,6 +60,7 @@ export function FigureView({ itemId, figure, number }: { itemId: string; figure:
       </div>
       <figcaption id={`figcap-${figure.id}`} className="border-t px-4 py-3 text-[13.5px] leading-relaxed">
         <p><b className="font-semibold">Figure {number}.</b> <span className="font-medium">{figure.title || "Untitled figure"}.</span> {figure.caption}</p>
+        {figure.explanation&&<p className="mt-2" data-testid={`text-figure-explanation-${figure.id}`}>{figure.explanation}</p>}
         <p className="mt-1.5 text-xs text-muted-foreground" data-testid={`text-figure-provenance-${figure.id}`}>
           <span className="font-mono uppercase tracking-wider text-[10px]">Provenance</span> {figure.provenance || (isOriginalFigure(figure) ? "Extracted from your uploaded file, unchanged." : "")}
           {figure.expression && <> &middot; <span className="font-mono">{figure.expression}</span>{figure.range && typeof figure.range.min === "number" && typeof figure.range.max === "number" && ` over [${figure.range.min}, ${figure.range.max}]`}</>}

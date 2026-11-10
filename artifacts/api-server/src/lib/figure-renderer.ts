@@ -1,34 +1,20 @@
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import type { ScientificFigure } from "./scientific-figures";
 import { storage } from "./documents";
+import { illustratedDiagramSvg,diagramSize } from "./illustrated-diagram";
 const esc=(s:unknown)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]!));
 const palette=["#61A9BD","#CED14E","#44986D","#DD83C9"];
 const compact=(n:number)=>Math.abs(n)>=100000||Math.abs(n)>0&&Math.abs(n)<0.001?n.toExponential(2):Number(n.toPrecision(5)).toString();
 export function figureSvg(f:ScientificFigure):string {
   if(f.kind==="original")throw new Error("Original image previews are available as PNG, not editable SVG.");
-  const width=1200,height=f.kind==="diagram"?850:760;
+  if(f.kind==="diagram")return illustratedDiagramSvg(f);
+  const width=1200,height=760;
   const out:string[]=[`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${esc(f.title)}</title><rect width="100%" height="100%" fill="white"/>`];
   const text=(x:number,y:number,s:string,size=18,anchor="start",color="#172d36")=>out.push(`<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${size}" text-anchor="${anchor}" fill="${color}">${esc(s)}</text>`);
   const line=(x1:number,y1:number,x2:number,y2:number,color="#9aadb4",stroke=2)=>out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${stroke}"/>`);
   const wrap=(s:string,max=65)=>{const lines:string[]=[];let current="";for(const word of s.split(/\s+/)){if((current+" "+word).length>max&&current){lines.push(current);current=word;}else current+=(current?" ":"")+word;}if(current)lines.push(current);return lines;};
   wrap(f.title,85).slice(0,3).forEach((s,i)=>text(48,38+i*28,s,24));
-  if(f.kind==="diagram"){
-    text(48,124,"Conceptual / proposed schematic",17);
-    const nodes=f.nodes??[],edges=f.edges??[];
-    const positions=new Map(nodes.map((n,i)=>[n.id,{x:65+(i%3)*390,y:170+Math.floor(i/3)*210}]));
-    out.push('<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#3C7686"/></marker></defs>');
-    for(const e of edges){
-      const a=positions.get(e.from)!,b=positions.get(e.to)!;
-      const same=a.y===b.y,forward=b.x>a.x;
-      const x1=same?a.x+(forward?280:0):a.x+140,y1=same?a.y+50:a.y+100;
-      const x2=same?b.x+(forward?0:280):b.x+140,y2=same?b.y+50:b.y;
-      const mid=(y1+y2)/2;
-      out.push(`<path d="M${x1},${y1} ${same?`L${x2},${y2}`:`L${x1},${mid} L${x2},${mid} L${x2},${y2}`} " fill="none" stroke="#3C7686" stroke-width="2.5" marker-end="url(#arrow)"/>`);
-      if(e.label)wrap(e.label,18).slice(0,3).forEach((s,i)=>text((x1+x2)/2,(same?y1-25:mid-12)+i*18,s,13,"middle"));
-    }
-    for(const n of nodes){const p=positions.get(n.id)!;out.push(`<rect x="${p.x}" y="${p.y}" width="280" height="100" rx="10" fill="#eaf4f6" stroke="#3C7686" stroke-width="2"/>`);
-      wrap(n.label,27).slice(0,4).forEach((s,i)=>text(p.x+140,p.y+28+i*20,s,17,"middle"));}
-  }else {
+  {
     if(!f.series?.length)throw new Error("Figure has no plotted data.");
     const series=f.series,points=series.flatMap(s=>s.points);
     const left=140,right=1110,top=175,bottom=590,w=right-left,h=bottom-top;
@@ -74,4 +60,4 @@ export async function figurePng(f:ScientificFigure):Promise<Buffer>{
   ctx.drawImage(image,0,0,canvas.width,canvas.height);
   return canvas.toBuffer("image/png");
 }
-export const figureAspect=(f:ScientificFigure)=>f.kind==="original"&&f.width&&f.height?f.height/f.width:(f.kind==="diagram"?850:760)/1200;
+export const figureAspect=(f:ScientificFigure)=>f.kind==="original"&&f.width&&f.height?f.height/f.width:f.kind==="diagram"?diagramSize(f).height/diagramSize(f).width:760/1200;

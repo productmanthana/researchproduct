@@ -5,3 +5,4 @@
 - [Retrieval and spending decisions](retrieval-decisions.md) — live catalogue choice, selected-paper vectors, and why refunded allowances must not erase AI spending.
 - [Provider query contracts](provider-queries.md) — conversational punctuation is not safe query syntax; HTTP success can still be an upstream bot challenge.
 - [Stakeholder vision](stakeholder-vision.md) — the user wants originality review, journal-specific formats and proposal-based gap finding in the research journey.
+- [Research visuals](research-visuals.md) — optional paper maps with explained links and topic-specific coloured scientific illustrations, not generic boxes.

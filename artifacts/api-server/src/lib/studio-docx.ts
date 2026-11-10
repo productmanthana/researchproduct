@@ -8,17 +8,19 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   const title=row.title,body=row.content.replace(new RegExp("^# "+title.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\n"),"");
   const paragraph=(text:string,center=false)=>new Paragraph({children:[new TextRun(text)],alignment:center?AlignmentType.CENTER:undefined,spacing:{after:160,line:Math.round(l.lineSpacing*240)},widowControl:true});
-  const blocks=(text:string)=>{
+  const blocks=(text:string,columns=l.columns)=>{
     const result:(Paragraph|Table)[]=[];
     for(const b of documentBlocks(text)){
       if(b.kind==="heading")result.push(new Paragraph({text:b.text,heading:b.level===1?HeadingLevel.HEADING_1:b.level===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3,keepNext:true,pageBreakBefore:l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(b.text)}));
       else if(b.kind==="table")result.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:b.rows.map((r,i)=>new TableRow({tableHeader:i===0,children:r.map(text=>new TableCell({children:[new Paragraph({text,spacing:{line:240}})]}))}))}));
       else if(b.kind==="figure"){
         const f=figures.find(f=>f.id===b.id)!;
-        const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(l.columns===2?18:0))/l.columns*96/72);
+        const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(columns===2?18:0))/columns*96/72);
         const height=Math.min(650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
         result.push(new Paragraph({keepNext:true,children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
-        result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`),paragraph(f.provenance));
+        result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`));
+        if(f.explanation)result.push(paragraph(f.explanation));
+        result.push(paragraph(f.provenance));
       }else result.push(paragraph(b.text));
     }
     return result;
@@ -41,7 +43,13 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
     sections.push({properties:{page:{...page,pageNumbers:{start:1,formatType:NumberFormat.DECIMAL}},type:SectionType.NEXT_PAGE},footers:{default:footer},children:blocks(contentWithoutAbstract)});
   }else{
     sections.push({properties:{page},children:titleParagraphs});
-    sections.push({properties:{page,column:{count:l.columns,space:360,equalWidth:true},type:SectionType.CONTINUOUS},footers:{default:footer},children:blocks(body)});
+    // Wide scientific figures span journal columns instead of shrinking labels
+    // into unreadable thumbnails. Text resumes the selected profile afterwards.
+    const segments:string[]=l.columns===2?body.split(/(^\s*\[\[figure:[a-zA-Z0-9_-]+\]\]\s*$)/m):[body];
+    for(const segment of segments.filter(s=>s.trim())){
+      const columns=/^\s*\[\[figure:[a-zA-Z0-9_-]+\]\]\s*$/.test(segment)?1:l.columns;
+      sections.push({properties:{page,column:{count:columns,space:360,equalWidth:true},type:SectionType.CONTINUOUS},footers:{default:footer},children:blocks(segment,columns)});
+    }
   }
   return Packer.toBuffer(new Document({title,creator:d.author||"Evidora",features:{updateFields:true},
     styles:{default:{document:{run:{font:"Times New Roman",size:l.fontSize*2,color:"000000"},paragraph:{spacing:{line:Math.round(l.lineSpacing*240)}}}}},

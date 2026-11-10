@@ -3,6 +3,7 @@ import type { StudioItem } from "@workspace/api-client-react";
 export type FigureKind = "diagram" | "line" | "bar" | "scatter" | "theory" | "original";
 export type StudioFigure = {
   id: string; title: string; caption: string; kind: FigureKind; provenance: string;
+  layout?: "process" | "neural" | "cycle" | "system" | "taxonomy"; explanation?: string;
   sourceId?: string; sourceQuote?: string; xLabel?: string; yLabel?: string;
   series?: { name: string; points: { x: number | string; y: number }[] }[];
   nodes?: { id: string; label: string }[];

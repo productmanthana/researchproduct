@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 const short=z.string().min(1).max(180);
+const diagramRole=z.enum(["input","process","output","feedback","evidence"]);
+const diagramIcon=z.enum(["data","document","sensor","network","compute","experiment","compare","target","knowledge"]);
+const diagramNode=z.object({id:z.string().regex(/^[a-zA-Z0-9_-]{1,30}$/),label:short,
+  role:diagramRole.optional(),icon:diagramIcon.optional(),description:z.string().max(120).optional()});
 export const FigureProposal=z.object({
   title:short,caption:z.string().min(1).max(1200),
   kind:z.enum(["diagram","line","bar","scatter","theory"]),
@@ -12,8 +16,10 @@ export const FigureProposal=z.object({
   yColumns:z.array(z.number().int().min(0).max(30)).min(1).max(4).optional(),
   expression:z.string().min(1).max(300).optional(),
   range:z.object({min:z.number().finite(),max:z.number().finite()}).optional(),
-  nodes:z.array(z.object({id:z.string().regex(/^[a-zA-Z0-9_-]{1,30}$/),label:short})).min(2).max(9).optional(),
-  edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional()})).max(16).optional(),
+  layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
+  explanation:z.string().max(1800).optional(),
+  nodes:z.array(diagramNode).min(2).max(9).optional(),
+  edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback"]).optional()})).max(16).optional(),
 });
 export type FigureProposalType=z.infer<typeof FigureProposal>;
 export type FigureSource={id:string;title:string;text:string};
@@ -22,7 +28,8 @@ export type ScientificFigure={
   sourceId?:string;sourceQuote?:string;xLabel?:string;yLabel?:string;
   series?:{name:string;points:{x:number|string;y:number}[]}[];
   expression?:string;range?:{min:number;max:number};
-  nodes?:{id:string;label:string}[];edges?:{from:string;to:string;label?:string}[];
+  layout?:FigureProposalType["layout"];explanation?:string;
+  nodes?:z.infer<typeof diagramNode>[];edges?:{from:string;to:string;label?:string;role?:"flow"|"feedback"}[];
   svgPath?:string;pngPath?:string;
   replacesId?:string;
   width?:number;height?:number;
@@ -61,10 +68,15 @@ export function validateFigure(input:unknown,sources:FigureSource[],id:string):S
   const base:ScientificFigure={id,title:p.title,caption:p.caption,kind:p.kind,provenance:"",...(p.replacesId?{replacesId:p.replacesId}:{})};
   if(p.kind==="diagram"){
     if(!p.nodes||!p.edges)throw new Error("Diagram requires nodes and connections.");
+    if(p.layout==="cycle"&&p.nodes.length>6)throw new Error("Use at most six stages in a cycle for readable labels, or choose a process layout.");
     if(p.nodes.some(n=>n.label.length>80))throw new Error("Shorten diagram labels to 80 characters for readable rendering.");
     const ids=new Set(p.nodes.map(n=>n.id));
     if(ids.size!==p.nodes.length||p.edges.some(e=>!ids.has(e.from)||!ids.has(e.to)||e.from===e.to))throw new Error("Invalid diagram connections.");
-    return {...base,nodes:p.nodes,edges:p.edges,provenance:"Conceptual / proposed schematic — not an experimental observation."};
+    const source=sources.find(s=>s.id===p.sourceId);
+    if((p.sourceId||p.sourceQuote)&&(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote))))throw new Error("Exact source text for this diagram was not found.");
+    return {...base,layout:p.layout??"process",explanation:p.explanation,nodes:p.nodes,edges:p.edges,
+      ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
+      provenance:"Conceptual / proposed schematic — not an experimental observation."+(source?` Based on supplied source: ${source.title}.`:"")};
   }
   const source=sources.find(s=>s.id===p.sourceId);
   if(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote)))throw new Error("Exact source text for this figure was not found.");

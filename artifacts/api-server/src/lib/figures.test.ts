@@ -52,14 +52,37 @@ test("figure markers preserve order and missing figures block export",()=>{
   assert.deepEqual(referencedFigures("[[figure:fig-test]]\n[[figure:fig-test]]",[f]),[f]);
   assert.throws(()=>referencedFigures("[[figure:missing]]",[f]),/missing/);
 });
+test("illustrated diagrams retain role colours, layout, feedback and escaped explanatory labels",async()=>{
+  for(const layout of ["process","neural","cycle","system","taxonomy"] as const){
+    const f=validateFigure({kind:"diagram",layout,title:"Proposed training <architecture>",caption:"Conceptual illustration only.",
+      explanation:"Blue identifies input data; the dashed return path represents the proposed update step.",
+      nodes:[{id:"input",label:"Input signals",role:"input",icon:"sensor",description:"User-supplied signals; no measured outcomes."},
+        {id:"model",label:"Model learning",role:"process",icon:"network"},{id:"output",label:"Evaluation",role:"output",icon:"target"}],
+      edges:[{from:"input",to:"model",label:"Input data"},{from:"model",to:"output"},{from:"output",to:"model",role:"feedback",label:"Update"}]},[],"fig-illustrated");
+    assert.equal(f.layout,layout);assert.match(f.explanation!,/Blue/);
+    const svg=figureSvg(f);assert.match(svg,/&lt;architecture&gt;/);assert.match(svg,/Feedback \/ revision/);
+    assert.match(svg,/stroke-dasharray="8 5"/);assert.match(svg,/<polygon points=/);assert.match(svg,/#1e6683/);assert.match(svg,/#65508a/);
+    assert.match(svg,/Scientific|Conceptual/);assert.doesNotMatch(svg,/<script|NaN|undefined/);
+    const png=await figurePng(f);assert.equal(png.subarray(1,4).toString(),"PNG");
+  }
+});
 test("Word and PDF contain real embedded image figures with numbered captions",async()=>{
-  const f=validateFigure(chart,sources,"fig-test");
+  const f={...validateFigure(chart,sources,"fig-test"),explanation:"Supplied wind speed measurements are plotted without inferred values."};
   const row={title:"Scientific figure export",kind:"answer",content:"## Findings\nSupplied observations appear in Figure 1.\n\n[[figure:fig-test]]",metadata:{figures:[f]}};
   const word=await renderStudioWord(row);
   const converted=await mammoth.convertToHtml({buffer:word});
   assert.match(converted.value,/<img /);
   assert.match(converted.value,/Figure 1/);
+  assert.match(converted.value,/without inferred values/);
   assert.doesNotMatch(converted.value,/\[\[figure:/);
   const pdf=await renderStudioPdf(row);
   assert.match(pdf.toString("latin1"),/\/Subtype \/Image/);
+});
+test("two-column journals export scientific figures across the full page width",async()=>{
+  const f=validateFigure({kind:"diagram",layout:"system",title:"Proposed sensor system",caption:"Conceptual, not measured.",
+    nodes:[{id:"a",label:"Input",role:"input"},{id:"b",label:"Output",role:"output"}],edges:[{from:"a",to:"b"}]},[],"fig-wide");
+  const row={title:"Wide figure export",kind:"journal",content:"## Method\nProposed method.\n\n[[figure:fig-wide]]\n\n## Discussion\nNo experiment results.",metadata:{templateId:"ieee-access",figures:[f]}};
+  const word=await renderStudioWord(row),converted=await mammoth.convertToHtml({buffer:word});
+  assert.match(converted.value,/<img /);assert.match(converted.value,/No experiment results/);
+  const pdf=await renderStudioPdf(row);assert.match(pdf.toString("latin1"),/\/Subtype \/Image/);
 });

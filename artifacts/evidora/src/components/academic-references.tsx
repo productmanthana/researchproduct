@@ -1,3 +1,4 @@
+import { RelatedPapersExplorer } from "@/components/related-explorer";
 import { Fragment, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { referenceLinkLabel, referenceLinks, safeReferenceUrl, type ReferenceEntry } from "@/lib/references";
@@ -37,6 +38,7 @@ export function AcademicReferences({entries,title="References",idPrefix,onInspec
             <div className="academic-reference-actions">
               {href?<a className="academic-reference-open" href={href} target="_blank" rel="noopener noreferrer" aria-label={`Open reference ${entry.number} in a new tab`}><ExternalLink aria-hidden="true"/><span>{referenceLinkLabel(href)}</span></a>:<span className="academic-reference-unavailable">Source link unavailable</span>}
               {entry.evidence&&<span className="academic-reference-evidence">{entry.evidence}</span>}
+              {entry.paperId&&<RelatedPapersExplorer paperId={entry.paperId} rootTitle={entry.title} label="Related" compact/>}
             </div>
           </div>
         </li>;

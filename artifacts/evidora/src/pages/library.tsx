@@ -1,3 +1,4 @@
+import { RelatedPapersExplorer } from "@/components/related-explorer";
 import { useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -130,6 +131,7 @@ export function LibraryList({ params, projects }: { params?: ListLibraryParams; 
                 <Link href={`/papers/${encodeURIComponent(item.paper.id)}`} className="font-display text-[17px] font-medium leading-snug hover:underline decoration-turmeric decoration-2 underline-offset-4">
                   {item.paper.title}
                 </Link>
+                <div className="mt-1.5"><RelatedPapersExplorer paperId={item.paper.id} rootTitle={item.paper.title} label="Related papers" compact /></div>
                 <p className="mt-0.5 text-sm text-muted-foreground">
                   {authorsShort(item.paper.authors)} <span className="font-mono">&middot; {item.paper.year}</span>
                 </p>

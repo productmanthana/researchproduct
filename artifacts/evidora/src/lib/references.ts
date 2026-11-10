@@ -1,5 +1,5 @@
 export type ReferenceSource = {title:string;url?:string};
-export type ReferenceEntry = {number:number;citation:string;title?:string;href?:string;evidence?:string};
+export type ReferenceEntry = {number:number;citation:string;title?:string;href?:string;evidence?:string;paperId?:string};
 type AnalysisReferenceSource={title:string;url:string;paperId?:string|null;evidenceLevel?:string|null};
 type ReferencePaper={id:string;authors:string[];year?:number|null;publicationDate?:string|null;publisher?:string|null};
 export type LinkToken = {start:number;end:number;label:string;href:string;raw:string};
@@ -23,7 +23,7 @@ export function analysisReferenceEntries(sources:AnalysisReferenceSource[],paper
     const paper=papers.find(p=>p.id===source.paperId);
     const year=paper?.year??paper?.publicationDate?.slice(0,4);
     const authors=paper?.authors.join(", ");
-    return {number:i+1,title:source.title,href:safeReferenceUrl(source.url),evidence:source.evidenceLevel??undefined,
+    return {number:i+1,title:source.title,href:safeReferenceUrl(source.url),evidence:source.evidenceLevel??undefined,...(source.paperId?{paperId:source.paperId}:{}),
       citation:[authors,year?`(${year}).`:undefined,`${source.title}.`,paper?.publisher?`${paper.publisher}.`:undefined].filter(Boolean).join(" ")};
   });
 }

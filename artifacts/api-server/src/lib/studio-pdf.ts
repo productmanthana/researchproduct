@@ -74,12 +74,16 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         }else if(block.kind==="paragraph")text(block.text);
         else if(block.kind==="figure"){
           const f=figures.find(f=>f.id===block.id)!;
+          const previousColumns=columns;
+          if(columns===2){columns=1;addPage();}
           const imageHeight=Math.min(width()*figureAspect(f),pdf.page.height-l.margins.top-l.margins.bottom-100);
           ensure(imageHeight+50);
           pdf.image(images.get(f.id)!,x(),y,{width:imageHeight/figureAspect(f),height:imageHeight});
           y+=imageHeight+8;
           text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
+          if(f.explanation)text(f.explanation,10,false,false,1.3);
           text(f.provenance,9,false,false,1.15);
+          if(previousColumns===2){columns=previousColumns;addPage();}
         }
         else{
           for(let r=0;r<block.rows.length;r++){
