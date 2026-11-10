@@ -1779,7 +1779,7 @@ export const ExportAnalysisParams = zod.object({
 })
 
 export const ExportAnalysisQueryParams = zod.object({
-  "format": zod.enum(['md', 'docx']).optional(),
+  "format": zod.enum(['md', 'docx', 'pdf']).optional(),
   "style": zod.enum(['ieee', 'apa']).optional()
 })
 

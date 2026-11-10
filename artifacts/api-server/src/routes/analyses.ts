@@ -116,6 +116,8 @@ router.get("/analyses/:id/export",requireUser,async(req,res)=>{
   if(format==="docx") {
     res.type("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.send(output);
+  } else if(format==="pdf") {
+    res.type("application/pdf");res.send(output);
   } else { res.type("text/markdown");res.send(output); }
 });
 export default router;

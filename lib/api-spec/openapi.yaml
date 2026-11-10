@@ -1154,7 +1154,8 @@
               "type": "string",
               "enum": [
                 "md",
-                "docx"
+                "docx",
+                "pdf"
               ]
             },
             "required": false

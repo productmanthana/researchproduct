@@ -3,7 +3,9 @@ import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
 import { useGenerateStudioDocument, useSaveStudioItem, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis, useCreateDocumentReview, useListDocuments, getListDocumentsQueryKey, useListStudioItems, type Document } from "@workspace/api-client-react";
-import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, FolderOpen, History, LogOut, Plus, ScanSearch, Wind, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUp, BookOpen, Check, ChevronDown, Copy, FileText, FolderOpen, History, LogOut, Plus, ScanSearch, Wind, X } from "lucide-react";
+import { exportAnalysis } from "@workspace/api-client-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { RequireAuth } from "@/components/require-auth";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
 import { StudioTurn } from "@/components/research-studio/turn";
@@ -84,6 +86,7 @@ function AskInner() {
   const [draftEditing, setDraftEditing] = useState(false);
   const [draftSectionId, setDraftSectionId] = useState<string | null>(null);
   const [copied, setCopied] = useState("");
+  const [exporting, setExporting] = useState<string | null>(null);
   const [attached, setAttached] = useState<Document | null>(null);
   const [pagesText, setPagesText] = useState("");
   const [pickOpen, setPickOpen] = useState(false);
@@ -321,6 +324,20 @@ function AskInner() {
       setCopied("Answer and references copied.");
     } catch { setCopied("Copy unavailable. Select the answer text to copy."); }
   };
+  const downloadAnswer = async (analysis: Analysis, format: "pdf" | "docx") => {
+    setExporting(analysis.id);
+    try {
+      const blob = await exportAnalysis(analysis.id, { format, style: "ieee" }, { responseType: "blob" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `evidora-answer.${format}`;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (error) {
+      toast({ title: "Export failed", description: friendlyError(error), variant: "destructive" });
+    } finally { setExporting(null); }
+  };
   const exportDraft = () => {
     if (!editor) return;
     const url = URL.createObjectURL(new Blob([editor.content], { type: "text/markdown" }));
@@ -373,11 +390,13 @@ function AskInner() {
                 {analysis.responseMode !== "guidance" && analysis.content && <SaveAnalysisToProject analysis={analysis} />}
                 {analysis.content && <>
                   <button className="es-button" onClick={() => void copyAnswer(analysis)}><Copy />Copy answer</button>
-                  <button className="es-button" onClick={() => {
-                    const references = answerReferences(analysis);
-                    const url = URL.createObjectURL(new Blob([analysis.content + (references ? `\n\n## References\n\n${references}` : "")], { type: "text/markdown" }));
-                    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "evidora-answer.md"; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  }}><ArrowDownToLine />Export</button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><button className="es-button" disabled={exporting !== null} aria-label="Export answer" data-testid={`button-export-${analysis.id}`}><ArrowDownToLine />{exporting === analysis.id ? "Preparing…" : "Export"}<ChevronDown /></button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-44 border-[#dce1d5] bg-[#fcfbf7] text-[#263d3b]">
+                      <DropdownMenuItem onSelect={() => void downloadAnswer(analysis, "pdf")}><ArrowDownToLine className="mr-2 h-4 w-4" />PDF (.pdf)</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => void downloadAnswer(analysis, "docx")}><FileText className="mr-2 h-4 w-4" />Word (.docx)</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </>}
               </div>}
             </div>)}

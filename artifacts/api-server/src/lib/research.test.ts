@@ -524,6 +524,15 @@ test("Both CSL export styles include evidence, disclosure and valid DOCX bytes",
   const apa=await exportResearch(view,"apa","md");assert.match(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
   const ieee=await exportResearch(view,"ieee","md");assert.match(String(ieee),/\[1\]/);
   const docx=await exportResearch(view,"ieee","docx");assert.ok(Buffer.isBuffer(docx));assert.equal(docx.subarray(0,2).toString(),"PK");
+  const pdf=await exportResearch(view,"ieee","pdf");assert.ok(Buffer.isBuffer(pdf));assert.equal(pdf.subarray(0,5).toString(),"%PDF-");
+});
+test("Conversational answers export as PDF and Word without paper references",async()=>{
+  const view={question:"Help me choose a topic",content:"## Research directions\n\nChoose a field that interests you.",sources:[],warnings:[],comparisonRows:[]};
+  for(const format of ["pdf","docx"] as const){
+    const output=await exportResearch(view,"ieee",format);
+    assert.ok(Buffer.isBuffer(output));
+    assert.equal(output.subarray(0,format==="pdf"?5:2).toString(),format==="pdf"?"%PDF-":"PK");
+  }
 });
 test("Guided Ask accepts only bounded intent replies and routes ambiguous turns to guidance",()=>{
   assert.deepEqual(routeAskIntent({intent:"guidance",reply:"Which field interests you, and what makes it timely?",standaloneQuestion:"latest topic"}),{

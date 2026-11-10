@@ -823,6 +823,7 @@ export type ExportAnalysisFormat = typeof ExportAnalysisFormat[keyof typeof Expo
 export const ExportAnalysisFormat = {
   md: 'md',
   docx: 'docx',
+  pdf: 'pdf',
 } as const;
 
 export type ExportAnalysisStyle = typeof ExportAnalysisStyle[keyof typeof ExportAnalysisStyle];
