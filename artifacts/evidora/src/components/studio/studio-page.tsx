@@ -5,6 +5,7 @@ import { FolderOpen } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { ErrorState } from "@/components/states";
 import { useActiveProject } from "@/lib/active-project";
+import { itemLoadFailure } from "@/lib/request-errors";
 import { NeedsProject } from "./project-switcher";
 import { Composer } from "./composer";
 import { ItemList } from "./item-list";
@@ -59,6 +60,7 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
 
   if (!project) return <><StudioHeader {...cfg} /><NeedsProject what={`Your ${cfg.kicker.toLowerCase()}`} /></>;
   const item: StudioItem | undefined = open.data && open.data.projectId === project.id ? open.data : undefined;
+  const loadFailure = itemLoadFailure(!!item);
   const attach = <ProjectAttachMenu projectId={project.id} items={all} />;
 
   const drawerEl = (
@@ -112,7 +114,7 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
       <WorkspaceBar newLabel="New draft" onNew={() => setId(null, { guard: true })} label={cfg.kicker} onHistory={() => setDrawer(true)} projectName={project.name} />
       <section className="min-w-0 space-y-5" aria-label="Working draft" aria-live="polite">
         {open.isLoading && <div className="space-y-3" data-testid="status-item-loading"><div className="h-10 w-2/3 animate-pulse rounded-md bg-[hsl(90_14%_88%)]" /><div className="sx-card h-80 animate-pulse" /></div>}
-        {open.isError && <ErrorState error={open.error} onRetry={() => void open.refetch()} title="Couldn't open this item" />}
+        {open.isError && <ErrorState error={loadFailure.message ? { message: loadFailure.message } : open.error} onRetry={() => void open.refetch()} title={loadFailure.title} />}
         {open.data && !item && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it, or start a new draft.</p>}
         {item && <StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} />}
       </section>

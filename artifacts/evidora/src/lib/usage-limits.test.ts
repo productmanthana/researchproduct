@@ -5,6 +5,19 @@ import { markdownSections, replaceMarkdownSection } from "../pages/draft-markdow
 import { askSendDisabled } from "../pages/ask-workspace-state";
 import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
+import { requestErrorMessage, itemLoadFailure } from "./request-errors";
+
+test("Gateway HTML is not displayed as an error, but real API explanations are preserved", () => {
+  const html = 'HTTP 404 Not Found: <!DOCTYPE html><html><head><title>This project is not available right now</title>';
+  assert.equal(requestErrorMessage({ message: html }), "The service could not be reached. Please try again shortly.");
+  assert.equal(requestErrorMessage({ data: { error: html } }), "The service could not be reached. Please try again shortly.");
+  assert.equal(requestErrorMessage({ data: { error: "This document was deleted." } }), "This document was deleted.");
+  assert.equal(requestErrorMessage(null, "Retry later"), "Retry later");
+  assert.equal(itemLoadFailure(true).title, "Couldn't refresh this draft");
+  assert.match(itemLoadFailure(true).message!, /last loaded version/);
+  assert.equal(itemLoadFailure(false).title, "Couldn't open this item");
+  assert.equal(itemLoadFailure(false).message, null);
+});
 
 test("AI Chat routes real writing assignments into document generation without requiring 'my references'",()=>{
   for(const text of ["Provide a journal paper on smart grid energy management","I told to write journal paper for submitting from my side","Write a research paper with coloured diagrams","Create an IEEE journal paper","Generate a manuscript on smart grids"]){

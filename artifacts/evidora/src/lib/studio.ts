@@ -1,6 +1,7 @@
 import { isFigureRequest } from "./figures";
 import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, type ChatContext } from "./chat-document";
+import { requestErrorMessage } from "./request-errors";
 import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
@@ -34,8 +35,7 @@ export function statusOf(e: unknown): number | undefined {
 
 export function friendlyError(e: unknown): string {
   const s = statusOf(e);
-  const anyE = e as { data?: { error?: string }; message?: string } | null;
-  const base = anyE?.data?.error || anyE?.message || "Something went wrong.";
+  const base = requestErrorMessage(e, "Something went wrong.");
   if (s === 429) return `You have reached a usage or rate limit. ${base} See Plans & usage, or try again shortly.`;
   if (s === 409) return `${base} Your edits on screen are kept.`;
   if (s === 503) return `${base} The service is temporarily unavailable. Part of the action may already have completed; refresh to see the current state, then retry.`;

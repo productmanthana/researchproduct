@@ -1,4 +1,5 @@
 import { formatDistanceToNow } from "date-fns";
+import { requestErrorMessage } from "./request-errors";
 
 export function authorsShort(authors: string[], max = 3): string {
   if (!authors?.length) return "Unknown authors";
@@ -29,9 +30,7 @@ export function inr(n: number): string {
 }
 
 export function errMessage(e: unknown, fallback = "Something went wrong"): string {
-  if (!e) return fallback;
-  const anyE = e as { data?: { error?: string }; message?: string };
-  return anyE?.data?.error || anyE?.message || fallback;
+  return requestErrorMessage(e, fallback);
 }
 
 export function evidenceTone(level: string): string {
