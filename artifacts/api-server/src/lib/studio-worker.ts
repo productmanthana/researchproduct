@@ -19,6 +19,7 @@ import { logger } from "./logger";
 import { figureRequested, planStudioFigures, persistStudioFigures } from "./studio-figures";
 import { referencedFigures, type FigureSource, type ScientificFigure } from "./scientific-figures";
 import { generateDocumentReview } from "./document-review";
+import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
 
@@ -169,7 +170,7 @@ export async function processStudioJob() {
     const result=await pool.query(`UPDATE research_studio_items SET status='running',started_at=now() WHERE id=(SELECT id FROM research_studio_items WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`);
     row=result.rows[0];if(!row)return;
     heartbeat=setInterval(()=>{void pool.query("UPDATE research_studio_items SET started_at=now() WHERE id=$1 AND status='running'",[row.id]).catch(()=>{});},30000);heartbeat.unref();
-    const generated=await withLiveGeneration("studio",row.id,()=>aiContext.run({owner:row.owner_id,analysisId:row.id},()=>retrievalContext.run({},()=>row.kind==="document-review"?generateDocumentReview(row):generate(row))));
+    const generated=await withLiveGeneration("studio",row.id,()=>aiContext.run({owner:row.owner_id,analysisId:row.id},()=>retrievalContext.run({},()=>row.metadata.paperReview?generatePaperReview(row):row.kind==="document-review"?generateDocumentReview(row):generate(row))));
     const client=await pool.connect();
     try{
       await client.query("BEGIN");

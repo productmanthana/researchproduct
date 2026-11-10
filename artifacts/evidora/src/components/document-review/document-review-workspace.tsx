@@ -117,7 +117,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: {
   return <>
     <section className="es-conversation dr-doc" aria-label="Reviewed document">
       <div className="dr-doc-bar">
-        <button className="es-button dr-small" onClick={onClose} data-testid="button-review-back"><ArrowLeft />Chat</button>
+        <button className="es-button dr-small" onClick={onClose} data-testid="button-review-back"><ArrowLeft />{(item.metadata as Record<string,unknown>)?.paperReview ? "Paper Review" : "Chat"}</button>
         <div className="dr-toggle" role="tablist" aria-label="Document version">
           <button role="tab" aria-selected={view === "original"} onClick={() => setView("original")} data-testid="tab-review-original">Original text</button>
           <button role="tab" aria-selected={view === "draft"} disabled={!draftId} title={draftId ? undefined : "Approve a change to create a working draft"} onClick={() => setView("draft")} data-testid="tab-review-draft">Approved working draft</button>
@@ -143,7 +143,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: {
     </section>
 
     <aside className="es-panel dr-panel" aria-label="Review suggestions">
-      <div className="es-panel-header"><h2>Suggestions <span className="es-small">/ {pending.length} open</span></h2><button className="es-icon" aria-label="Close review and return to chat" onClick={onClose}><X /></button></div>
+      <div className="es-panel-header"><h2>Suggestions <span className="es-small">/ {pending.length} open</span></h2><button className="es-icon" aria-label={(item.metadata as Record<string,unknown>)?.paperReview ? "Close review" : "Close review and return to chat"} onClick={onClose}><X /></button></div>
       <div className="dr-panel-scroll">
         <Coverage review={review} working={working} metadata={item.metadata} />
         {conflict && <div className="dr-alert" role="alert" data-testid="status-review-conflict"><AlertTriangle />{conflict}</div>}

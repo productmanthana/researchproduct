@@ -6,3 +6,4 @@
 - [Provider query contracts](provider-queries.md) — conversational punctuation is not safe query syntax; HTTP success can still be an upstream bot challenge.
 - [Stakeholder vision](stakeholder-vision.md) — the user wants originality review, journal-specific formats and proposal-based gap finding in the research journey.
 - [Research visuals](research-visuals.md) — optional paper maps with explained links and topic-specific coloured scientific illustrations, not generic boxes.
+- [Paper Review](paper-review-policy.md) — manuscript scorecards with bounded scholarly/patent comparisons; estimates, not publication or novelty guarantees.

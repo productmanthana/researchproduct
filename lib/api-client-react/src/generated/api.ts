@@ -29,6 +29,7 @@ import type {
   AnalysisDraftUpdate,
   AnalysisInput,
   AnalysisUpdate,
+  CreatePaperReviewBody,
   DeleteStudioItem200,
   Document,
   DocumentLink,
@@ -101,6 +102,183 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getCreatePaperReviewUrl = () => {
+
+
+
+
+  return `/api/studio/paper-reviews`
+}
+
+export const createPaperReview = async (createPaperReviewBody: CreatePaperReviewBody, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioItem>(getCreatePaperReviewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(createPaperReviewBody)
+  }
+);}
+
+
+
+
+
+export const getCreatePaperReviewMutationKey = () => ['createPaperReview'] as const;
+
+export const getCreatePaperReviewMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaperReview>>, TError,CreatePaperReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaperReview>>, TError,CreatePaperReviewMutationVariables, TContext> => {
+
+const mutationKey = getCreatePaperReviewMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaperReview>>, CreatePaperReviewMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPaperReview(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaperReviewMutationResult = NonNullable<Awaited<ReturnType<typeof createPaperReview>>>
+    export type CreatePaperReviewMutationBody = BodyType<CreatePaperReviewBody>
+    export type CreatePaperReviewMutationError = ErrorType<unknown>
+    export type CreatePaperReviewMutationVariables = {data: BodyType<CreatePaperReviewBody>}
+
+    export const useCreatePaperReview = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaperReview>>, TError,CreatePaperReviewMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPaperReview>>,
+        TError,
+        CreatePaperReviewMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePaperReviewMutationOptions(options), queryClient);
+    }
+
+export const getExportPaperScorecardUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/scorecard`
+}
+
+export const exportPaperScorecard = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getExportPaperScorecardUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportPaperScorecardQueryKey = (id: string,) => {
+    return [
+    `/api/studio/items/${id}/scorecard`
+    ] as const;
+    }
+
+
+export const getExportPaperScorecardQueryOptions = <TData = Awaited<ReturnType<typeof exportPaperScorecard>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportPaperScorecardQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportPaperScorecard>>> = ({ signal }) => exportPaperScorecard(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ExportPaperScorecardQueryResult = NonNullable<Awaited<ReturnType<typeof exportPaperScorecard>>>
+export type ExportPaperScorecardQueryError = ErrorType<unknown>
+
+
+export function useExportPaperScorecard<TData = Awaited<ReturnType<typeof exportPaperScorecard>>, TError = ErrorType<unknown>>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportPaperScorecard>>,
+          TError,
+          Awaited<ReturnType<typeof exportPaperScorecard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportPaperScorecard<TData = Awaited<ReturnType<typeof exportPaperScorecard>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof exportPaperScorecard>>,
+          TError,
+          Awaited<ReturnType<typeof exportPaperScorecard>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useExportPaperScorecard<TData = Awaited<ReturnType<typeof exportPaperScorecard>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useExportPaperScorecard<TData = Awaited<ReturnType<typeof exportPaperScorecard>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof exportPaperScorecard>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getExportPaperScorecardQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getDownloadAnalysisFigureUrl = (id: string,
     figureId: string,

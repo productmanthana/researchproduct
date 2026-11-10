@@ -72,7 +72,7 @@ router.post("/studio/items/:id/review-decisions",async(req,res)=>{
       content=content.replace(/\n\n## Evidence for approved review changes\n[\s\S]*$/,"");
       if(sources.length)content+=`\n\n## Evidence for approved review changes\n\n${sources.map((s:any)=>`[${s.id}] ${s.title}. ${s.url}\nEvidence: ${s.evidenceLevel}`).join("\n\n")}`;
       const nextId=randomUUID(),metadata={...current.metadata,reviewId:row.id,figures,sources,reviewedWorkingDraft:true};
-      for(const key of ["pdfExport","docxExport","review","reviewedAt","reviewSuggestions","currentDraftId","request","figureRevisionOf"])delete metadata[key];
+      for(const key of ["pdfExport","docxExport","review","reviewedAt","reviewSuggestions","currentDraftId","request","figureRevisionOf","paperReview","scorecard","similarity","sourceItemId","sourceRevision"])delete metadata[key];
       metadata.warnings=["Converted working draft with individually approved changes. Original uploaded file and its layout are preserved separately. Recheck citations, numerical values and formatting before publication."];
       await client.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)
         VALUES($1,$2,$3,'answer',$4,$5,$6,$7,$8)`,[nextId,owner,row.project_id,`Reviewed draft: ${row.metadata.originalName}`,content,current.id,current.revision+1,JSON.stringify(metadata)]);

@@ -18,7 +18,7 @@ export function ItemList({ items, kinds, activeId, onOpen, loading, emptyText }:
             data-testid={`button-open-item-${i.id}`}>
             <span className="flex items-start gap-2"><FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[hsl(var(--teal))]" /><span className="line-clamp-2 font-medium">{i.title}</span></span>
             <span className="mt-1 flex items-center gap-1.5 pl-5 font-mono text-[10.5px] text-muted-foreground">
-              {KIND_LABEL[i.kind] ?? i.kind} &middot; rev {i.revision} &middot; {ago(i.createdAt)}
+              {(i.metadata as Record<string,unknown>|null)?.paperReview ? "Paper review" : KIND_LABEL[i.kind] ?? i.kind} &middot; rev {i.revision} &middot; {ago(i.createdAt)}
               {isWorking(i.status) && <span className="pulse-dot ml-1 h-1.5 w-1.5 rounded-full bg-[hsl(var(--teal))]" />}
               {i.status === "failed" && <span className="text-vermilion">failed</span>}
             </span>

@@ -1,0 +1,22 @@
+.paper-review-document.es-root {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.paper-review-document .es-workspace {
+  height: min(760px, 85dvh);
+  min-height: 480px;
+}
+.paper-review-mobile-tabs { display: none; }
+@media (max-width: 767px) {
+  .paper-review-mobile-tabs { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line); }
+  .paper-review-mobile-tabs button { flex: 1; padding: 10px; border-radius: 6px; }
+  .paper-review-mobile-tabs button[aria-selected="true"] { background: var(--teal); color: var(--surface); }
+  .paper-review-document .es-workspace { height: auto; min-height: 320px; }
+  .paper-review-document[data-mobile-view="document"] .dr-panel { display: none; }
+  .paper-review-document[data-mobile-view="feedback"] .dr-doc { display: none; }
+  .paper-review-document .dr-panel { max-width: 100%; }
+}

@@ -687,6 +687,24 @@ export interface DocumentLink {
   paperId: string | null;
 }
 
+export type CreatePaperReviewBodyDocumentType = typeof CreatePaperReviewBodyDocumentType[keyof typeof CreatePaperReviewBodyDocumentType];
+
+
+export const CreatePaperReviewBodyDocumentType = {
+  manuscript: 'manuscript',
+  proposal: 'proposal',
+  thesis: 'thesis',
+  literature: 'literature',
+} as const;
+
+export type CreatePaperReviewBody = {
+  projectId: string;
+  sourceItemId: string;
+  documentType: CreatePaperReviewBodyDocumentType;
+  /** @maxLength 2000 */
+  target?: string;
+};
+
 export type DownloadAnalysisFigureParams = {
 format: DownloadAnalysisFigureFormat;
 };

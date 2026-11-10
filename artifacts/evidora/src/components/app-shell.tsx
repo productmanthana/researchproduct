@@ -5,6 +5,7 @@ import { useGetUsage, getGetUsageQueryKey, useGetAccount, getGetAccountQueryKey 
 import {
   BellRing, BookMarked, BookOpenText, Compass, FlaskConical, FolderKanban, GraduationCap, Leaf, Library, Lightbulb, LineChart, LogOut, Menu,
   MessageSquareText, Newspaper, Plug, Receipt, ScanSearch, ScrollText, Stamp, X,
+  ClipboardCheck,
 } from "lucide-react";
 import { AlertBell } from "@/components/research/alert-bell";
 import { UsageMeters } from "@/components/usage-meters";
@@ -25,6 +26,7 @@ const GROUPS = [
   ] },
   { label: "Check", items: [
     { href: "/originality", label: "Originality", icon: ScanSearch },
+    { href: "/paper-review", label: "Paper Review", icon: ClipboardCheck },
     { href: "/patents", label: "Patents", icon: Stamp },
   ] },
   { label: "Evidence", items: [

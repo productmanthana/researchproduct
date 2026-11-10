@@ -21,6 +21,8 @@ export * from './comparisonCell';
 export * from './comparisonCellEvidenceItem';
 export * from './comparisonCellStatus';
 export * from './comparisonRow';
+export * from './createPaperReviewBody';
+export * from './createPaperReviewBodyDocumentType';
 export * from './deleteStudioItem200';
 export * from './discoveredPaper';
 export * from './document';

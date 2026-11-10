@@ -153,10 +153,10 @@ function Inner() {
               </nav>
               {item.kind === "document-review"
                 ? <div className="sx-card space-y-3 p-6" data-testid={`panel-review-record-${item.id}`}>
-                    <span className="sx-chip">Document review</span>
+                    <span className="sx-chip">{(item.metadata as Record<string,unknown>)?.paperReview ? "Paper review" : "Document review"}</span>
                     <h2 className="sx-title text-2xl">{item.title}</h2>
                     <p className="text-sm text-muted-foreground">Review records are read-only. Suggestions are approved or dismissed one at a time in AI Chat; each approval writes a new working-draft revision and your original file stays unchanged.</p>
-                    <Link href={`/ask?review=${encodeURIComponent(item.id)}`} className="sx-btn sx-primary inline-flex" data-testid={`link-open-review-${item.id}`}>Open review</Link>
+                    <Link href={(item.metadata as Record<string,unknown>)?.paperReview ? `/paper-review?item=${encodeURIComponent(item.id)}` : `/ask?review=${encodeURIComponent(item.id)}`} className="sx-btn sx-primary inline-flex" data-testid={`link-open-review-${item.id}`}>Open review</Link>
                   </div>
                 : <StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={<ProjectAttachMenu projectId={project.id} items={all} />} />}
             </>

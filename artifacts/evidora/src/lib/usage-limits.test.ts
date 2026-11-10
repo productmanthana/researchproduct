@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { usageLimitMessage, allUsageLimitMessages } from "./usage-limits";
 import { markdownSections, replaceMarkdownSection } from "../pages/draft-markdown";
 import { askSendDisabled } from "../pages/ask-workspace-state";
+import { visibleRevisions } from "./latest-revisions";
+
+test("library retains a Paper Review scorecard after an approved draft is created",()=>{
+  const make=(id:string,parentId:string|null,kind:string,metadata:unknown={})=>({id,parentId,kind,metadata,createdAt:"2026-11-10T00:00:00Z"});
+  const items=[make("report",null,"document-review",{paperReview:true}),make("draft","report","answer"),make("old",null,"journal"),make("new","old","journal")];
+  const visible=visibleRevisions(items).map(i=>i.id);
+  assert.ok(visible.includes("report"));assert.ok(visible.includes("draft"));
+  assert.ok(!visible.includes("old"));assert.ok(visible.includes("new"));
+});
 
 test("Limit notices distinguish allowances, trials, unlimited accounts and shared budgets",()=>{
   const base={plan:"trial",period:"starter",answersUsed:3,answersLimit:3,reviewsUsed:0,reviewsLimit:1,imagesUsed:0,imagesLimit:2,paymentsEnabled:false,aiServiceRemainingInr:100};

@@ -149,6 +149,27 @@ export function reviewWorkflow(item: { id: string; status: string; title: string
   };
 }
 
+/** Paper review: document review stages plus a scorecard stage reported by the backend. */
+export function documentReviewWorkflow(item: { id: string; status: string; title: string; metadata?: unknown }): WorkflowInput {
+  const m = (item.metadata ?? {}) as Record<string, unknown>;
+  const stage = typeof m.stage === "string" ? m.stage.trim() : "";
+  const queued = item.status === "queued";
+  const active = queued ? null : /scorecard|paper review|reviewer panel/i.test(stage) ? "score" : reviewStageRole(stage);
+  const roles: RoleDef[] = [
+    { id: "read", name: "Document Review", task: "Reading manuscript text and available visuals within review limits", icon: "file" },
+    { id: "survey", name: "Literature Survey", task: "Comparing with papers, patents and web sources", icon: "search" },
+    { id: "propose", name: "Evidence Review", task: "Linking comments to exact passages and sources", icon: "pen" },
+    { id: "check", name: "Scientific Review", task: "Checking proposed changes", icon: "shield" },
+    { id: "score", name: "Reviewer Panel", task: "Scoring categories and saving the scorecard", icon: "chart" },
+  ];
+  return {
+    key: `paper-review:${item.id}`, workflow: "Paper review", title: typeof m.originalName === "string" ? m.originalName : item.title, roles, active,
+    phase: queued ? "queued" : active ? "running" : "unknown",
+    statusLine: queued ? "Queued · waiting for a review worker" : active ? roles.find(r => r.id === active)!.task : "Reading your document · stage not reported yet",
+    note: "Stages are reported by the review worker. Longer manuscripts can take several minutes; you can leave and return.",
+  };
+}
+
 /* ---------------- Upload (ticket / put / complete) ---------------- */
 export type UploadStage = "idle" | "ticket" | "put" | "complete";
 export function uploadWorkflow(stage: UploadStage, fileName: string): { input: WorkflowInput; observed: string[] } {

@@ -1,4 +1,5 @@
 import { isFigureRequest } from "./figures";
+import { visibleRevisions } from "./latest-revisions";
 import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
@@ -67,8 +68,7 @@ export function lineageOf(items: StudioItem[], id: string): StudioItem[] {
 
 /** Latest revision in each lineage. */
 export function latestItems(items: StudioItem[]): StudioItem[] {
-  const parents = new Set(items.map(i => i.parentId).filter(Boolean));
-  return items.filter(i => !parents.has(i.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return visibleRevisions(items);
 }
 
 export type ProjectIntent = { kind: "ideas" | "literature" | "synopsis" | "journal" | "thesis" | "answer"; route: string; figure?: boolean };

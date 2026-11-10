@@ -10,6 +10,16 @@
     }
   ],
   "paths": {
+    "/studio/paper-reviews": {
+      "post": {
+        "operationId": "createPaperReview",
+        "requestBody": {"required":true,"content":{"application/json":{"schema":{"type":"object","required":["projectId","sourceItemId","documentType"],"properties":{"projectId":{"type":"string","format":"uuid"},"sourceItemId":{"type":"string","format":"uuid"},"documentType":{"type":"string","enum":["manuscript","proposal","thesis","literature"]},"target":{"type":"string","maxLength":2000}}}}}},
+        "responses":{"200":{"description":"Queued manuscript readiness review","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}
+      }
+    },
+    "/studio/items/{id}/scorecard": {
+      "get":{"operationId":"exportPaperScorecard","parameters":[{"in":"path","name":"id","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Manuscript readiness PDF","content":{"application/pdf":{"schema":{"type":"string","format":"binary"}}}}}}
+    },
     "/analyses/{id}/figures/{figureId}": {
       "get": {"operationId":"downloadAnalysisFigure","parameters":[{"in":"path","name":"id","required":true,"schema":{"type":"string"}},{"in":"path","name":"figureId","required":true,"schema":{"type":"string"}},{"in":"query","name":"format","required":true,"schema":{"type":"string","enum":["png","svg","csv","json"]}}],"responses":{"200":{"description":"Owner-only generated figure","content":{"application/octet-stream":{"schema":{"type":"string","format":"binary"}}}}}}
     },

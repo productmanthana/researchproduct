@@ -26,6 +26,7 @@ import Synopsis from "@/pages/synopsis";
 import Journals from "@/pages/journals";
 import Thesis from "@/pages/thesis";
 import Originality from "@/pages/originality";
+import PaperReview from "@/pages/paper-review";
 import Patents from "@/pages/patents";
 import MyLibrary from "@/pages/my-library";
 import ResearchUpdates from "@/pages/research-updates";
@@ -208,6 +209,7 @@ function Router() {
       <Route path="/synopsis"><Shelled><Synopsis /></Shelled></Route>
       <Route path="/journals"><Shelled><Journals /></Shelled></Route>
       <Route path="/thesis"><Shelled><Thesis /></Shelled></Route>
+      <Route path="/paper-review"><Shelled><PaperReview /></Shelled></Route>
       <Route path="/originality"><Shelled><Originality /></Shelled></Route>
       <Route path="/patents"><Shelled><Patents /></Shelled></Route>
       <Route path="/my-library"><Shelled><MyLibrary /></Shelled></Route>

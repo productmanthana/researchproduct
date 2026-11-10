@@ -7,6 +7,40 @@
 import * as zod from 'zod';
 
 
+export const createPaperReviewBodyTargetMax = 2000;
+
+
+
+export const CreatePaperReviewBody = zod.object({
+  "projectId": zod.string().uuid(),
+  "sourceItemId": zod.string().uuid(),
+  "documentType": zod.enum(['manuscript', 'proposal', 'thesis', 'literature']),
+  "target": zod.string().max(createPaperReviewBodyTargetMax).optional()
+})
+
+export const CreatePaperReviewResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+export const ExportPaperScorecardParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ExportPaperScorecardResponse = zod.unknown()
+
+
 export const DownloadAnalysisFigureParams = zod.object({
   "id": zod.coerce.string(),
   "figureId": zod.coerce.string()

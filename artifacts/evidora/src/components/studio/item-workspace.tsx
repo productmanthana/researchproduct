@@ -8,7 +8,7 @@ import {
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FigureView, MissingFigure } from "./figure-view";
 import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
@@ -206,6 +206,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           <div className="ml-auto flex flex-wrap gap-1.5">
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
+            {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Review this document</Link>}
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>

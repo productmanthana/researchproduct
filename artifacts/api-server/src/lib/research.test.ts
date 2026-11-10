@@ -1,6 +1,7 @@
 import "./watch.test";
 import "./figures.test";
 import "./document-review.test";
+import "./paper-review.test";
 import "./web-evidence.test";
 import "./live-generation.test";
 import "./studio.test";
