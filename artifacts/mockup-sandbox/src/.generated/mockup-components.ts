@@ -15,8 +15,8 @@ export const modules: ModuleMap = {
   "./components/mockups/ideas-conversation-workspace/After.tsx": () => import("../components/mockups/ideas-conversation-workspace/After.tsx"),
   "./components/mockups/ideas-conversation-workspace/Before.tsx": () => import("../components/mockups/ideas-conversation-workspace/Before.tsx"),
   "./components/mockups/ideas-conversation-workspace/Thread.tsx": () => import("../components/mockups/ideas-conversation-workspace/Thread.tsx"),
-  "./components/mockups/reference-format/References.tsx": () => import("../components/mockups/reference-format/References.tsx"),
-  "./components/mockups/research-agent-progress/AgentProgress.tsx": () => import("../components/mockups/research-agent-progress/AgentProgress.tsx"),
   "./components/mockups/ideas-layout-repair/Current.tsx": () => import("../components/mockups/ideas-layout-repair/Current.tsx"),
-  "./components/mockups/ideas-layout-repair/Redesign.tsx": () => import("../components/mockups/ideas-layout-repair/Redesign.tsx")
+  "./components/mockups/ideas-layout-repair/Redesign.tsx": () => import("../components/mockups/ideas-layout-repair/Redesign.tsx"),
+  "./components/mockups/reference-format/References.tsx": () => import("../components/mockups/reference-format/References.tsx"),
+  "./components/mockups/research-agent-progress/AgentProgress.tsx": () => import("../components/mockups/research-agent-progress/AgentProgress.tsx")
 };
