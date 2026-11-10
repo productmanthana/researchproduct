@@ -1,4 +1,5 @@
 import { pool } from "@workspace/db";
+import { z } from "zod";
 import { getPaper } from "./catalogue";
 import { ownedDocument, readDocument, DOCX } from "./documents";
 import { HttpError } from "./common";
@@ -181,7 +182,9 @@ export async function processNextAnalysis() {
     } catch(e) { await client.query("ROLLBACK"); throw e; } finally {client.release();}
     logger.info({jobId:job.id,inputTokens:result.inputTokens,outputTokens:result.outputTokens,model:MODEL},"Research analysis completed");
   } catch(e) {
-    logger.error({jobId:job?.id,errorType:e instanceof Error?e.name:"unknown"},"Research analysis failed");
+    logger.error({jobId:job?.id,errorType:e instanceof Error?e.name:"unknown",
+      validationIssues:e instanceof z.ZodError?e.issues.map(issue=>({path:issue.path,code:issue.code})):undefined,
+    },"Research analysis failed");
     if(job) {
       await pool.query("UPDATE research_analyses SET status='failed',error=$2 WHERE id=$1",[job.id,e instanceof HttpError?e.message:"Analysis could not be completed. Your allowance was restored. Please retry."]);
       await pool.query("UPDATE research_usage SET status='refunded' WHERE id=$1 AND status='reserved'",[job.id]);

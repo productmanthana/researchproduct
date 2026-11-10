@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { liveJsonCall as jsonCall } from "./ai-json";
 
-export const AskIntent=z.object({
-  intent:z.enum(["guidance","research"]),
-  reply:z.string().min(1).max(3000),
-  standaloneQuestion:z.string().min(5).max(2000),
-});
+// Validate the field used by the selected branch. A research route has no
+// conversational reply; a guidance response has no required search question.
+// Allow developed conversational answers within the generation token budget.
+export const AskIntent=z.discriminatedUnion("intent",[
+  z.object({intent:z.literal("guidance"),reply:z.string().trim().min(1).max(60000),standaloneQuestion:z.string().max(2000).default("")}),
+  z.object({intent:z.literal("research"),reply:z.string().max(60000).default(""),standaloneQuestion:z.string().trim().min(5).max(2000)}),
+]);
 export type AskIntentResult=z.infer<typeof AskIntent>;
 
 export function validateAskIntent(value:unknown):AskIntentResult {
@@ -30,10 +32,14 @@ export function routeAskIntent(value:unknown) {
 export function scopedResearchFollowUp(question:string,history:{question:string;answer:string}[]) {
   // A scope answer to an already requested report is sufficient. Don't let a
   // second intent-classification call repeat the same scope question.
-  if(!/^(?:global|worldwide|international|globally)[.!]?$/i.test(question.trim()))return null;
+  const global=/^(?:global|worldwide|international|globally)[.!]?$/i;
+  const affirmative=/^(?:yes|yes please|please do|go ahead|proceed|continue|sure|ok|okay)[.!]?$/i;
+  const explicitGlobal=global.test(question.trim());
+  if(!explicitGlobal&&!affirmative.test(question.trim()))return null;
   const latest=history.at(-1);
   if(!latest||!/\b(?:region|sector|scope|global|worldwide)\b/i.test(latest.answer))return null;
   const request=[...history].reverse().find(t=>/\b(?:overview|report|review|pages?|explain|summary)\b/i.test(t.question)&&t.question.trim().split(/\s+/).length>=7);
+  if(!explicitGlobal&&(!request||!history.slice(history.indexOf(request)+1).some(t=>global.test(t.question.trim()))))return null;
   return request?`${request.question}\nScope: global. Proceed with the requested report using scholarly evidence; retain the requested length.`:null;
 }
 

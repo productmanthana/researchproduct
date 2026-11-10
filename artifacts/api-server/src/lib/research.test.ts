@@ -27,7 +27,7 @@ import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } 
 import { matchesSearchFocus } from "./search-focus";
 import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
 import { synthesisPrompt, evidenceQuestion, requestedPageWords } from "./synthesis-prompts";
-import { routeAskIntent, validateAskIntent, scopedResearchFollowUp, ASK_INTENT_PROMPT } from "./ask-intent";
+import { routeAskIntent, validateAskIntent, scopedResearchFollowUp, decideAskIntent, ASK_INTENT_PROMPT } from "./ask-intent";
 import mammoth from "mammoth";
 import { makeDraftRevision, usageStatusForResult, withDraftPreservingAnswer } from "./analysis-draft";
 const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
@@ -550,6 +550,29 @@ test("Global follow-up resolves the original report rather than repeating scope 
   assert.equal(scopedResearchFollowUp("India",history),null);
   assert.equal(scopedResearchFollowUp("global",[]),null);
   assert.match(ASK_INTENT_PROMPT,/Never ask for information already supplied/);
+});
+test("Yes after a global clarification continues the requested report without another routing call",async()=>{
+  const request="great provide breif recent hot topics of about 3 pages on climate change adaption strategies";
+  const history=[
+    {question:request,answer:"Would you like a global summary, or a particular region or sector?"},
+    {question:"global",answer:"Would you like your 3-page overview to focus on global efforts or a particular region or sector?"},
+  ];
+  const result=await decideAskIntent("yes",history);
+  assert.equal(result.decision.intent,"research");
+  assert.match(result.decision.standaloneQuestion,/3 pages/);
+  assert.match(result.decision.standaloneQuestion,/climate change adaption strategies/);
+  assert.match(result.decision.standaloneQuestion,/Scope: global/);
+  assert.equal(result.usage?.prompt_tokens,0);
+  assert.equal(scopedResearchFollowUp("yes",history.slice(0,1)),null);
+  assert.equal(scopedResearchFollowUp("new topic",history),null);
+});
+test("Developed guidance does not fail the old short-reply cap and research needs no conversational reply",()=>{
+  const reply="A developed explanation. ".repeat(250);
+  assert.ok(reply.length>3000);
+  assert.equal(routeAskIntent({intent:"guidance",reply,standaloneQuestion:""}).kind,"guidance");
+  assert.deepEqual(routeAskIntent({intent:"research",reply:"",standaloneQuestion:"Global climate adaptation strategies in about three pages"}),{kind:"research",question:"Global climate adaptation strategies in about three pages"});
+  assert.throws(()=>validateAskIntent({intent:"guidance",reply:"x".repeat(60001)}));
+  assert.throws(()=>validateAskIntent({intent:"guidance",reply:"   "}));
 });
 test("Requested page counts override brief-answer defaults without requiring exact pagination",()=>{
   assert.deepEqual(requestedPageWords("brief report of about 3 pages"),{min:1050,max:1350});
