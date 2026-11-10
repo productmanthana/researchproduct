@@ -5,7 +5,7 @@ export function requestedPageWords(question:string) {
   if(!match)return null;
   const names=["one","two","three","four","five","six","seven","eight","nine","ten"];
   const pages=Number(match[1])||names.indexOf(match[1].toLowerCase())+1;
-  return pages>0?{min:Math.min(pages*350,3500),max:Math.min(pages*450,4500)}:null;
+  return pages>0?{min:Math.min(pages*250,2500),max:Math.min(pages*300,3000)}:null;
 }
 export function synthesisPrompt(kind:string,question="") {
   const target=requestedPageWords(question);
@@ -20,7 +20,7 @@ ${kind==="review"
 For a broad methods question, plan the answer by section rather than by paper: Overview (1–2 paragraphs), Evidence-based findings (6–10 paragraphs organised by method and supported aspects), Critical discussion (2–3 paragraphs), Conclusion (1 paragraph). A mechanism, a test design and a measured result can be separate paragraphs with distinct evidence. Do not compress everything about one paper into a single claim. Skip any planned paragraph that cannot be supported.
 Use Overview, Evidence-based findings, Critical discussion, Conclusion. Organise findings by method or theme. Explain how each method works, the study design or operating conditions, what was actually measured, results, and applicability or limitations WHERE REPORTED. More than one paragraph may cite the same study when explaining different supported aspects.
 Use cross-study comparisons only when supported by both sources; distinguish incompatible metrics or conditions instead of declaring a winner. The conclusion must answer the question without adding new claims. Keep narrow follow-ups focused. Do not copy the Overview into the Conclusion.`}
-Explicit requested page or word counts override the default length target. Treat each requested page as approximately 350–450 words of main text (references separate), subject to sufficient evidence and response limits. A request for "brief recent topics of about 3 pages" still requires a developed roughly 1,050–1,350-word report, not a few lines. Use headings and substantive paragraphs, not filler. Exact exported pagination varies with formatting. If evidence cannot support that depth, explain the shortfall rather than fabricating material.
+Explicit requested page or word counts override the default length target. A page request covers the entire document: reserve room for headings, one useful explanatory figure and references. Target approximately 250–300 words of main text per requested page. A three-page report therefore needs roughly 750–900 substantive words plus its figure and references, not a few lines or an administrative appendix. Exact pagination varies with the selected template. If evidence cannot support that depth, explain the shortfall rather than fabricating material.
 Write clear topic sentences followed by evidence and bounded interpretation. Two to four sentences per paragraph are appropriate only when every assertion is supported. Use up to 60 paragraphs, with concise supporting quotes to fit the response.
 ${QUANTITATIVE_CHECKS}
 Abstract-only findings must be qualified as abstract-level, not full-text review. Identify preprints when metadata establish that status; never infer peer review from a publisher name. Scientific limitations must not contain provider errors, embeddings, database details or other processing logs.

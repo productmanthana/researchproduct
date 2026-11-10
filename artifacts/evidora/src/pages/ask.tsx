@@ -29,6 +29,8 @@ import { REVIEW_KIND, parsePages } from "@/components/document-review/review-mod
 import { ChatAttachments } from "@/components/chat-attachments";
 import { HistoryDrawer } from "@/components/studio/workspace-shell";
 import { isWorking } from "@/lib/studio";
+import { FigureView, MissingFigure } from "@/components/studio/figure-view";
+import type { StudioFigure } from "@/lib/figures";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const reviewable = (d: Pick<Document, "contentType" | "name">) => d.contentType === "application/pdf" || d.contentType === DOCX_TYPE || /\.(pdf|docx)$/i.test(d.name);
@@ -443,7 +445,11 @@ function AskInner() {
           <div className="es-document"><span className="es-eyebrow">Editable research working draft</span>
             {draftEditing && selectedDraftSection
               ? <div className="es-section-editor"><h3>{selectedDraftSection.title}</h3><textarea className="es-editor" aria-label={`Edit ${selectedDraftSection.title}`} value={selectedDraftSection.body} onChange={event => updateDraftSection(event.target.value)} spellCheck /></div>
-              : <div className="es-document-preview"><AcademicAnswer content={editor.content} inline={draftInline} /></div>}
+              : <div className="es-document-preview"><AcademicAnswer content={editor.content} inline={draftInline} renderFigure={id=>{
+                const figures=(draftAnalysis?.figures??[]) as StudioFigure[];
+                const index=figures.findIndex(f=>f.id===id);
+                return index<0?<MissingFigure id={id}/>:<FigureView itemId={activeDraftId} figure={figures[index]} number={index+1} analysis/>;
+              }}/></div>}
             <p className="es-provenance">{draftAnalysis?.draftProvenance ?? "AI-assisted source answer retained above."} Local edits are user-authored and not evidence-checked. No study results are generated.</p>
             <div className="es-status" role="status">{editor.status}</div><button className="es-button es-primary es-save-draft" onClick={() => void saveCurrentDraft()} disabled={saveDraft.isPending || !editor.dirty}><Check />{saveDraft.isPending ? "Saving…" : "Save draft"}</button>
           </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>

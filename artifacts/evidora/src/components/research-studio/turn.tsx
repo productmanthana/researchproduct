@@ -11,6 +11,8 @@ import { AcademicAnswer } from "@/components/academic-answer";
 import { AcademicReferences } from "@/components/academic-references";
 import { analysisReferenceEntries, referenceSections } from "@/lib/references";
 import { LiveDraft } from "@/components/live-draft";
+import { FigureView, MissingFigure } from "@/components/studio/figure-view";
+import type { StudioFigure } from "@/lib/figures";
 
 const done=(s:string)=>s==="completed"||s==="failed";
 
@@ -60,7 +62,11 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
         {d.status==="failed"&&<><ErrorState error={{message:d.error}} title="Research could not complete"/><button className="ev-quiet" disabled={retryDisabled} onClick={()=>onRetry(d.question)}>Put question back in composer</button></>}
         {d.status==="completed"&&<div data-testid={`text-answer-${d.id}`}>
           {d.responseMode!=="guidance"&&<p className="ev-evidence-context">{paperCount} cited {paperCount===1?"paper":"papers"} · Bounded research synthesis{d.sources.some(s=>s.evidenceLevel==="Abstract only")?" · Includes abstract-only evidence":""}</p>}
-          <AcademicAnswer content={d.content} inline={inline} referenceSources={d.sources}/>
+          <AcademicAnswer content={d.content} inline={inline} referenceSources={d.sources} renderFigure={id=>{
+            const figures=(d.figures??[]) as StudioFigure[];
+            const index=figures.findIndex(f=>f.id===id);
+            return index<0?<MissingFigure id={id}/>:<FigureView itemId={d.id} figure={figures[index]} number={index+1} analysis/>;
+          }}/>
           {!referenceSections(d.content).some(section=>section.kind==="references")&&<AcademicReferences entries={analysisReferenceEntries(d.sources,d.discoveredPapers)} onInspect={number=>{const source=d.sources[number-1];if(source)select(source.id);}}/>}
         </div>}
         {!chatMode&&<details className="ev-disclosure"><summary><Layers/>Research workflow<small>Agent roles</small><ChevronDown/></summary><div className="ev-detail-body"><p>Agent names describe roles within the research workflow.</p>{roles.map(([name,description],i)=><div className="ev-role" key={name}><span className="ev-role-number">0{i+1}</span><div><strong>{name}</strong><p>{description}</p></div></div>)}</div></details>}

@@ -45,7 +45,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         for(const line of lines){ensure(height);pdf.text(line,x(),y,{width:width(),lineBreak:false,align:center?"center":"left"});y+=height;}
         y+=size*0.6;
       };
-      const title=()=>{y+=36;text(id==="stanford"?row.title.toUpperCase():row.title,20,true,true,1.2);y+=20;if(["journal","synopsis","thesis"].includes(row.kind)||l.thesis){text(d.author||"[Author name required]",12,false,true);text(d.affiliation||"[Affiliation required]",12,false,true);}else if(d.author)text(d.author,12,false,true);};
+      const title=()=>{y+=id==="academic-report"?0:36;text(id==="stanford"?row.title.toUpperCase():row.title,id==="academic-report"?18:20,true,id!=="academic-report",1.2);y+=id==="academic-report"?6:20;if(["journal","synopsis","thesis"].includes(row.kind)||l.thesis){text(d.author||"[Author name required]",12,false,true);text(d.affiliation||"[Affiliation required]",12,false,true);}else if(d.author)text(d.author,12,false,true);};
       let body=String(row.content).replace(/^#\s+([^\n]+)\n/,(_,s:string)=>s.trim()===row.title.trim()?"":`# ${s}\n`);
       let bodyStart=0,prelimStart=0,contentsPages:number[]=[];
       const toc:{title:string;page:number}[]=[];
@@ -76,7 +76,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
           const f=figures.find(f=>f.id===block.id)!;
           const previousColumns=columns;
           if(columns===2){columns=1;addPage();}
-          const imageHeight=Math.min(width()*figureAspect(f),pdf.page.height-l.margins.top-l.margins.bottom-100);
+          const imageHeight=Math.min(width()*figureAspect(f),id==="academic-report"?255:pdf.page.height-l.margins.top-l.margins.bottom-100);
           ensure(imageHeight+50);
           pdf.image(images.get(f.id)!,x(),y,{width:imageHeight/figureAspect(f),height:imageHeight});
           y+=imageHeight+8;

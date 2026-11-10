@@ -1,5 +1,7 @@
 import { pool } from "@workspace/db";
 import { z } from "zod";
+import { academicTitle } from "./academic-style";
+import { planStudioFigures, persistStudioFigures, figureRequested } from "./studio-figures";
 import { getPaper } from "./catalogue";
 import { ownedDocument, readDocument, DOCX } from "./documents";
 import { HttpError } from "./common";
@@ -155,9 +157,21 @@ async function runAnalysis(job:any) {
   const refs=sources.filter(s=>usedIds.has(s.id)).map(({text,image,page,...s})=>s);
   const citedPapers=papers.filter(p=>refs.some(s=>s.paperId===p.id||s.id===p.id));
   const currency=citedPapers.length?researchCurrency(citedPapers):"";
-  const content=academicContent({kind:job.kind,claims:supported,sources:refs,limitations:academicLimitations,currency});
+  let content=academicContent({kind:job.kind,claims:supported,sources:refs,limitations:academicLimitations,currency});
+  let figures:Awaited<ReturnType<typeof persistStudioFigures>>=[];
+  if(supported.length&&(job.kind==="review"||figureRequested(job.question)||/\b(?:report|pages?|overview)\b/i.test(job.question))){
+    try{
+      const planned=await planStudioFigures({kind:"literature",request:`${job.question}\nInclude at most one concise, source-grounded explanatory diagram for this report, where useful.`,content,sources:sources.map(s=>({id:s.id,title:s.title,text:s.text.slice(0,6500)}))});
+      figures=await persistStudioFigures(job.owner_id,job.id,planned.figures.slice(0,1));
+      warnings.push(...planned.notices);
+      if(figures.length)content+=`\n\n## Explanatory figure\n\n${figures.map(f=>`[[figure:${f.id}]]`).join("\n\n")}`;
+    }catch(error){
+      logger.warn({errorType:error instanceof Error?error.name:"unknown"},"Report figure unavailable");
+      warnings.push("An explanatory figure could not be completed; the verified text is retained. No diagram or numerical results were invented.");
+    }
+  }
   logger.info({jobId:job.id,validation},"Research claim validation completed");
-  return {result:{content,formatVersion:2,responseMode:"research",academicLimitations,validation,claims:supported,sources:refs,warnings,comparisonRows:comparison.rows},inputTokens:intentTokens.input+comparison.inputTokens+synthesis.inputTokens,outputTokens:intentTokens.output+comparison.outputTokens+synthesis.outputTokens};
+  return {result:{content,reportTitle:academicTitle(job.question),figures,formatVersion:2,responseMode:"research",academicLimitations,validation,claims:supported,sources:refs,warnings,comparisonRows:comparison.rows},inputTokens:intentTokens.input+comparison.inputTokens+synthesis.inputTokens,outputTokens:intentTokens.output+comparison.outputTokens+synthesis.outputTokens};
 }
 let busy=false;
 export async function processNextAnalysis() {

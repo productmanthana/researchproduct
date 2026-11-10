@@ -16,7 +16,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
       else if(b.kind==="figure"){
         const f=figures.find(f=>f.id===b.id)!;
         const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(columns===2?18:0))/columns*96/72);
-        const height=Math.min(650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
+        const height=Math.min(id==="academic-report"?340:650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
         result.push(new Paragraph({keepNext:true,children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
         result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`));
         if(f.explanation)result.push(paragraph(f.explanation));
@@ -28,7 +28,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
   const page={size:l.size==="A4"?{width:11906,height:16838}:{width:12240,height:15840},margin:{top:l.margins.top*20,bottom:l.margins.bottom*20,left:l.margins.left*20,right:l.margins.right*20,footer:720}};
   const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({children:[PageNumber.CURRENT]})]})]});
   const titleParagraphs=[
-    new Paragraph({text:id==="stanford"?title.toUpperCase():title,heading:HeadingLevel.TITLE,alignment:AlignmentType.CENTER,spacing:{before:1440,after:600}}),
+    new Paragraph({text:id==="stanford"?title.toUpperCase():title,heading:HeadingLevel.TITLE,alignment:id==="academic-report"?AlignmentType.LEFT:AlignmentType.CENTER,spacing:{before:id==="academic-report"?0:1440,after:id==="academic-report"?240:600}}),
     ...(["journal","synopsis","thesis"].includes(row.kind)||l.thesis?[paragraph(d.author||"[Author name required]",true),paragraph(d.affiliation||"[Affiliation required]",true)]:d.author?[paragraph(d.author,true)]:[]),
     ...(l.thesis?[paragraph(`Submitted in partial fulfillment of the requirements for ${d.degree||"[degree required]"}`,true),paragraph(d.department||"[Department required]",true),paragraph(`Supervisor/advisor: ${d.supervisor||"[name required]"}`,true),...(d.studentId?[paragraph(`Student ID: ${d.studentId}`,true)]:[]),paragraph(d.year||"[Submission date required]",true)]:[]),
   ];

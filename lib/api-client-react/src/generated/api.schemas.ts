@@ -475,6 +475,8 @@ export const AnalysisResponseMode = {
   research: 'research',
 } as const;
 
+export type AnalysisFiguresItem = { [key: string]: unknown };
+
 export type AnalysisSourcesItem = {
   id: string;
   title: string;
@@ -546,6 +548,8 @@ export interface Analysis {
   status: string;
   content: string;
   responseMode?: AnalysisResponseMode;
+  reportTitle?: string;
+  figures?: AnalysisFiguresItem[];
   /** @nullable */
   draftContent?: string | null;
   /** @nullable */
@@ -682,6 +686,20 @@ export interface DocumentLink {
   /** @nullable */
   paperId: string | null;
 }
+
+export type DownloadAnalysisFigureParams = {
+format: DownloadAnalysisFigureFormat;
+};
+
+export type DownloadAnalysisFigureFormat = typeof DownloadAnalysisFigureFormat[keyof typeof DownloadAnalysisFigureFormat];
+
+
+export const DownloadAnalysisFigureFormat = {
+  png: 'png',
+  svg: 'svg',
+  csv: 'csv',
+  json: 'json',
+} as const;
 
 export type GetWebEvidenceParams = {
 /**

@@ -7,6 +7,18 @@
 import * as zod from 'zod';
 
 
+export const DownloadAnalysisFigureParams = zod.object({
+  "id": zod.coerce.string(),
+  "figureId": zod.coerce.string()
+})
+
+export const DownloadAnalysisFigureQueryParams = zod.object({
+  "format": zod.enum(['png', 'svg', 'csv', 'json'])
+})
+
+export const DownloadAnalysisFigureResponse = zod.unknown()
+
+
 export const StreamGenerationParams = zod.object({
   "kind": zod.enum(['analysis', 'studio']),
   "id": zod.coerce.string()
@@ -773,6 +785,8 @@ export const GetSummaryResponse = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),
@@ -1185,6 +1199,8 @@ export const ListAnalysesResponseItem = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),
@@ -1331,6 +1347,8 @@ export const CreateAnalysisResponse = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),
@@ -1458,6 +1476,8 @@ export const GetAnalysisResponse = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),
@@ -1666,6 +1686,8 @@ export const UpdateAnalysisResponse = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),
@@ -1825,6 +1847,8 @@ export const SaveAnalysisDraftResponse = zod.object({
   "status": zod.string(),
   "content": zod.string(),
   "responseMode": zod.enum(['guidance', 'research']).optional(),
+  "reportTitle": zod.string().optional(),
+  "figures": zod.array(zod.record(zod.string(), zod.unknown())).optional(),
   "draftContent": zod.string().nullish(),
   "draftRevision": zod.number().int().nullish(),
   "draftProvenance": zod.string().nullish(),

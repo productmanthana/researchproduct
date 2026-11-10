@@ -45,7 +45,6 @@ router.post("/studio/items",async(req,res)=>{
   }
   if(b.documentDetails)metadata.documentDetails=b.documentDetails;
   if(b.templateId===null)delete metadata.templateId;
-  try{referencedFigures(content,metadata.figures??[]);}catch{throw new HttpError(400,"A figure marker has no saved figure. Remove that marker or restore its original ID.");}
   if(!b.title.trim())throw new HttpError(400,"Enter a document title.");
   if(b.documentId){
     const document=await ownedDocument(b.documentId,owner);
@@ -67,8 +66,9 @@ router.post("/studio/items",async(req,res)=>{
     content=b.content||result.content;
     const sources=result.sources??[];
     if(sources.length&&!/^#{1,3}\s+References/im.test(content))content+=`\n\n## References\n\n${sources.map((s:any,i:number)=>`[${i+1}] ${s.title}. ${s.url??""}`).join("\n\n")}`;
-    metadata={...metadata,analysisId:b.analysisId,sources,warnings:result.warnings??[]};
+    metadata={...metadata,analysisId:b.analysisId,sources,figures:result.figures??[],warnings:result.warnings??[]};
   }
+  try{referencedFigures(content,metadata.figures??[]);}catch{throw new HttpError(400,"A figure marker has no saved figure. Remove that marker or restore its original ID.");}
   try{
     const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,[randomUUID(),owner,b.projectId,b.kind,b.title.trim(),content,parent?.id??null,(parent?.revision??0)+1,JSON.stringify(metadata)]);

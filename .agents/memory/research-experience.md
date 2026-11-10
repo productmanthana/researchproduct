@@ -171,3 +171,9 @@ Proceed with a useful answer instead of repeatedly asking optional preference qu
 **Why:** The user showed a three-page report request followed by “global,” then another question asking whether they wanted global scope.
 
 **How to apply:** Default to general/global coverage when appropriate, give concrete topic suggestions when users are unsure, and ask only a genuinely essential missing question. Do not invent evidence to meet a page target.
+
+Requested report length includes figures and references; operational processing notes should not inflate a downloaded academic report.
+
+**Why:** The user requested three pages but received six, with repeated findings, duplicate references, no diagram and several pages of processing notes.
+
+**How to apply:** Reserve room for relevant captioned figures and a bibliography, use natural academic prose across modules, and retain scientific limitations without exporting infrastructure logs by default. Never pad a short evidence base or imply university endorsement.

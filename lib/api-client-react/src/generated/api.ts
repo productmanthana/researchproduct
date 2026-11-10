@@ -33,6 +33,7 @@ import type {
   Document,
   DocumentLink,
   DocumentReviewInput,
+  DownloadAnalysisFigureParams,
   DownloadStudioFigureParams,
   ExportAnalysisParams,
   ExportStudioDocumentParams,
@@ -100,6 +101,124 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getDownloadAnalysisFigureUrl = (id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analyses/${id}/figures/${figureId}?${stringifiedParams}` : `/api/analyses/${id}/figures/${figureId}`
+}
+
+export const downloadAnalysisFigure = async (id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAnalysisFigureUrl(id,figureId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAnalysisFigureQueryKey = (id: string,
+    figureId: string,
+    params?: DownloadAnalysisFigureParams,) => {
+    return [
+    `/api/analyses/${id}/figures/${figureId}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getDownloadAnalysisFigureQueryOptions = <TData = Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError = ErrorType<unknown>>(id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAnalysisFigureQueryKey(id,figureId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAnalysisFigure>>> = ({ signal }) => downloadAnalysisFigure(id,figureId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && figureId !== null && figureId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type DownloadAnalysisFigureQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAnalysisFigure>>>
+export type DownloadAnalysisFigureQueryError = ErrorType<unknown>
+
+
+export function useDownloadAnalysisFigure<TData = Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError = ErrorType<unknown>>(
+ id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadAnalysisFigure>>,
+          TError,
+          Awaited<ReturnType<typeof downloadAnalysisFigure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadAnalysisFigure<TData = Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError = ErrorType<unknown>>(
+ id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadAnalysisFigure>>,
+          TError,
+          Awaited<ReturnType<typeof downloadAnalysisFigure>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useDownloadAnalysisFigure<TData = Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError = ErrorType<unknown>>(
+ id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useDownloadAnalysisFigure<TData = Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError = ErrorType<unknown>>(
+ id: string,
+    figureId: string,
+    params: DownloadAnalysisFigureParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof downloadAnalysisFigure>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getDownloadAnalysisFigureQueryOptions(id,figureId,params,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getStreamGenerationUrl = (kind: 'analysis' | 'studio',
     id: string,) => {

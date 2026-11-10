@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useDownloadStudioFigure, getDownloadStudioFigureQueryKey, downloadStudioFigure } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
+import { downloadAnalysisFigure } from "@workspace/api-client-react";
+import { downloadStudioFigure } from "@workspace/api-client-react";
 import { useAuth } from "@clerk/react";
 import { Download, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -9,13 +11,15 @@ import { FIGURE_KIND_LABEL, isNumericFigure, isOriginalFigure, type StudioFigure
 type Fmt = "png" | "svg" | "csv" | "json";
 const FMT_LABEL: Record<Fmt, string> = { png: "PNG", svg: "SVG (editable)", csv: "CSV data", json: "JSON source" };
 
-export function FigureView({ itemId, figure, number }: { itemId: string; figure: StudioFigure; number: number }) {
+export function FigureView({ itemId, figure, number, analysis=false }: { itemId: string; figure: StudioFigure; number: number; analysis?:boolean }) {
   const { toast } = useToast();
   const { userId } = useAuth();
   const params = { format: "png" as const };
-  const q = useDownloadStudioFigure(itemId, figure.id, params, {
-    request: { responseType: "blob" },
-    query: { queryKey: [...getDownloadStudioFigureQueryKey(itemId, figure.id, params), { user: userId ?? null }], enabled: !!userId, staleTime: Infinity, retry: 1 },
+  const fetchFigure=analysis?downloadAnalysisFigure:downloadStudioFigure;
+  const q = useQuery({
+    queryKey: [analysis?"analysis-figure":"studio-figure",itemId,figure.id,{user:userId??null}],
+    queryFn:()=>fetchFigure(itemId,figure.id,params,{responseType:"blob"}),
+    enabled:!!userId,staleTime:Infinity,retry:1,
   });
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState<Fmt | null>(null);
@@ -30,7 +34,7 @@ export function FigureView({ itemId, figure, number }: { itemId: string; figure:
   const download = async (format: Fmt) => {
     setBusy(format);
     try {
-      const blob = await downloadStudioFigure(itemId, figure.id, { format }, { responseType: "blob" });
+      const blob = await fetchFigure(itemId, figure.id, { format }, { responseType: "blob" });
       const u = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = u;

@@ -12,6 +12,9 @@ import { analysisSnapshot } from "../lib/analysis-input";
 import { makeDraftRevision } from "../lib/analysis-draft";
 import { processNextAnalysis } from "../lib/research-engine";
 import { logger } from "../lib/logger";
+import { DownloadAnalysisFigureQueryParams } from "@workspace/api-zod";
+import { figureSvg, figurePng } from "../lib/figure-renderer";
+import { figureCsv, type ScientificFigure } from "../lib/scientific-figures";
 const router=Router();
 async function ownedAnalysis(id:string,owner:string) {
   const {rows}=await pool.query("SELECT * FROM research_analyses WHERE id=$1 AND owner_id=$2",[id,owner]);
@@ -69,6 +72,17 @@ router.post("/analyses",requireUser,async(req,res)=>{
   } catch(e) {await client.query("ROLLBACK");throw e;} finally {client.release();}
 });
 router.get("/analyses/:id",requireUser,async(req,res)=>res.json(analysisView(await ownedAnalysis(routeId(req),uid(req)))));
+router.get("/analyses/:id/figures/:figureId",requireUser,async(req,res)=>{
+  const row=await ownedAnalysis(routeId(req),uid(req));
+  const {format}=DownloadAnalysisFigureQueryParams.parse(req.query);
+  const figure=(row.result?.figures??[]).find((f:ScientificFigure)=>f.id===req.params.figureId) as ScientificFigure|undefined;
+  if(row.status!=="completed"||!figure)throw new HttpError(404,"Figure not found.");
+  if(format==="csv"&&!figure.series?.length)throw new HttpError(400,"This diagram has no numerical dataset.");
+  const bytes=format==="png"?await figurePng(figure):format==="svg"?figureSvg(figure):format==="csv"?figureCsv(figure):JSON.stringify(figure);
+  res.setHeader("Cache-Control","private, no-store");
+  res.setHeader("X-Content-Type-Options","nosniff");
+  res.type(format==="png"?"image/png":format==="svg"?"image/svg+xml":format==="csv"?"text/csv":"application/json").send(bytes);
+});
 router.patch("/analyses/:id",requireUser,async(req,res)=>{
   const row=await ownedAnalysis(routeId(req),uid(req));
   if(row.status!=="completed") throw new HttpError(409,"Only completed analyses can be edited.");

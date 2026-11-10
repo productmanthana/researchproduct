@@ -29,6 +29,9 @@ import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
 import { synthesisPrompt, evidenceQuestion, requestedPageWords } from "./synthesis-prompts";
 import { routeAskIntent, validateAskIntent, scopedResearchFollowUp, decideAskIntent, ASK_INTENT_PROMPT } from "./ask-intent";
 import mammoth from "mammoth";
+import { FigureProposal, validateFigure } from "./scientific-figures";
+import { academicTitle } from "./academic-style";
+import { writeFile } from "node:fs/promises";
 import { makeDraftRevision, usageStatusForResult, withDraftPreservingAnswer } from "./analysis-draft";
 const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
   text:"Adaptive pitch control reduced simulated power fluctuations. "+"Detailed study conditions and distinct reported outcomes support further explanation. ".repeat(110)};
@@ -542,6 +545,21 @@ test("Conversational answers export as PDF and Word without paper references",as
   const markdown=String(await exportResearch(view,"ieee","md"));
   assert.doesNotMatch(markdown,/## References|## Appendix|OpenAI|GPT-/);
 });
+test("Professional report exports deduplicate references, omit operational logs and embed diagrams",async()=>{
+  const figure=validateFigure(FigureProposal.parse({kind:"diagram",layout:"system",title:"Conceptual system",caption:"Layout test only; this is not experimental evidence.",nodes:[{id:"input",label:"Generation",role:"input",icon:"sensor"},{id:"grid",label:"Grid interface",role:"process",icon:"compute"},{id:"load",label:"Demand",role:"output",icon:"target"}],edges:[{from:"input",to:"grid"},{from:"grid",to:"load"}]}),[],"fig-layout");
+  const paragraph="This synthetic paragraph tests report typography and pagination. It is not a scientific finding. It provides sufficient text to examine line spacing, paragraph separation, figure placement and bibliography formatting without making claims about an actual experiment. ";
+  const view={question:"generate 3 pages on power system generation on recent trends",reportTitle:"Research report layout verification",content:`# Research synthesis\n\n## 1. Introduction\n\n${paragraph.repeat(5)} [1]\n\n## 2. Analysis\n\n${paragraph.repeat(5)} [2]\n\n[[figure:fig-layout]]\n\n## 3. Discussion\n\n${paragraph.repeat(5)}\n\n## 4. Conclusion\n\n${paragraph.repeat(5)}`,sources:[{id:"test-private-first",title:"Layout test reference"},{id:"test-private-second",title:"Layout test reference"}],figures:[figure],warnings:["INTERNAL OPERATIONS SHOULD NOT EXPORT"],comparisonRows:[]};
+  const markdown=String(await exportResearch(view,"ieee","md"));
+  assert.doesNotMatch(markdown,/INTERNAL OPERATIONS|\[2\]/);
+  assert.equal((markdown.match(/Layout test reference/g)??[]).length,1);
+  const word=await exportResearch(view,"ieee","docx");assert.ok(Buffer.isBuffer(word));
+  const html=await mammoth.convertToHtml({buffer:word});
+  assert.match(html.value,/<img/);assert.match(html.value,/Figure 1/);assert.doesNotMatch(html.value,/INTERNAL OPERATIONS/);
+  const pdf=await exportResearch(view,"ieee","pdf");assert.ok(Buffer.isBuffer(pdf));
+  assert.match(pdf.toString("latin1"),/\/Subtype \/Image/);
+  await writeFile("/tmp/evidora-report-layout.pdf",pdf);
+  assert.equal(academicTitle("generate 3 pages on power system generation on recent trends"),"Power system generation on recent trends");
+});
 test("Global follow-up resolves the original report rather than repeating scope questions",()=>{
   const question="Provide brief recent topics of about 3 pages on climate change adaptation strategies";
   const history=[{question,answer:"Would you like a global overview or a particular region or sector?"}];
@@ -575,10 +593,10 @@ test("Developed guidance does not fail the old short-reply cap and research need
   assert.throws(()=>validateAskIntent({intent:"guidance",reply:"   "}));
 });
 test("Requested page counts override brief-answer defaults without requiring exact pagination",()=>{
-  assert.deepEqual(requestedPageWords("brief report of about 3 pages"),{min:1050,max:1350});
-  assert.deepEqual(requestedPageWords("three-page climate change overview"),{min:1050,max:1350});
+  assert.deepEqual(requestedPageWords("brief report of about 3 pages"),{min:750,max:900});
+  assert.deepEqual(requestedPageWords("three-page climate change overview"),{min:750,max:900});
   assert.equal(requestedPageWords("Explain briefly"),null);
-  assert.match(synthesisPrompt("answer","brief report of about 3 pages"),/1050–1350/);
+  assert.match(synthesisPrompt("answer","brief report of about 3 pages"),/750–900/);
 });
 test("Guided Ask accepts only bounded intent replies and routes ambiguous turns to guidance",()=>{
   assert.deepEqual(routeAskIntent({intent:"guidance",reply:"Which field interests you, and what makes it timely?",standaloneQuestion:"latest topic"}),{

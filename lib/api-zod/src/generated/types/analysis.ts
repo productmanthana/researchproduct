@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { AnalysisFiguresItem } from './analysisFiguresItem';
 import type { AnalysisMode } from './analysisMode';
 import type { AnalysisResponseMode } from './analysisResponseMode';
 import type { AnalysisSourcesItem } from './analysisSourcesItem';
@@ -24,6 +25,8 @@ export interface Analysis {
   status: string;
   content: string;
   responseMode?: AnalysisResponseMode;
+  reportTitle?: string;
+  figures?: AnalysisFiguresItem[];
   /** @nullable */
   draftContent?: string | null;
   /** @nullable */

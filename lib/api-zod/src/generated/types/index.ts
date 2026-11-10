@@ -8,6 +8,7 @@
 export * from './account';
 export * from './analysis';
 export * from './analysisDraftUpdate';
+export * from './analysisFiguresItem';
 export * from './analysisInput';
 export * from './analysisInputKind';
 export * from './analysisMode';
@@ -26,6 +27,8 @@ export * from './document';
 export * from './documentDetails';
 export * from './documentLink';
 export * from './documentReviewInput';
+export * from './downloadAnalysisFigureFormat';
+export * from './downloadAnalysisFigureParams';
 export * from './downloadStudioFigureFormat';
 export * from './downloadStudioFigureParams';
 export * from './error';

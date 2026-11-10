@@ -10,6 +10,9 @@
     }
   ],
   "paths": {
+    "/analyses/{id}/figures/{figureId}": {
+      "get": {"operationId":"downloadAnalysisFigure","parameters":[{"in":"path","name":"id","required":true,"schema":{"type":"string"}},{"in":"path","name":"figureId","required":true,"schema":{"type":"string"}},{"in":"query","name":"format","required":true,"schema":{"type":"string","enum":["png","svg","csv","json"]}}],"responses":{"200":{"description":"Owner-only generated figure","content":{"application/octet-stream":{"schema":{"type":"string","format":"binary"}}}}}}
+    },
     "/live/{kind}/{id}": {
       "get": {
         "operationId":"streamGeneration",
@@ -1849,6 +1852,8 @@
             "type": "string",
             "enum": ["guidance", "research"]
           },
+          "reportTitle":{"type":"string"},
+          "figures":{"type":"array","items":{"type":"object","additionalProperties":true}},
           "draftContent": {
             "type": ["string", "null"]
           },

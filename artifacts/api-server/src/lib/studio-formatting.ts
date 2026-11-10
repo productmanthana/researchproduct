@@ -6,6 +6,7 @@ export type Layout = {
 const inch=72,mm=72/25.4;
 export function documentLayout(id?:string):Layout {
   const base:Layout={size:"LETTER",fontSize:12,lineSpacing:1.5,columns:1,margins:{top:inch,bottom:inch,left:inch,right:inch},thesis:false};
+  if(id==="academic-report")return {...base,size:"A4",fontSize:11,lineSpacing:1.25,margins:{top:50,bottom:50,left:54,right:54}};
   if(id?.startsWith("ieee-"))return {...base,fontSize:10,lineSpacing:1,columns:2,margins:{top:54,bottom:54,left:45,right:45}};
   if(id==="harvard")return {...base,thesis:true,lineSpacing:2};
   if(id==="stanford")return {...base,thesis:true,margins:{...base.margins,left:108}};
