@@ -154,11 +154,11 @@ Use the Ideas workspace as the common ChatGPT-like interaction reference across 
 
 **How to apply:** Keep topic entry, reading and follow-ups prominent; expose secondary history, uploads and feature-specific settings on demand without removing the actual research capabilities.
 
-Ordinary AI Chat should stream in the conversation without a blocking agent popup. Research and document checks in chat should use compact live status; long report generation can retain the agent popup.
+Ordinary AI Chat should stream in the conversation without a blocking agent popup. Across all pages, a preparation popup must close automatically when the first live response text arrives, including long report generation.
 
-**Why:** The user found the chat processing bar slow and explicitly approved the distinction between conversation and long-running research.
+**Why:** The user found chat processing slow and later explicitly asked that the agent popup disappear once live text starts, on all pages.
 
-**How to apply:** Preserve evidence verification and mark research text as provisional until checks finish; do not add research overhead to conversational guidance.
+**How to apply:** Preserve evidence verification and mark research text as provisional until checks finish; do not add research overhead to conversational guidance. Keep streaming and checking inline after the first text arrives, without automatically reopening the popup on later stages or reconnections. Optional manual progress access can remain.
 
 Do not expose the platform's underlying AI model or provider in user-facing screens, notices or exported documents. Retain a neutral AI-assistance disclosure.
 

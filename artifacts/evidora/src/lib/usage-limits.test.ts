@@ -6,6 +6,20 @@ import { askSendDisabled } from "../pages/ask-workspace-state";
 import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
 import { requestErrorMessage, itemLoadFailure, isTemporaryRequestFailure, studioItemRefreshInterval } from "./request-errors";
+import { showProgressPopup, streamHasStarted } from "./progress-visibility";
+
+test("Shared progress popup closes on first live text and stays closed through checking and reconnection", () => {
+  assert.equal(streamHasStarted(false, " \n"), false);
+  assert.equal(showProgressPopup({ streamStarted: false }, false), true);
+  const started = streamHasStarted(false, "First manuscript text");
+  assert.equal(started, true);
+  assert.equal(showProgressPopup({ streamStarted: started }, false), false);
+  assert.equal(streamHasStarted(started, ""), true);
+  assert.equal(showProgressPopup({ streamStarted: true }, false), false);
+  assert.equal(showProgressPopup({ streamStarted: true, openedAfterStreaming: true }, false), true);
+  assert.equal(showProgressPopup({ streamStarted: true, openedAfterStreaming: true }, true), false);
+  assert.equal(showProgressPopup({ streamStarted: false }, false), true, "a new job can show its preparation progress");
+});
 
 test("Completed drafts recover from temporary failures without retrying deleted or unauthorised items", () => {
   const ready = { status: "completed", indexStatus: "indexed" };

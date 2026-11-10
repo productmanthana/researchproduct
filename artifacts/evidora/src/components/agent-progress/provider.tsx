@@ -4,9 +4,10 @@ import { useAuth } from "@clerk/react";
 import { Activity, Minimize2 } from "lucide-react";
 import { buildWorkflowView, observe, TONES, type WorkflowInput } from "@/lib/agent-workflow";
 import { WorkflowPanel } from "./workflow-panel";
+import { showProgressPopup, streamHasStarted } from "@/lib/progress-visibility";
 import "./agent-progress.css";
 
-type Job = { input: WorkflowInput; observed: string[]; seq: number; preview?: string; connection?: string };
+type Job = { input: WorkflowInput; observed: string[]; seq: number; preview?: string; connection?: string; streamStarted?: boolean; openedAfterStreaming?: boolean };
 type Ctx = {
   register: (input: WorkflowInput, subscriber: string) => void;
   unregister: (key: string, subscriber: string) => void;
@@ -51,20 +52,24 @@ function AgentProgressRegistry({ children }: { children: ReactNode }) {
     setJobs(prev => {
       const j = prev[key];
       if (!j || (j.preview === text && j.connection === connection)) return prev;
-      return { ...prev, [key]: { ...j, preview: text, connection } };
+      return { ...prev, [key]: { ...j, preview: text, connection, streamStarted: streamHasStarted(j.streamStarted, text) } };
     });
   }, []);
   const open = useCallback((key: string) => {
     setSelected(key);
+    setJobs(prev => {
+      const job = prev[key];
+      return job?.streamStarted ? { ...prev, [key]: { ...job, openedAfterStreaming: true } } : prev;
+    });
     setMinimised(prev => { if (!prev.has(key)) return prev; const n = new Set(prev); n.delete(key); return n; });
   }, []);
 
   const ordered = useMemo(() => Object.entries(jobs).sort((a, b) => a[1].seq - b[1].seq), [jobs]);
   // Selected job if still present; otherwise newest job the user has not minimised.
-  const visible = ordered.filter(([k]) => !minimised.has(k));
-  const current = selected && jobs[selected] && !minimised.has(selected) ? selected
+  const visible = ordered.filter(([k, job]) => showProgressPopup(job, minimised.has(k)));
+  const current = selected && jobs[selected] && showProgressPopup(jobs[selected], minimised.has(selected)) ? selected
     : visible.at(-1)?.[0] ?? (selected && jobs[selected] ? selected : ordered.at(-1)?.[0] ?? null);
-  const openKey = current && !minimised.has(current) ? current : null;
+  const openKey = current && showProgressPopup(jobs[current], minimised.has(current)) ? current : null;
   const minimise = () => { if (current) setMinimised(prev => new Set(prev).add(current)); };
 
   const value = useMemo(() => ({ register, unregister, setPreview, open, jobs, openKey }), [register, unregister, setPreview, open, jobs, openKey]);

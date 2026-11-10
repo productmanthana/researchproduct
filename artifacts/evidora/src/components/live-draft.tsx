@@ -21,8 +21,10 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   progressKey?: string;
 }) {
   const { draft, connection, snapshot } = useLiveGeneration(kind, id, { enabled: working, invalidate });
-  const setPreview = useAgentProgressContext()?.setPreview;
-  useEffect(() => { if (progressKey && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, setPreview, working, draft, connection]);
+  const progress = useAgentProgressContext();
+  const setPreview = progress?.setPreview;
+  const registered = !!(progressKey && progress?.jobs[progressKey]);
+  useEffect(() => { if (progressKey && registered && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, registered, setPreview, working, draft, connection]);
   const textBox=useRef<HTMLDivElement>(null);
   const follow=useRef(true);
   useLayoutEffect(()=>{follow.current=true;},[id]);
