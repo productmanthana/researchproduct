@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useListStudioTemplates, type StudioTemplate } from "@workspace/api-client-react";
 import { BookMarked, ExternalLink } from "lucide-react";
 import { RowSkeleton, ErrorState } from "@/components/states";
+import { instructionsReviewed } from "@/lib/template-guidance";
 
 type RankFilter = "" | "Q1" | "Q2" | "Q3" | "unverified";
-const isVerified = (t: StudioTemplate) => t.status.toLowerCase() === "verified";
+const isVerified = instructionsReviewed;
 const quartile = (t: StudioTemplate) => (t.ranking?.quartile ?? "").toUpperCase().trim();
 const fmtDate = (s?: string) => { if (!s) return ""; const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); };
 
@@ -39,6 +40,7 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
   return (
     <div className="space-y-3" data-testid={`picker-template-${kind}`}>
       <p className="sx-eyebrow">{label}</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">{kind === "journal" ? "Choose where you plan to submit your paper. We’ll adjust the page layout. You can skip this and use a standard format." : "Choose the format requested by your university. You can also continue with a standard format."}</p>
       <div className="grid grid-cols-2 gap-2">
         <select className="sx-input min-w-0" value={publisher} onChange={e => setPublisher(e.target.value)} aria-label="Filter by publisher" data-testid="select-template-publisher">
           <option value="">All publishers</option>{publishers.map(p => <option key={p} value={p}>{p}</option>)}
@@ -47,18 +49,19 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
           <option value="">All countries</option>{countries.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by ranking or verification">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by journal ranking or instruction review">
         {(["", "Q1", "Q2", "Q3", "unverified"] as RankFilter[]).map(r => (
           <button key={r || "all"} type="button" aria-pressed={rank === r} onClick={() => setRank(r)}
             disabled={r !== "" && r !== "unverified" && !hasRankings}
             className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${rank === r ? "border-[hsl(var(--teal))] bg-[hsl(var(--teal))] text-[hsl(52_30%_97%)]" : "bg-[hsl(52_40%_98%)] hover:bg-[hsl(90_20%_93%)] disabled:opacity-40"}`}
-            data-testid={`filter-rank-${r || "all"}`}>{r === "" ? "Any" : r === "unverified" ? "Not verified" : r}</button>
+            data-testid={`filter-rank-${r || "all"}`}>{r === "" ? "All" : r === "unverified" ? "Needs review" : r}</button>
         ))}
       </div>
-      {!compact && <p className="text-[11px] text-muted-foreground">Quartiles are category- and year-specific, quoted from the named source. A journal can be Q1 in one subject and Q3 in another.</p>}
+      {hasRankings && <p className="text-[11px] text-muted-foreground">Q1 means the top 25% in a subject category; Q2 and Q3 are the next groups. Rankings depend on the subject and year, not approval of your paper. Each ranking links to its source.</p>}
+      <p className="text-[11px] leading-relaxed text-muted-foreground">“Instructions reviewed” means a review of the submission instructions is recorded. “Needs review” means no completed review is recorded. It does not mean the journal is unreliable.</p>
       {q.isLoading && <RowSkeleton rows={2} />}
-      {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Couldn't load formatting profiles" />}
-      {!q.isLoading && !q.isError && !shown.length && <p className="text-sm text-muted-foreground">No profiles match. Clear a filter, or use a general academic layout.</p>}
+      {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Couldn't load available formats" />}
+      {!q.isLoading && !q.isError && !shown.length && <p className="text-sm text-muted-foreground">No matches. Clear a filter, or continue with a standard format.</p>}
       <div className={`${compact ? "max-h-56" : "max-h-72"} space-y-1.5 overflow-y-auto pr-1`}>
         {shown.map(t => {
           const on = t.id === value;
@@ -74,7 +77,7 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
                   <p className="text-xs text-muted-foreground">{[t.publisher, t.country].filter(Boolean).join(" · ")}</p>
                   <RankingLine t={t} />
                 </div>
-                <span className={`sx-chip shrink-0 ${verified ? "ok" : "warn"}`}>{verified ? `guidelines checked${t.verifiedAt ? ` ${fmtDate(t.verifiedAt)}` : ""}` : "not verified"}</span>
+                <span className={`sx-chip shrink-0 ${verified ? "ok" : "warn"}`} title={verified ? `Submission instructions reviewed${t.verifiedAt ? ` on ${fmtDate(t.verifiedAt)}` : "; date not recorded"}. Not publisher approval.` : "Submission instructions still need review. This is not a judgement of journal quality."}>{verified ? "Instructions reviewed" : "Needs review"}</span>
               </div>
             </button>
           );
@@ -84,12 +87,14 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
         <div className="rounded-lg border border-dashed p-3 text-xs" data-testid="panel-template-detail">
           <p className="font-medium">{selected.name}</p>
           <RankingLine t={selected} />
-          {selected.layoutDescription && <p className="mt-2"><span className="font-medium">Layout used in exports:</span> <span className="text-muted-foreground">{selected.layoutDescription}</span></p>}
-          {selected.guidelines && <p className="mt-1 text-muted-foreground">{selected.guidelines}</p>}
+          {selected.layoutDescription && <p className="mt-2"><span className="font-medium">PDF and Word page layout:</span> <span className="text-muted-foreground">{selected.layoutDescription}</span></p>}
+          {selected.guidelines && (/^https?:\/\//i.test(selected.guidelines)
+            ? <a className="mt-2 inline-flex items-center gap-1 font-medium text-[hsl(var(--ink-teal))] underline" href={selected.guidelines} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" />Read the official submission instructions</a>
+            : <p className="mt-1 text-muted-foreground">{selected.guidelines}</p>)}
           {selected.requirements.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-4">{selected.requirements.map((r, i) => <li key={i}>{r}</li>)}</ul>}
-          <p className="mt-2 text-muted-foreground">{isVerified(selected) ? `Guidelines last checked ${fmtDate(selected.verifiedAt) || "(date not recorded)"}.` : "These guidelines have not been verified."}</p>
+          <p className="mt-2 text-muted-foreground">{isVerified(selected) ? `Instructions last reviewed: ${fmtDate(selected.verifiedAt) || "date not recorded"}. Requirements may have changed since then.` : "We have not recorded a completed review of these instructions. Check the official instructions before submitting."}</p>
           {selected.officialTemplateUrl && <a className="mt-1 inline-flex items-center gap-1 font-medium text-[hsl(var(--ink-teal))] underline" href={selected.officialTemplateUrl} target="_blank" rel="noreferrer" data-testid="link-official-template"><ExternalLink className="h-3 w-3" />Official author template</a>}
-          <p className="mt-2 text-muted-foreground">Exports use a basic layout derived from these guidelines. It is not the publisher's official template and not a certification of compliance; check the venue's current instructions before submitting.</p>
+          <p className="mt-2 text-muted-foreground">This is a starting layout, not an official publisher or university template. Review the latest submission instructions before sending your paper.</p>
         </div>
       )}
     </div>

@@ -92,11 +92,11 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
             templateSlot={cfg.templateKind ? (
               <details className="rounded-lg border bg-[hsl(52_40%_98%)]" data-testid="panel-formatting-profile">
                 <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
-                  {cfg.templateLabel ?? "Formatting profile"}
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">{templateId ? "Profile selected" : "General academic layout"}</span>
+                  {cfg.templateLabel ?? "Choose a format"}
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">{templateId ? "Selected" : "Optional · standard format if skipped"}</span>
                 </summary>
                 <div className="border-t p-3">
-                  <TemplatePicker kind={cfg.templateKind} value={templateId} onChange={t => setTemplateId(t?.id ?? null)} label={cfg.templateLabel ?? "Formatting profile"} />
+                  <TemplatePicker kind={cfg.templateKind} value={templateId} onChange={t => setTemplateId(t?.id ?? null)} label={cfg.templateLabel ?? "Choose a format"} />
                 </div>
               </details>
             ) : undefined}

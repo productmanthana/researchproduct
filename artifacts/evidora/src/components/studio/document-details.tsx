@@ -14,12 +14,13 @@ export function DocumentDetailsFields({ kind, value, onChange, defaultOpen, disa
     <div className="rounded-lg border bg-[hsl(52_40%_98%)]" data-testid="panel-document-details">
       <button type="button" className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="button-toggle-details">
         <IdCard className="h-4 w-4 text-[hsl(var(--teal))]" />
-        <span className="font-medium">Title-page details</span>
-        <span className="text-xs text-muted-foreground">{filled ? `${filled} of ${fields.length} filled` : "optional"}</span>
+        <span className="font-medium">{kind === "thesis" ? "Your name and university" : "Your name and institution"}</span>
+        <span className="text-xs text-muted-foreground">{filled ? `${filled} details added` : "Optional · add later"}</span>
         <ChevronDown className={`ml-auto h-4 w-4 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="grid gap-2 border-t px-3 pb-3 pt-2.5 sm:grid-cols-2">
+          <p className="text-xs leading-relaxed text-muted-foreground sm:col-span-2">These details appear on the first page of your PDF and Word files. Add your name and the university or organisation you belong to.</p>
           {fields.map(f => (
             <label key={f.key} className={`text-xs font-medium ${f.key === "author" || f.key === "affiliation" ? "sm:col-span-2" : ""}`}>
               {f.label}
@@ -27,7 +28,7 @@ export function DocumentDetailsFields({ kind, value, onChange, defaultOpen, disa
                 placeholder={f.hint} onChange={e => onChange({ ...value, [f.key]: e.target.value })} data-testid={`input-detail-${f.key}`} />
             </label>
           ))}
-          <p className="text-[11px] text-muted-foreground sm:col-span-2">{note ?? "Used on the title page of exported files. Leave blank to skip."}</p>
+          <p className="text-[11px] text-muted-foreground sm:col-span-2">{note ?? "You can leave these blank for now and add them before submitting your paper."}</p>
         </div>
       )}
     </div>

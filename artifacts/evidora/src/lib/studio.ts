@@ -101,8 +101,8 @@ export type { DocumentDetails };
 
 export const DETAIL_KINDS = new Set(["journal", "thesis", "synopsis"]);
 export const DETAIL_FIELDS: { key: keyof DocumentDetails; label: string; max: number; kinds?: string[]; hint?: string }[] = [
-  { key: "author", label: "Author(s)", max: 500, hint: "As it should appear on the title page" },
-  { key: "affiliation", label: "Affiliation", max: 500 },
+  { key: "author", label: "Your name and co-authors", max: 500, hint: "Names as they should appear on your paper" },
+  { key: "affiliation", label: "University or organisation", max: 500, hint: "e.g. Your department, university and city" },
   { key: "supervisor", label: "Supervisor / guide", max: 500, kinds: ["thesis", "synopsis"] },
   { key: "degree", label: "Degree", max: 200, kinds: ["thesis", "synopsis"] },
   { key: "department", label: "Department", max: 200 },

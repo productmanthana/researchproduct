@@ -55,7 +55,7 @@ export function formatIssues(row:any):string[]{
   return issues;
 }
 export type MarkdownBlock={kind:"heading";level:number;text:string}|{kind:"paragraph";text:string}|{kind:"table";rows:string[][]}|{kind:"figure";id:string};
-export const plainText=(s:string)=>s.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\[(.*?)\]\((.*?)\)/g,"$1 ($2)").replace(/`([^`]+)`/g,"$1");
+export const plainText=(s:string)=>s.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\[([^\][\n]+)\]\(([^)\n]+)\)/g,"$1 ($2)").replace(/`([^`]+)`/g,"$1");
 export function documentBlocks(content:string):MarkdownBlock[]{
   const lines=content.split("\n"),blocks:MarkdownBlock[]=[];let paragraph:string[]=[];
   const flush=()=>{if(paragraph.length){blocks.push({kind:"paragraph",text:plainText(paragraph.join(" "))});paragraph=[];}};

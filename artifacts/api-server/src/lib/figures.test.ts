@@ -6,6 +6,24 @@ import { documentBlocks } from "./studio-formatting";
 import { renderStudioWord } from "./studio-docx";
 import { renderStudioPdf } from "./studio-pdf";
 import mammoth from "mammoth";
+import { routeDiagramEdge, crossesTextArea } from "./diagram-routing";
+
+test("diagram connectors avoid descriptions and intermediate node text rather than cutting diagonally across them",()=>{
+  const points=[{x:340,y:280},{x:810,y:280},{x:1280,y:280},{x:575,y:620},{x:1045,y:620}];
+  const boxes=points.map(p=>({left:p.x-180,right:p.x+180,top:p.y-100,bottom:p.y+166}));
+  for(const [from,to] of [[2,3],[0,2],[4,0],[3,4],[1,4]]){
+    const path=routeDiagramEdge(points[from],points[to],boxes,1620,814);
+    assert.ok(path.length>=2);
+    for(let i=1;i<path.length;i++){
+      const a=path[i-1],b=path[i];
+      assert.ok(a.x===b.x||a.y===b.y,"all connector segments are orthogonal");
+      for(let j=0;j<boxes.length;j++){
+        if((i===1&&j===from)||(i===path.length-1&&j===to))continue;
+        assert.equal(crossesTextArea(a,b,boxes[j]),false,`connector ${from}->${to} crosses node ${j}`);
+      }
+    }
+  }
+});
 
 const table="Speed (m/s),Power (kW)\n3,12\n4,26\n5,45";
 const sources=[{id:"request",title:"user-supplied observations",text:`Measurements:\n${table}`}];

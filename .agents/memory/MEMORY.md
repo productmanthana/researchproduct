@@ -7,3 +7,4 @@
 - [Stakeholder vision](stakeholder-vision.md) — the user wants originality review, journal-specific formats and proposal-based gap finding in the research journey.
 - [Research visuals](research-visuals.md) — optional paper maps with explained links and topic-specific coloured scientific illustrations, not generic boxes.
 - [Paper Review](paper-review-policy.md) — manuscript scorecards with bounded scholarly/patent comparisons; estimates, not publication or novelty guarantees.
+- [Bibliography versus evidence](bibliography-evidence.md) — one entry per paper, while retaining page-specific evidence and keeping citation remapping consistent.

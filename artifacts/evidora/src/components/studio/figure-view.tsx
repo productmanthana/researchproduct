@@ -17,7 +17,8 @@ export function FigureView({ itemId, figure, number, analysis=false }: { itemId:
   const params = { format: "png" as const };
   const fetchFigure=analysis?downloadAnalysisFigure:downloadStudioFigure;
   const q = useQuery({
-    queryKey: [analysis?"analysis-figure":"studio-figure",itemId,figure.id,{user:userId??null}],
+    // Bump renderer when shared image geometry changes; previews otherwise remain cached indefinitely.
+    queryKey: [analysis?"analysis-figure":"studio-figure",itemId,figure.id,{user:userId??null,renderer:2}],
     queryFn:()=>fetchFigure(itemId,figure.id,params,{responseType:"blob"}),
     enabled:!!userId,staleTime:Infinity,retry:1,
   });

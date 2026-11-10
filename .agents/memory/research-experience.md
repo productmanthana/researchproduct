@@ -108,7 +108,7 @@ When usage limits are exhausted, the user wants this shown across the app, and c
 
 **How to apply:** Distinguish account allowances from the shared service AI budget, preserve unlimited-account exemptions only for account quotas, and keep viewing saved research available.
 
-The users are non-technical and want as few steps as possible; a visible six-step research journey feels overwhelming.
+The users are non-technical and want as few steps as possible; a visible six-step research journey feels overwhelming. Use familiar labels such as “Choose a journal” and “Your name and institution”: the user says many people do not understand “journal formatting profile” or “title-page details.”
 
 **Why:** The user explicitly rejected the six-step presentation of the connected design previews as too much for their audience.
 

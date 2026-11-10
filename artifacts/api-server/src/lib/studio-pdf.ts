@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { documentBlocks,documentLayout,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
 import { figurePng,figureAspect } from "./figure-renderer";
+import { parseExportReference, prepareExportReferences } from "./export-references";
 export async function renderStudioPdf(row:any):Promise<Buffer>{
+  row=prepareExportReferences(row);
   const figures=referencedFigures(row.content,row.metadata?.figures??[]);
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   return new Promise((resolve,reject)=>{
@@ -68,14 +70,37 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
       let references=false,disclosure=false;
       for(const block of documentBlocks(body)){
         if(block.kind==="heading"){
-          references=/^References\b/i.test(block.text);
+          references=/^(References|Bibliography|Works cited|Reference list)\b/i.test(block.text);
           disclosure=id==="academic-report"&&/^AI-use disclosure\b/i.test(block.text);
           if(disclosure){ensure(48);text(block.text,9,true,false,1.05);continue;}
           if(l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(block.text)&&y>l.margins.top+5)addPage();
           ensure(60);
           if(l.thesis&&block.level<=2)toc.push({title:block.text,page:pageIndex-bodyStart+1});
           text(block.text,block.level===1?17:block.level===2?14:12,true,false,1.2);
-        }else if(block.kind==="paragraph")text(block.text,disclosure?8.5:references&&id==="academic-report"?9.5:l.fontSize,false,false,disclosure?1.05:references&&id==="academic-report"?1.05:l.lineSpacing);
+        }else if(block.kind==="paragraph"){
+          const reference=references?parseExportReference(block.text):undefined;
+          if(reference){
+            const size=Math.min(l.fontSize,10.5),indent=27,lineHeight=size*1.2+2;
+            pdf.font("Academic").fontSize(size);
+            const lines=wrap(reference.citation,width()-indent);
+            const linkLines=reference.linkLabel?wrap(reference.linkLabel,width()-indent):[];
+            const entryHeight=(lines.length+linkLines.length)*lineHeight+8;
+            ensure(Math.min(entryHeight,pdf.page.height-l.margins.top-l.margins.bottom));
+            lines.forEach((line,i)=>{
+              ensure(lineHeight);
+              pdf.fillColor("#000000");
+              if(!i)pdf.text(`[${reference.number}]`,x(),y,{width:indent-3,lineBreak:false});
+              pdf.text(line,x()+indent,y,{width:width()-indent,lineBreak:false});
+              y+=lineHeight;
+            });
+            for(const line of linkLines){
+              ensure(lineHeight);
+              pdf.fillColor("#245b65").text(line,x()+indent,y,{width:width()-indent,lineBreak:false,link:reference.href,underline:true});
+              y+=lineHeight;
+            }
+            pdf.fillColor("#000000");y+=8;
+          }else text(block.text,disclosure?8.5:references&&id==="academic-report"?9.5:l.fontSize,false,false,disclosure?1.05:references&&id==="academic-report"?1.05:l.lineSpacing);
+        }
         else if(block.kind==="figure"){
           const f=figures.find(f=>f.id===block.id)!;
           const previousColumns=columns;

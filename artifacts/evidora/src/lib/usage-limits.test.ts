@@ -7,6 +7,16 @@ import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
 import { requestErrorMessage, itemLoadFailure, isTemporaryRequestFailure, studioItemRefreshInterval } from "./request-errors";
 import { showProgressPopup, streamHasStarted } from "./progress-visibility";
+import { instructionsReviewed } from "./template-guidance";
+
+test("Journal instruction badges recognise recorded reviews without treating rankings or dates alone as verification", () => {
+  assert.equal(instructionsReviewed({status:"Official guidance reviewed; supported layout rules applied. Not a publisher/university approval.",verifiedAt:"2026-11-08"}),true);
+  assert.equal(instructionsReviewed({status:"Draft profile; final guidelines require review. Not a publisher/university approval."}),false);
+  assert.equal(instructionsReviewed({status:"Not verified",verifiedAt:"2026-11-08"}),false);
+  assert.equal(instructionsReviewed({status:"Official guidance reviewed; supported layout rules applied.",verifiedAt:"invalid"}),false);
+  assert.equal(instructionsReviewed({status:"Official guidance reviewed; supported layout rules applied."}),false);
+  assert.equal(instructionsReviewed({status:"verified"}),true);
+});
 
 test("Shared progress popup closes on first live text and stays closed through checking and reconnection", () => {
   assert.equal(streamHasStarted(false, " \n"), false);

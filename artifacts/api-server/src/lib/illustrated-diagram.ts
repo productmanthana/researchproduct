@@ -1,4 +1,5 @@
 import type { ScientificFigure } from "./scientific-figures";
+import { routeDiagramEdge, type DiagramObstacle } from "./diagram-routing";
 
 // Structured, escaped SVG rather than generated pixels: labels and connections
 // remain exact, reproducible, sharp in print, and compatible with Word/PDF.
@@ -21,7 +22,8 @@ const wrap=(s:string,max:number)=>{
 };
 export function diagramSize(f:ScientificFigure){
   const rows=Math.ceil((f.nodes?.length??0)/3);
-  return {width:1440,height:f.layout==="cycle"?1120:Math.max(760,300+rows*250)};
+  const labels=(f.edges??[]).filter(e=>e.label).length;
+  return {width:1620,height:(f.layout==="cycle"&&(f.nodes?.length??0)<=6?1160:Math.max(740,360+rows*340))+Math.ceil(labels/2)*64};
 }
 /** Small scientific pictograms; no outside assets or font-dependent icon glyphs. */
 function icon(type:string,x:number,y:number,color:string){
@@ -48,13 +50,13 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   const positions=new Map<string,{x:number;y:number;role:keyof typeof tones}>();
   nodes.forEach((n,i)=>{
     let x:number,y:number;
-    if(layout==="cycle"){
+    if(layout==="cycle"&&nodes.length<=6){
       const angle=-Math.PI/2+i*Math.PI*2/nodes.length;
-      x=720+Math.cos(angle)*485;y=545+Math.sin(angle)*305;
+      x=width/2+Math.cos(angle)*485;y=545+Math.sin(angle)*305;
     }else{
       const row=Math.floor(i/3),col=i%3,count=Math.min(3,nodes.length-row*3);
-      x=(width-count*420)/2+col*420+210;
-      y=270+row*250;
+      x=(width-count*470)/2+col*470+235;
+      y=280+row*340;
     }
     const role=n.role??(i===0?"input":i===nodes.length-1?"output":"process");
     positions.set(n.id,{x,y,role});
@@ -62,24 +64,29 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   for(const [key,tone] of Object.entries(tones)){
     out.push(`<defs><marker id="arrow-${key}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="${tone.ink}"/></marker></defs>`);
   }
+  const obstacles:DiagramObstacle[]=nodes.map(n=>{
+    const p=positions.get(n.id)!;
+    return {left:p.x-180,right:p.x+180,top:p.y-100,bottom:p.y+(n.description?166:100)};
+  });
+  const routeBottom=Math.max(...obstacles.map(r=>r.bottom),400)+28;
+  const edgeLabels:{letter:string;from:number;to:number;label:string}[]=[];
   for(const e of edges){
     const a=positions.get(e.from),b=positions.get(e.to);if(!a||!b)continue;
     const feedback=e.role==="feedback",tone=tones[feedback?"feedback":b.role];
-    const dx=b.x-a.x,dy=b.y-a.y;
-    // Intersect the connector with each node's enclosing ellipse.
-    const norm=Math.sqrt((dx/171)**2+(dy/88)**2)||1;
-    const x1=a.x+dx/norm,y1=a.y+dy/norm,x2=b.x-dx/norm,y2=b.y-dy/norm;
-    const bend=feedback?70:0,mx=(x1+x2)/2-dy/(Math.hypot(dx,dy)||1)*bend,my=(y1+y2)/2+dx/(Math.hypot(dx,dy)||1)*bend;
-    out.push(`<path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none" stroke="${tone.ink}" stroke-width="${feedback?3:2.5}" ${feedback?'stroke-dasharray="8 5"':""}/>`);
+    const points=routeDiagramEdge(a,b,obstacles,width,routeBottom);
+    const end=points.at(-1)!,prior=points.at(-2)!;
+    out.push(`<path data-connector="true" d="${points.map((p,i)=>`${i?"L":"M"}${p.x},${p.y}`).join(" ")}" fill="none" stroke="${tone.ink}" stroke-width="${feedback?3:2.5}" stroke-linejoin="round" ${feedback?'stroke-dasharray="8 5"':""}/>`);
     // Explicit geometry works in both browser SVG and the PNG/PDF rasterizer;
     // SVG marker support differs between renderers.
-    const tangent=Math.atan2(y2-my,x2-mx),ux=Math.cos(tangent),uy=Math.sin(tangent);
-    if(e.role!=="association")out.push(`<polygon points="${x2},${y2} ${x2-14*ux+5*uy},${y2-14*uy-5*ux} ${x2-14*ux-5*uy},${y2-14*uy+5*ux}" fill="${tone.ink}"/>`);
+    const tangent=Math.atan2(end.y-prior.y,end.x-prior.x),ux=Math.cos(tangent),uy=Math.sin(tangent);
+    if(e.role!=="association")out.push(`<polygon points="${end.x},${end.y} ${end.x-14*ux+5*uy},${end.y-14*uy-5*ux} ${end.x-14*ux-5*uy},${end.y-14*uy+5*ux}" fill="${tone.ink}"/>`);
     if(e.label){
-      const lx=(x1+2*mx+x2)/4,ly=(y1+2*my+y2)/4,lines=wrap(e.label,14);
-      // Keep labels above the path: an opaque label box can otherwise cover a
-      // short connector completely, including its arrow head.
-      lines.forEach((s,i)=>text(lx,ly-18-(lines.length-1-i)*16,s,12,tone.ink,"middle"));
+      const letter=String.fromCharCode(97+edgeLabels.length);
+      edgeLabels.push({letter,from:nodes.findIndex(n=>n.id===e.from)+1,to:nodes.findIndex(n=>n.id===e.to)+1,label:e.label});
+      const segments=points.slice(1).map((p,i)=>({p,q:points[i],length:Math.abs(p.x-points[i].x)+Math.abs(p.y-points[i].y)})).sort((x,y)=>y.length-x.length);
+      const segment=segments[0],lx=(segment.p.x+segment.q.x)/2,ly=(segment.p.y+segment.q.y)/2;
+      out.push(`<circle cx="${lx}" cy="${ly}" r="13" fill="white" stroke="${tone.ink}" stroke-width="1.2"/>`);
+      text(lx,ly+4,letter,14,tone.ink,"middle",600);
     }
   }
   nodes.forEach((n,i)=>{
@@ -92,6 +99,10 @@ export function illustratedDiagramSvg(f:ScientificFigure){
     out.push(icon(n.icon??(layout==="neural"&&p.role==="process"?"network":p.role==="input"?"data":p.role==="output"?"target":p.role==="evidence"?"knowledge":"compute"),p.x,p.y-34,tone.ink));
     wrap(n.label,30).slice(0,3).forEach((s,j)=>text(p.x,p.y+13+j*21,s,18,tone.ink,"middle",600));
     if(n.description)wrap(n.description,45).slice(0,3).forEach((s,j)=>text(p.x,p.y+112+j*17,s,14,"#52665f","middle"));
+  });
+  edgeLabels.forEach((e,i)=>{
+    const x=90+(i%2)*760,y=routeBottom+42+Math.floor(i/2)*64;
+    wrap(`${e.letter} · Stage ${e.from} to ${e.to}: ${e.label}`,78).slice(0,2).forEach((line,j)=>text(x,y+j*20,line,16,"#52665f"));
   });
   const legendY=height-82,roles=[...new Set([...positions.values()].map(p=>p.role))];
   if(edges.some(e=>e.role==="feedback")&&!roles.includes("feedback"))roles.push("feedback");

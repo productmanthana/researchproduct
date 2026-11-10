@@ -163,7 +163,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
       setConflict(null);
       qc.setQueryData(getGetStudioItemQueryKey(saved.id), saved);
       await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
-      toast({ title: `Saved revision ${saved.revision}`, description: profileDirty ? "New formatting profile applied to this revision. Earlier versions keep theirs." : "Earlier versions are kept in history." });
+      toast({ title: `Saved revision ${saved.revision}`, description: profileDirty ? "Your chosen format is saved with this version. Earlier versions are unchanged." : "Earlier versions are kept in history." });
       setToolsOpen(false);
       onOpen(saved.id);
     } catch (e) {
@@ -213,7 +213,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           </div>
         </div>
         <div className={reading ? "mx-auto max-w-[760px] px-5 py-6 md:px-10 md:py-10" : "px-5 py-5 md:px-9 md:py-8"}>
-          {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save this revision before exporting. Exports use the last saved revision{detailsDirty || profileDirty ? ", including its title-page details and formatting profile" : ""}.</p>}
+          {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save your changes before downloading. PDF and Word files use the last saved version{detailsDirty || profileDirty ? ", including your name, institution and chosen format" : ""}.</p>}
           {!dirty && missing.length > 0 && <p className="mb-3 text-xs text-[hsl(var(--turmeric))]" role="status" data-testid="text-export-missing">Before export: {missing.join("; ")}. You can still export.</p>}
           {mode === "edit" && canSave
             ? <input className="sx-title w-full border-0 bg-transparent text-3xl outline-none" value={title} maxLength={300} onChange={e => setTitle(e.target.value)} aria-label="Title" data-testid="input-item-title" />
@@ -276,10 +276,10 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
         {docKind && (
           <div className="sx-card space-y-3 p-4" data-testid="panel-item-settings">
             <DocumentDetailsFields kind={item.kind} value={details} onChange={setDetails} defaultOpen={missing.length > 0}
-              note="Saved with the next revision and used on the exported title page." />
+              note="Click Save new version to include these details on the first page of your PDF and Word files." />
             <TemplatePicker compact kind={item.kind as "journal" | "thesis" | "synopsis"} value={templateId}
-              onChange={(t: StudioTemplate | null) => { setTemplateId(t?.id ?? null); setProfileName(t?.name ?? null); }} label="Formatting profile" />
-            {profileDirty && <p className="text-xs text-vermilion" data-testid="text-profile-dirty">{templateId ? `Switching to ${profileName ?? "a new profile"}` : "Removing the profile"}. Saving creates a new revision; the current one is left unchanged.</p>}
+              onChange={(t: StudioTemplate | null) => { setTemplateId(t?.id ?? null); setProfileName(t?.name ?? null); }} label={item.kind === "journal" ? "Choose a journal" : "Choose a format"} />
+            {profileDirty && <p className="text-xs text-vermilion" data-testid="text-profile-dirty">{templateId ? `Switching to ${profileName ?? "your chosen format"}` : "Switching to the standard format"}. Save a new version to apply this; earlier versions stay unchanged.</p>}
           </div>
         )}
         <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />

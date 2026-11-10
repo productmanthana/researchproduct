@@ -1,8 +1,10 @@
-import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun } from "docx";
+import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun,ExternalHyperlink,TabStopType } from "docx";
 import { documentBlocks,documentLayout,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
 import { figurePng,figureAspect } from "./figure-renderer";
+import { parseExportReference, prepareExportReferences } from "./export-references";
 export async function renderStudioWord(row:any):Promise<Buffer>{
+  row=prepareExportReferences(row);
   const id=row.metadata?.templateId,l=documentLayout(id),d=row.metadata?.documentDetails??{};
   const figures=referencedFigures(row.content,row.metadata?.figures??[]);
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
@@ -10,8 +12,9 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
   const paragraph=(text:string,center=false)=>new Paragraph({children:[new TextRun(text)],alignment:center?AlignmentType.CENTER:undefined,spacing:{after:160,line:Math.round(l.lineSpacing*240)},widowControl:true});
   const blocks=(text:string,columns=l.columns)=>{
     const result:(Paragraph|Table)[]=[];
+    let references=false;
     for(const b of documentBlocks(text)){
-      if(b.kind==="heading")result.push(new Paragraph({text:b.text,heading:b.level===1?HeadingLevel.HEADING_1:b.level===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3,keepNext:true,pageBreakBefore:l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(b.text)}));
+      if(b.kind==="heading"){references=/^(References|Bibliography|Works cited|Reference list)\b/i.test(b.text);result.push(new Paragraph({text:b.text,heading:b.level===1?HeadingLevel.HEADING_1:b.level===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3,keepNext:true,pageBreakBefore:l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(b.text)}));}
       else if(b.kind==="table")result.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:b.rows.map((r,i)=>new TableRow({tableHeader:i===0,children:r.map(text=>new TableCell({children:[new Paragraph({text,spacing:{line:240}})]}))}))}));
       else if(b.kind==="figure"){
         const f=figures.find(f=>f.id===b.id)!;
@@ -21,7 +24,14 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
         result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`));
         if(f.explanation&&id!=="academic-report")result.push(paragraph(f.explanation));
         result.push(paragraph(f.provenance));
-      }else result.push(paragraph(b.text));
+      }else{
+        const reference=references?parseExportReference(b.text):undefined;
+        result.push(reference?new Paragraph({
+          indent:{left:540,hanging:540},tabStops:[{type:TabStopType.LEFT,position:540}],spacing:{after:160,line:276},widowControl:true,
+          children:[new TextRun(`[${reference.number}]\t${reference.citation}`),
+            ...(reference.href?[new TextRun({break:1}),new ExternalHyperlink({link:reference.href,children:[new TextRun({text:reference.linkLabel,style:"Hyperlink"})]})]:[])],
+        }):paragraph(b.text));
+      }
     }
     return result;
   };
