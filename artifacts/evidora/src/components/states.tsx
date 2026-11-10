@@ -18,11 +18,11 @@ export function RowSkeleton({ rows = 5 }: { rows?: number }) {
   );
 }
 
-export function ErrorState({ error, onRetry, title = "Couldn't load this" }: { error: unknown; onRetry?: () => void; title?: string }) {
+export function ErrorState({ error, onRetry, title = "Couldn't load this", variant = "error" }: { error: unknown; onRetry?: () => void; title?: string; variant?: "error" | "warning" }) {
   return (
-    <div className="rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-5" data-testid="status-error">
+    <div role={variant === "warning" ? "status" : "alert"} className={`rounded-md border p-5 ${variant === "warning" ? "border-amber-300 bg-amber-50" : "border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)]"}`} data-testid={variant === "warning" ? "status-refresh-warning" : "status-error"}>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-vermilion" />
+        <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${variant === "warning" ? "text-amber-700" : "text-vermilion"}`} />
         <div className="flex-1">
           <p className="font-medium">{title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{errMessage(error)}</p>

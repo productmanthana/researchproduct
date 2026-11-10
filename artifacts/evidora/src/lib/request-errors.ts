@@ -15,3 +15,21 @@ export function itemLoadFailure(hasSavedItem: boolean) {
     ? { title: "Couldn't refresh this draft", message: "Showing the last loaded version. Your displayed draft is still available; retry to check for updates." }
     : { title: "Couldn't open this item", message: null };
 }
+
+export function isTemporaryRequestFailure(error: unknown): boolean {
+  if (!error) return false;
+  const e = error as { status?: number; message?: unknown; data?: unknown };
+  if (e.status === 401 || e.status === 403) return false;
+  const text = [e.message, typeof e.data === "string" ? e.data : ""].join(" ");
+  // An HTML gateway 404 is not an API response saying that the document was deleted.
+  if (/<(?:!doctype|html|head|body)\b/i.test(text)) return true;
+  if (e.status) return [408, 500, 502, 503, 504].includes(e.status);
+  return /failed to fetch|fetch failed|networkerror|network request failed|load failed/i.test(text);
+}
+
+export function studioItemRefreshInterval(item: { status?: string; indexStatus?: string } | undefined, error: unknown): number | false {
+  if (error) return isTemporaryRequestFailure(error) ? 10000 : false;
+  if (item?.status === "queued" || item?.status === "running") return 2500;
+  if (item && ["pending", "indexing", "queued", "running", "processing"].includes(item.indexStatus ?? "")) return 5000;
+  return false;
+}

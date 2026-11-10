@@ -5,7 +5,23 @@ import { markdownSections, replaceMarkdownSection } from "../pages/draft-markdow
 import { askSendDisabled } from "../pages/ask-workspace-state";
 import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
-import { requestErrorMessage, itemLoadFailure } from "./request-errors";
+import { requestErrorMessage, itemLoadFailure, isTemporaryRequestFailure, studioItemRefreshInterval } from "./request-errors";
+
+test("Completed drafts recover from temporary failures without retrying deleted or unauthorised items", () => {
+  const ready = { status: "completed", indexStatus: "indexed" };
+  assert.equal(studioItemRefreshInterval(ready, null), false);
+  for (const error of [new TypeError("Failed to fetch"), { status: 503 }, { status: 404, data: "<!DOCTYPE html><html>Gateway unavailable</html>" }]) {
+    assert.equal(isTemporaryRequestFailure(error), true);
+    assert.equal(studioItemRefreshInterval(ready, error), 10000);
+    assert.equal(studioItemRefreshInterval(undefined, error), 10000);
+  }
+  for (const error of [{ status: 404, data: { error: "Item not found" } }, { status: 401 }, { status: 403 }, { status: 429 }]) {
+    assert.equal(isTemporaryRequestFailure(error), false);
+    assert.equal(studioItemRefreshInterval(ready, error), false);
+  }
+  assert.equal(studioItemRefreshInterval({ status: "running" }, null), 2500);
+  assert.equal(studioItemRefreshInterval({ ...ready, indexStatus: "indexing" }, null), 5000);
+});
 
 test("Gateway HTML is not displayed as an error, but real API explanations are preserved", () => {
   const html = 'HTTP 404 Not Found: <!DOCTYPE html><html><head><title>This project is not available right now</title>';
