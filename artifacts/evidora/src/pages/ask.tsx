@@ -314,12 +314,6 @@ function AskInner() {
     if (!editor || !activeDraftId || !selectedDraftSection) return;
     updateDraft(replaceMarkdownSection(editor.content, selectedDraftSection, body));
   };
-  const exploreFurther = (analysis: Analysis) => {
-    setQuestion(analysis.responseMode === "guidance"
-      ? "Could you help me narrow this topic into a researchable question?"
-      : "Could you explain the methods or limitations in this answer?");
-    requestAnimationFrame(() => composer.current?.focus());
-  };
   const copyAnswer = async (analysis: Analysis) => {
     try {
       const references = answerReferences(analysis);
@@ -375,7 +369,6 @@ function AskInner() {
               <ol className="es-turn-list"><StudioTurn initial={analysis} retryDisabled={!!ownActive} onRetry={text => { setQuestion(text); composer.current?.focus(); }} chatMode onSourceSelect={handleEvidenceSelect} /></ol>
               {analysis.status === "completed" && analysis.responseMode !== "guidance" && <InternetSourcesNote sources={analysis.sources} warnings={analysis.warnings ?? []} />}
               {analysis.status === "completed" && <div className="es-chat-actions">
-                <button className="es-button" onClick={() => exploreFurther(analysis)}><Wind />Explore further</button>
                 {analysis.responseMode !== "guidance" && analysis.sources.length > 0 && <button className="es-button es-primary" onClick={() => startDraft(analysis)}><FileText />{analysis.draftContent != null || draftBuffers[analysis.id] ? "Continue draft" : "Start a draft"}</button>}
                 {analysis.responseMode !== "guidance" && analysis.content && <SaveAnalysisToProject analysis={analysis} />}
                 {analysis.content && <>
