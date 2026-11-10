@@ -137,7 +137,7 @@ async function runAnalysis(job:any) {
   const validation=synthesis.validation;
   const warnings=[
     ...(job.input.discoveryWarnings??[]),
-    "Where readable text was available, evidence pages were ranked using full-size OpenAI embeddings plus keyword search and reciprocal-rank fusion. This searches selected material, not a locally stored 300-million-paper corpus. Bounded passages, not entire papers, are supplied to answer generation.",
+    "Where readable text was available, evidence pages were ranked using semantic similarity plus keyword search and reciprocal-rank fusion. This searches selected material, not a locally stored 300-million-paper corpus. Bounded passages, not entire papers, are supplied to answer generation.",
     ...(job.input.inspectFigures&&job.kind!=="image"?[`Inspected ${sources.filter(s=>s.image).length} original PDF page image(s), up to 3 per run. Other figures were not inspected.`]:[]),
     ...(supported.length ? [] : ["No draft claims passed source matching and independent evidence review. This is a verification outcome, not proof that relevant research is absent. Your allowance was restored."]),
     ...(synthesis.expansionUnavailable?["Answer depth: Additional synthesis could not complete; the verified portion was retained."]:synthesis.shortAnswer?["Answer depth: Only a shorter synthesis passed evidence checks. No unsupported detail was added to meet a word target."]:[]),

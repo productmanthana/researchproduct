@@ -212,7 +212,7 @@ function Coverage({ review, working, metadata }: { review: ReturnType<typeof rev
       </dl>
       {c.scope && <p className="dr-note">{c.scope}</p>}
       <p className="dr-note">Compared against {review.sources.length} retrieved source{review.sources.length === 1 ? "" : "s"} only, not the whole literature. Suggestions are AI-assisted and need your judgement; this is not a plagiarism, accuracy or patentability check.</p>
-      <p className="dr-note" data-testid="text-review-privacy">Privacy: your request and the document's text and images were sent to OpenAI for this review. Only short topic queries, not the uploaded file, went to scholarly and patent search providers.</p>
+      <p className="dr-note" data-testid="text-review-privacy">Privacy: your request and the document's text and images were sent to our AI processing service for this review. Only short topic queries, not the uploaded file, went to scholarly and patent search providers.</p>
       <div className={`dr-patent ${review.patent.available ? "ok" : "off"}`} data-testid="status-patent">
         <span className="dr-status-tag">{review.patent.available ? "Patents searched" : "Patents not searched"}</span>
         <p>{review.patent.message || (review.patent.available ? "Patent results were included where relevant." : "Patent search was unavailable for this review.")}</p>

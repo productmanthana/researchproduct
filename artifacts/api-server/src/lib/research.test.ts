@@ -26,8 +26,9 @@ import { Claim } from "./evidence";
 import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } from "./publication-currency";
 import { matchesSearchFocus } from "./search-focus";
 import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
-import { synthesisPrompt, evidenceQuestion } from "./synthesis-prompts";
-import { routeAskIntent, validateAskIntent } from "./ask-intent";
+import { synthesisPrompt, evidenceQuestion, requestedPageWords } from "./synthesis-prompts";
+import { routeAskIntent, validateAskIntent, scopedResearchFollowUp, ASK_INTENT_PROMPT } from "./ask-intent";
+import mammoth from "mammoth";
 import { makeDraftRevision, usageStatusForResult, withDraftPreservingAnswer } from "./analysis-draft";
 const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
   text:"Adaptive pitch control reduced simulated power fluctuations. "+"Detailed study conditions and distinct reported outcomes support further explanation. ".repeat(110)};
@@ -532,7 +533,29 @@ test("Conversational answers export as PDF and Word without paper references",as
     const output=await exportResearch(view,"ieee",format);
     assert.ok(Buffer.isBuffer(output));
     assert.equal(output.subarray(0,format==="pdf"?5:2).toString(),format==="pdf"?"%PDF-":"PK");
+    if(format==="docx"){
+      const extracted=await mammoth.extractRawText({buffer:output});
+      assert.doesNotMatch(extracted.value,/References \(IEEE\)|Appendix:|OpenAI|GPT-|DeepSeek/i);
+      assert.match(extracted.value,/AI-assisted guidance/);
+    }
   }
+  const markdown=String(await exportResearch(view,"ieee","md"));
+  assert.doesNotMatch(markdown,/## References|## Appendix|OpenAI|GPT-/);
+});
+test("Global follow-up resolves the original report rather than repeating scope questions",()=>{
+  const question="Provide brief recent topics of about 3 pages on climate change adaptation strategies";
+  const history=[{question,answer:"Would you like a global overview or a particular region or sector?"}];
+  const resolved=scopedResearchFollowUp("global",history);
+  assert.ok(resolved?.includes(question));assert.match(resolved!,/Scope: global/);
+  assert.equal(scopedResearchFollowUp("India",history),null);
+  assert.equal(scopedResearchFollowUp("global",[]),null);
+  assert.match(ASK_INTENT_PROMPT,/Never ask for information already supplied/);
+});
+test("Requested page counts override brief-answer defaults without requiring exact pagination",()=>{
+  assert.deepEqual(requestedPageWords("brief report of about 3 pages"),{min:1050,max:1350});
+  assert.deepEqual(requestedPageWords("three-page climate change overview"),{min:1050,max:1350});
+  assert.equal(requestedPageWords("Explain briefly"),null);
+  assert.match(synthesisPrompt("answer","brief report of about 3 pages"),/1050–1350/);
 });
 test("Guided Ask accepts only bounded intent replies and routes ambiguous turns to guidance",()=>{
   assert.deepEqual(routeAskIntent({intent:"guidance",reply:"Which field interests you, and what makes it timely?",standaloneQuestion:"latest topic"}),{

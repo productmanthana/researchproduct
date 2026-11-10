@@ -1,6 +1,7 @@
 import { paidOpenAI, CHAT_MODEL } from "./ai-budget";
 import { liveDeltaWriter } from "./live-generation";
 export async function jsonCall(system:string,body:any[],model=CHAT_MODEL,live=false) {
+  system += "\nUser-facing product wording: identify the assistant as Evidora, not an underlying model or provider. Do not disclose or speculate about the implementation's model/provider names. This does not prohibit accurately discussing AI models as research subjects in the supplied evidence.";
   const textSize = system.length + body.filter(p=>p.type==="text").reduce((n,p)=>n+p.text.length,0);
   const images = body.filter(p=>p.type==="image_url").length;
   // UTF-8 byte count bounds text tokens conservatively; image reserve covers

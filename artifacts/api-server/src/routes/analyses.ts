@@ -31,6 +31,7 @@ router.post("/analyses",requireUser,async(req,res)=>{
     throw new HttpError(400,"Ask automatically selects public scholarly evidence. Use Research to select papers or private documents.");
   if(b.parentAnalysisId && !b.autoDiscover) throw new HttpError(400,"Follow-up questions belong in Ask.");
   const parent=b.parentAnalysisId?await ownedAnalysis(b.parentAnalysisId,owner):null;
+  if(!b.question.trim()||(!parent&&b.question.trim().length<5))throw new HttpError(400,parent?"Write a follow-up message.":"Write a question of at least 5 characters.");
   if(parent && (parent.status!=="completed" || !parent.input?.autoDiscover)) throw new HttpError(400,"Choose a completed Ask answer for a follow-up.");
   if(paperIds.length>(b.kind==="review"?50:10) || documentIds.length>3) throw new HttpError(400,"Select up to 10 papers (50 for a review) and 3 documents.");
   if(b.kind==="review" && paperIds.length<10) throw new HttpError(400,"Select 10–50 papers for a literature review.");

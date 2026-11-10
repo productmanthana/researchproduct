@@ -159,3 +159,15 @@ Ordinary AI Chat should stream in the conversation without a blocking agent popu
 **Why:** The user found the chat processing bar slow and explicitly approved the distinction between conversation and long-running research.
 
 **How to apply:** Preserve evidence verification and mark research text as provisional until checks finish; do not add research overhead to conversational guidance.
+
+Do not expose the platform's underlying AI model or provider in user-facing screens, notices or exported documents. Retain a neutral AI-assistance disclosure.
+
+**Why:** The user explicitly asked that model identities not be shown anywhere in the app after seeing a named-model disclosure in an exported PDF.
+
+**How to apply:** Keep operational model settings and spend accounting internal. Research papers may legitimately discuss named models; do not corrupt source titles or quotations to hide those.
+
+Proceed with a useful answer instead of repeatedly asking optional preference questions. Reuse the topic, scope and requested length from prior turns; explicit page counts take precedence over generic words such as “brief.”
+
+**Why:** The user showed a three-page report request followed by “global,” then another question asking whether they wanted global scope.
+
+**How to apply:** Default to general/global coverage when appropriate, give concrete topic suggestions when users are unsure, and ask only a genuinely essential missing question. Do not invent evidence to meet a page target.

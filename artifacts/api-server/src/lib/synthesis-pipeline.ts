@@ -3,18 +3,19 @@ import { Claim, normalize, type EvidenceSource } from "./evidence";
 import { jsonCall,liveJsonCall } from "./ai-json";
 import { recoverClaimDraft } from "./claim-recovery";
 import { validateDraftClaims } from "./claim-validation";
-import { synthesisPrompt, QUANTITATIVE_CHECKS } from "./synthesis-prompts";
+import { synthesisPrompt, QUANTITATIVE_CHECKS, requestedPageWords } from "./synthesis-prompts";
 import { logger } from "./logger";
 
 const Output=z.object({claims:z.array(Claim).max(60),limitations:z.array(z.string()).max(10)});
 type WrittenClaim=z.infer<typeof Claim>;
 type Call=typeof jsonCall;
 export function needsAnswerExpansion(kind:string,question:string,claims:WrittenClaim[],sources:EvidenceSource[]) {
-  if(kind!=="answer"||/\b(?:briefly|be concise|short answer|brief answer|one sentence|in \d+ words)\b/i.test(question))return false;
+  const target=requestedPageWords(question);
+  if(kind!=="answer"||(!target&&/\b(?:briefly|be concise|short answer|brief answer|one sentence|in \d+ words)\b/i.test(question)))return false;
   const words=claims.reduce((n,c)=>n+c.text.split(/\s+/).filter(Boolean).length,0);
   const sections=new Set(claims.map(c=>c.section??"Evidence-based findings"));
   const evidenceWords=sources.reduce((n,s)=>n+s.text.split(/\s+/).filter(Boolean).length,0);
-  return evidenceWords>=900&&(words<600||(words<1000&&sections.size<3));
+  return evidenceWords>=900&&(target?words<target.min:words<600||(words<1000&&sections.size<3));
 }
 
 export function mergeVerifiedClaims(existing:WrittenClaim[],additional:WrittenClaim[]) {
@@ -50,7 +51,7 @@ Abstract-only sources support only appropriately qualified findings. Check the o
     return claims.filter((_,i)=>indices.includes(i));
   }
   await progress("writing");
-  const generated=await tracked(synthesisPrompt(kind),[{type:"text",text:JSON.stringify({task:kind,question,asOfDate:new Date().toISOString().slice(0,10),sources})},...images],undefined,true);
+  const generated=await tracked(synthesisPrompt(kind,question),[{type:"text",text:JSON.stringify({task:kind,question,asOfDate:new Date().toISOString().slice(0,10),sources})},...images],undefined,true);
   const draft=Output.parse(generated.value);
   let limitations=draft.limitations;
   const initial=validateDraftClaims(draft.claims,rawSources);

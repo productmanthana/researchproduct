@@ -123,7 +123,8 @@ function AskInner() {
   const left = usageData ? usageData.answersLimit < 0 ? Infinity : usageData.answersLimit - usageData.answersUsed : null;
   const limitMessage = usageLimitMessage(usageData, "answer");
   let problem: string | null = null;
-  if (question.trim().length < 5) problem = "Write at least 5 characters to begin.";
+  if (!question.trim()) problem = parent ? "Write a follow-up message." : "Write at least 5 characters to begin.";
+  else if (!parent && question.trim().length < 5) problem = "Write at least 5 characters to begin.";
   else if (question.length > 2000) problem = "Keep your message under 2,000 characters.";
   else if (ownActive) problem = "Wait for the current answer to finish.";
   const evidenceTurns = currentThread.filter(t => t.status === "completed" && t.responseMode !== "guidance" && (t.sources.length > 0 || (t.discoveredPapers?.length ?? 0) > 0));
@@ -415,7 +416,7 @@ function AskInner() {
             </select></label>{docs.isError && <span className="es-small">Couldn't load your files. <button type="button" className="es-button dr-small" onClick={() => void docs.refetch()}>Retry</button></span>}</div>}
           {attached && <div className="dr-attach" data-testid="panel-review-attachment">
             <div className="dr-attach-row"><span className="dr-attach-chip"><ScanSearch />{attached.name}<button type="button" className="es-icon" style={{ minWidth: 28, height: 28 }} aria-label="Detach file" onClick={() => { setAttached(null); setPagesText(""); }} data-testid="button-detach-document"><X /></button></span></div>
-            <p>Review mode: sending checks this file's text and visuals against related papers and, where available, patents. You get colour-coded suggestions to approve or dismiss one by one. Nothing changes until you approve, and your original file is never modified. Privacy: your request and the file’s text and images are sent to OpenAI; only short topic queries go to scholarly and patent search providers. Word charts and SmartArt may not be read; export to PDF first if they matter.{!activeProject && <> <b>Choose a project in My Library first.</b></>}</p>
+            <p>Review mode: sending checks this file's text and visuals against related papers and, where available, patents. You get colour-coded suggestions to approve or dismiss one by one. Nothing changes until you approve, and your original file is never modified. Privacy: your request and the file’s text and images are sent to our AI processing service; only short topic queries go to scholarly and patent search providers. Word charts and SmartArt may not be read; export to PDF first if they matter.{!activeProject && <> <b>Choose a project in My Library first.</b></>}</p>
             {isPdf && <label className="dr-attach-row">PDF pages to review (optional, up to 12)
               <input value={pagesText} onChange={e => setPagesText(e.target.value)} placeholder="e.g. 1-4, 9" aria-describedby="dr-pages-help" data-testid="input-review-pages" /></label>}
             {isPdf && <span id="dr-pages-help" className="es-small" role="status">{pageParse.error ?? (pageParse.pages?.length ? `Pages ${pageParse.pages.join(", ")}` : "Leave blank to select up to 12 visual pages, prioritising figure mentions; exact coverage is shown with the results.")}</span>}

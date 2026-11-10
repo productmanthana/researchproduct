@@ -10,6 +10,9 @@ export function isProcessingNotice(text:string) {
 }
 
 export function readableResearchText(text:string,sources:Citation[]) {
+  // Upgrade old saved operational notices without changing research titles or
+  // source quotations that may legitimately discuss AI models.
+  if(/^Where readable text was available/.test(text))text=text.replace(/full-size OpenAI embeddings/g,"semantic similarity");
   const refs=new Map<string,string>();
   sources.forEach((s,i)=>{
     refs.set(s.id,`[${i+1}]`);

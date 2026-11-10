@@ -23,8 +23,8 @@ export default function Plans() {
             <div><dt className="text-muted-foreground">Service AI budget available</dt><dd className="mt-1 text-xl font-semibold">{inr(u.aiServiceRemainingInr ?? 0)}</dd></div>
           </dl>
           <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            {u.costPeriod} (UTC). Direct OpenAI usage includes embeddings, generation and verification, including work in unsuccessful runs.
-            Costs are estimates at ₹95/USD using GPT-4.1 $2/$8 per million input/output tokens and text-embedding-3-large $0.13 per million input tokens.
+            {u.costPeriod} (UTC). AI usage includes semantic indexing, generation and verification, including work in unsuccessful runs.
+            Costs are estimates based on metered usage and a planning exchange rate of ₹95/USD.
             Pending or uncertain requests retain a conservative reservation. No automatic paid retries.
           </p>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
@@ -69,7 +69,7 @@ export default function Plans() {
       )}
       <div className="mt-6 space-y-2 text-sm text-muted-foreground">
         <p className="flex gap-2"><Info className="mt-0.5 h-4 w-4 shrink-0" /> Online payments are not enabled yet, so plans cannot be purchased or switched from here. Usage shown above comes directly from your account.</p>
-        <p className="pl-6">Every plan uses the same model (GPT-4.1). Higher plans give more runs, not a different quality of answer.</p>
+        <p className="pl-6">Every plan uses the same research capabilities. Higher plans give more runs, not a different quality of answer.</p>
         <p className="pl-6">New accounts start with a lifetime trial of 3 answers, 1 review and 2 figure readings.</p>
       </div>
     </>

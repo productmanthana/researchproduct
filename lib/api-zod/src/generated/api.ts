@@ -1284,7 +1284,6 @@ export const ListAnalysesResponseItem = zod.object({
 export const ListAnalysesResponse = zod.array(ListAnalysesResponseItem)
 
 
-export const createAnalysisBodyQuestionMin = 5;
 export const createAnalysisBodyQuestionMax = 2000;
 
 export const createAnalysisBodyPageNumbersItemMax = 50;
@@ -1298,7 +1297,7 @@ export const CreateAnalysisBody = zod.object({
   "parentAnalysisId": zod.string().uuid().optional(),
   "guided": zod.boolean().optional().describe('Use the conversational intent-and-guidance entry point for Ask.'),
   "kind": zod.enum(['answer', 'review', 'image']),
-  "question": zod.string().min(createAnalysisBodyQuestionMin).max(createAnalysisBodyQuestionMax),
+  "question": zod.string().min(1).max(createAnalysisBodyQuestionMax),
   "paperIds": zod.array(zod.string()).optional(),
   "documentIds": zod.array(zod.string()).optional(),
   "includeLinkedDocuments": zod.boolean().optional(),

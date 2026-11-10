@@ -32,7 +32,7 @@ export async function searchWeb(value:string,owner?:string,allowed=true):Promise
   const query=webQuery(value);
   const base:WebEvidence={query,retrievedAt:null,cached:false,results:[],status:"unavailable",message:"Internet search unavailable."};
   if(!allowed)return {...base,status:"restricted",message:"Internet search was not run because this request is restricted to existing/project evidence."};
-  if(!process.env.DEEPSEEK_API_KEY)return {...base,status:"not_configured",message:"Internet gap comparison is not active yet. The administrator must add the DeepSeek API key. Scholarly search remains available; no web-based novelty conclusions were made."};
+  if(!process.env.DEEPSEEK_API_KEY)return {...base,status:"not_configured",message:"Internet gap comparison is not active yet. The administrator must configure the Internet search service. Scholarly search remains available; no web-based novelty conclusions were made."};
   if(!owner)return {...base,status:"restricted",message:"Sign in to search supplementary Internet evidence."};
   if(query.length<3)return {...base,status:"restricted",message:"Enter a specific research topic for Internet comparison."};
   const key="web-evidence:v1:"+createHash("sha256").update(owner+":"+query).digest("hex");

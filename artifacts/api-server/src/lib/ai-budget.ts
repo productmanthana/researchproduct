@@ -22,7 +22,7 @@ export function priceMicros(model: string, input: number, output = 0) {
 export async function paidOpenAI(path: "embeddings" | "chat/completions", body: any, reservedInput: number, reservedOutput = 0,onDelta?:(text:string,flush?:boolean)=>Promise<void>) {
   const context = aiContext.getStore();
   if (!context) throw new Error("AI call requires an owner and analysis context");
-  if (!process.env.OPENAI_API_KEY) throw new HttpError(503, "OpenAI is not configured.");
+  if (!process.env.OPENAI_API_KEY) throw new HttpError(503, "The AI service is not configured.");
   const id = randomUUID(), period = new Date().toISOString().slice(0, 7);
   const reserve = priceMicros(body.model, reservedInput, reservedOutput);
   const client = await pool.connect();
@@ -31,7 +31,7 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
     await client.query("SELECT pg_advisory_xact_lock(hashtext('research-ai-monthly-budget'))");
     const { rows } = await client.query("SELECT coalesce(sum(amount_micros::bigint),0) AS spent FROM research_ai_spend WHERE period=$1", [period]);
     if (Number(rows[0].spent) + reserve > AI_MONTHLY_INR * 1e6)
-      throw new HttpError(429, "The service's monthly AI budget limit has been reached. No further OpenAI request was sent. Your run allowance will be restored.");
+      throw new HttpError(429, "The service's monthly AI budget limit has been reached. No further AI request was sent. Your run allowance will be restored.");
     await client.query("INSERT INTO research_ai_spend(id,owner_id,analysis_id,period,model,status,amount_micros) VALUES($1,$2,$3,$4,$5,'reserved',$6)", [id, context.owner, context.analysisId, period, body.model, reserve]);
     await client.query("COMMIT");
   } catch (error) { await client.query("ROLLBACK"); throw error; }
@@ -47,12 +47,12 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
       // retain the reservation; retrying must never erase possible spend.
       if (response.status >= 400 && response.status < 500 && response.status !== 408)
         await pool.query("UPDATE research_ai_spend SET status='rejected',amount_micros=0 WHERE id=$1", [id]);
-      throw new HttpError(503, response.status === 401 ? "OpenAI rejected the configured key. Contact the app administrator." : response.status === 429 ? "OpenAI quota or rate limit reached. Check your OpenAI billing and retry later." : "OpenAI could not complete this request. Please retry later.");
+      throw new HttpError(503, response.status === 401 ? "The AI service could not authenticate. Contact the app administrator." : response.status === 429 ? "The AI service quota or rate limit was reached. Please retry later." : "The AI service could not complete this request. Please retry later.");
     }
     const result = onDelta?await readOpenAIStream(response,onDelta):await response.json() as any;
     const input = result.usage?.prompt_tokens ?? result.usage?.total_tokens;
     const output = result.usage?.completion_tokens ?? 0;
-    if (!Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0) throw new Error("Missing OpenAI usage");
+    if (!Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0) throw new Error("The AI service did not return valid usage information");
     await pool.query("UPDATE research_ai_spend SET status='completed',amount_micros=$2,input_tokens=$3,output_tokens=$4 WHERE id=$1", [id, priceMicros(body.model, input, output), input, output]);
     return result;
   } catch (error) {

@@ -428,7 +428,7 @@ export interface AnalysisInput {
   guided?: boolean;
   kind: AnalysisInputKind;
   /**
-     * @minLength 5
+     * @minLength 1
      * @maxLength 2000
      */
   question: string;

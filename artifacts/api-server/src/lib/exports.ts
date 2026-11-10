@@ -29,9 +29,11 @@ export async function exportResearch(view:any,style:"apa"|"ieee",format:"md"|"do
   const rows=view.comparisonRows??[];
   const mark=(cell:any)=>`${cell.text}${cell.status==="edited"?" [USER EDIT — NOT VERIFIED]":""}${(cell.evidence??[]).map((e:any)=>{const i=references.findIndex(r=>r.id===e.sourceId);return i<0?"":` ${style==="apa"?references[i].inline:`[${i+1}]`}`;}).join("")}`;
   const bibliography=style==="apa"?[...references].sort((a,b)=>a.reference.localeCompare(b.reference)).map(r=>r.reference):references.map((r,i)=>`[${i+1}] ${r.reference}`);
-  const disclosure="AI-assisted draft generated using OpenAI GPT-4.1 from selected evidence. The researcher is the author and is responsible for checking sources, quotations, figures and conclusions. Automated verification is not a guarantee of accuracy.";
+  const disclosure=view.responseMode==="guidance"||!view.sources.length
+    ?"AI-assisted guidance. This response is not a verified literature review. Check sources and conclusions before academic use."
+    :"AI-assisted draft based on selected evidence. The researcher is responsible for checking sources, quotations, figures and conclusions. Automated verification is not a guarantee of accuracy.";
   const table=rows.length?`\n\n## Literature comparison\n\n| Paper | ${comparisonFields.join(" | ")} |\n| --- | ${comparisonFields.map(()=>"---").join(" | ")} |\n${rows.map((r:any)=>`| ${[r.title,...comparisonFields.map(f=>mark(r[f]))].map(c=>String(c).replace(/\|/g,"\\|").replace(/\n/g," ")).join(" | ")} |`).join("\n")}`:"";
-  const text=`${content}${table}\n\n## References (${style.toUpperCase()})\n\n${bibliography.join("\n\n")}\n\n## AI-use disclosure\n\n${disclosure}\n\n## Appendix: Search and processing notes\n\n${view.warnings.join("\n\n")}`;
+  const text=`${content}${table}${bibliography.length?`\n\n## References (${style.toUpperCase()})\n\n${bibliography.join("\n\n")}`:""}\n\n## AI-use disclosure\n\n${disclosure}${view.warnings.length?`\n\n## Appendix: Search and processing notes\n\n${view.warnings.join("\n\n")}`:""}`;
   if(format==="md") return text;
   if(format==="pdf") return renderStudioPdf({title:view.question||"Research answer",kind:"answer",content:text,metadata:{}});
   const children:(Paragraph|Table)[]=content.split("\n").map((line:string)=>{
@@ -46,8 +48,8 @@ export async function exportResearch(view:any,style:"apa"|"ieee",format:"md"|"do
       ...rows.map((r:any)=>new TableRow({children:[r.title,...comparisonFields.map(f=>mark(r[f]))].map(cell)})),
     ]}));
   }
-  children.push(new Paragraph({text:`References (${style.toUpperCase()})`,heading:HeadingLevel.HEADING_2}),
-    ...bibliography.map(text=>new Paragraph(text)),new Paragraph({text:"AI-use disclosure",heading:HeadingLevel.HEADING_2}),new Paragraph(disclosure));
+  if(bibliography.length)children.push(new Paragraph({text:`References (${style.toUpperCase()})`,heading:HeadingLevel.HEADING_2}),...bibliography.map(text=>new Paragraph(text)));
+  children.push(new Paragraph({text:"AI-use disclosure",heading:HeadingLevel.HEADING_2}),new Paragraph(disclosure));
   if(view.warnings.length)children.push(new Paragraph({text:"Appendix: Search and processing notes",heading:HeadingLevel.HEADING_2}),...view.warnings.map((text:string)=>new Paragraph(inline(text))));
   return Packer.toBuffer(new Document({sections:[{properties:rows.length?{page:{size:{orientation:PageOrientation.LANDSCAPE}}}:{},children}]}));
 }
