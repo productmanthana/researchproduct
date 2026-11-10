@@ -26,11 +26,11 @@ Keep failed-run allowance refunds separate from AI spending. Ambiguous timeouts 
 
 **How to apply:** Track each paid request before dispatch, including embedding, synthesis, comparison, and verification calls. State that local estimates and caps do not cap external invoices or storage charges.
 
-Use direct OpenAI for embeddings; the Replit OpenAI proxy did not support the embeddings API when this pipeline was introduced. Generation also uses the direct account so its token-based planning prices share one billing source.
+Use direct OpenAI for embeddings; the Replit OpenAI proxy did not support the embeddings API when this pipeline was introduced. OpenAI generation uses the direct account as well. The user separately approved their own OpenRouter account for DeepSeek with Internet search, not a migration of scholarly retrieval, patents or all generation.
 
 **Why:** Treating the proxy as supporting every OpenAI endpoint would leave semantic search broken, and mixing billing sources obscures the user's operating budget.
 
-**How to apply:** Recheck current integration capabilities before changing providers. Keep credentials in Secrets and never print them.
+**How to apply:** Recheck current integration capabilities before changing providers. Keep credentials in Secrets and never print them. Track OpenRouter search and model charges in the shared budget; its credits are separate from the user's direct DeepSeek/OpenAI accounts.
 
 An explicit request to use the same papers must constrain follow-up discovery, even if a planner thinks additional searches would improve the answer.
 

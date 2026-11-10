@@ -4,6 +4,31 @@ import { usageLimitMessage, allUsageLimitMessages } from "./usage-limits";
 import { markdownSections, replaceMarkdownSection } from "../pages/draft-markdown";
 import { askSendDisabled } from "../pages/ask-workspace-state";
 import { visibleRevisions } from "./latest-revisions";
+import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
+
+test("AI Chat routes real writing assignments into document generation without requiring 'my references'",()=>{
+  for(const text of ["Provide a journal paper on smart grid energy management","I told to write journal paper for submitting from my side","Write a research paper with coloured diagrams","Create an IEEE journal paper","Generate a manuscript on smart grids"]){
+    assert.equal(chatDocumentIntent(text)?.kind,"journal",text);
+    assert.equal(chatDocumentIntent(text)?.evidenceMode,"combined");
+  }
+  assert.equal(chatDocumentIntent("Write a thesis on smart grids")?.kind,"thesis");
+  assert.equal(chatDocumentIntent("Generate literature survey on smart grids")?.kind,"literature");
+  assert.equal(chatDocumentIntent("Prepare synopsis on smart grids")?.kind,"synopsis");
+  assert.equal(chatDocumentIntent("Write a journal paper using my references")?.evidenceMode,"project");
+  assert.equal(chatDocumentIntent("Provide a journal paper using the same sources")?.evidenceMode,"project");
+  assert.equal(chatDocumentIntent("yes",[{question:"Write a journal paper on smart grids",answer:"Here is an outline"}])?.kind,"journal");
+  for(const text of ["What is a journal paper?","How to write a journal paper?","Give me an outline for a journal paper","Find papers on smart grids","Don't write a journal paper yet","yes"])
+    assert.equal(chatDocumentIntent(text),null,text);
+});
+
+test("AI Chat handoff preserves its topic and asks for an actual document with defensible diagrams",()=>{
+  const prompt=chatDocumentPrompt("yes",[{question:"Write a journal paper on smart grid energy management",answer:"Use AI for load forecasting."}]);
+  assert.match(prompt,/smart grid energy management/);
+  assert.match(prompt,/actual developed document, not an outline/);
+  assert.match(prompt,/diagrams with captions/);
+  assert.match(prompt,/not fabricated empirical results/);
+  assert.ok(chatDocumentPrompt("write a journal paper",Array.from({length:20},()=>({question:"q".repeat(5000),answer:"a".repeat(10000)}))).length<=5000);
+});
 
 test("library retains a Paper Review scorecard after an approved draft is created",()=>{
   const make=(id:string,parentId:string|null,kind:string,metadata:unknown={})=>({id,parentId,kind,metadata,createdAt:"2026-11-10T00:00:00Z"});

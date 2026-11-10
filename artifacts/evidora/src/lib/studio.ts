@@ -1,5 +1,6 @@
 import { isFigureRequest } from "./figures";
 import { visibleRevisions } from "./latest-revisions";
+import { chatDocumentIntent, type ChatContext } from "./chat-document";
 import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
@@ -71,10 +72,12 @@ export function latestItems(items: StudioItem[]): StudioItem[] {
   return visibleRevisions(items);
 }
 
-export type ProjectIntent = { kind: "ideas" | "literature" | "synopsis" | "journal" | "thesis" | "answer"; route: string; figure?: boolean };
+export type ProjectIntent = { kind: "ideas" | "literature" | "synopsis" | "journal" | "thesis" | "answer"; route: string; figure?: boolean; document?: boolean; evidenceMode?: "project" | "combined" };
 
 /** Detects an explicit request to use the user's own project material, and infers the document kind. */
-export function projectIntent(text: string): ProjectIntent | null {
+export function projectIntent(text: string, history: ChatContext[] = []): ProjectIntent | null {
+  const document = chatDocumentIntent(text, history);
+  if (document) return document;
   const t = text.toLowerCase();
   if (isFigureRequest(t)) {
     // Graphs/diagrams always go through the project-aware generator; keep the document kind when it is named.

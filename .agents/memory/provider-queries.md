@@ -22,3 +22,11 @@ Detect upstream HTML bot challenges and distinguish them from usable JSON/XML re
 **Why:** dblp returned HTTP 202 with a bot-check HTML page. Treating all 2xx statuses as connected obscured the cause and retried a request the app could not satisfy.
 
 **How to apply:** Preserve explicit partial-coverage warnings, bounded timeouts and cooldowns. A healthy provider's results do not imply the other providers succeeded.
+
+## Internet search evidence through a language-model gateway
+
+Use retrieved citation excerpts as web evidence, not the model's generated answer or a JSON list of links it writes. Missing source excerpts mean unusable evidence, even if the answer looks plausible.
+
+**Why:** The user approved DeepSeek with Internet search through OpenRouter to replace a failing direct search connection. Gateway-generated prose is synthesis, not independent corroboration or proof that an original web page was fully read.
+
+**How to apply:** Enable actual search explicitly, preserve source links and excerpt-level provenance, and retain paper/patent searches separately. Include both model and search fees in accounting. Missing cost data or a failed post-search request must retain a conservative spend reservation; a retry must not erase possible charges.

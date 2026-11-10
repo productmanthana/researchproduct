@@ -25,3 +25,9 @@ In stakeholder slides, omit provider names such as OpenAlex and explanations abo
 **Why:** The user explicitly requested removing these details from the presentation.
 
 **How to apply:** Describe scholarly discovery, natural-language questions, deduplication and traceable evidence without infrastructure detail. Keep coverage and access claims accurate without implying every indexed work has accessible full text.
+
+An explicit request in AI Chat to write a journal paper must produce a developed manuscript with appropriate scientific illustrations, not another outline or instructions for the user to write each section.
+
+**Why:** The user repeatedly asked for an actual journal paper and rejected replies that only described the sections or advised adding diagrams.
+
+**How to apply:** Carry the conversation's topic into the document workflow, preserve source restrictions, and use a standard article structure or the requested journal profile. Without actual experimental inputs, label the output as a literature-based review or proposed study rather than inventing completed research. A request for a whole manuscript with diagrams is not a figure-only edit of the previous chat answer.

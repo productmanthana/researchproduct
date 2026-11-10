@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEven
 import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
-import { useGenerateStudioDocument, useSaveStudioItem, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis, useCreateDocumentReview, useListDocuments, getListDocumentsQueryKey, useListStudioItems, type Document } from "@workspace/api-client-react";
+import { useCreateProject, getListProjectsQueryKey, useGenerateStudioDocument, useSaveStudioItem, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis, useCreateDocumentReview, useListDocuments, getListDocumentsQueryKey, useListStudioItems, type Document } from "@workspace/api-client-react";
 import { ArrowDownToLine, ArrowUp, BookOpen, Check, ChevronDown, Copy, FileText, FolderOpen, History, LogOut, Plus, ScanSearch, Wind, X } from "lucide-react";
 import { exportAnalysis } from "@workspace/api-client-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -19,7 +19,7 @@ import { askSendDisabled } from "./ask-workspace-state";
 import { SaveAnalysisToProject } from "@/components/studio/save-analysis";
 import { useActiveProject } from "@/lib/active-project";
 import { useUnsavedGuard } from "@/lib/unsaved";
-import { friendlyError, projectIntent } from "@/lib/studio";
+import { friendlyError, projectIntent, latestItems } from "@/lib/studio";
 import { FIGURE_GUARD, ROUTE_FOR_KIND } from "@/lib/figures";
 import "@/components/research-studio/studio.css";
 import "./ask-workspace.css";
@@ -31,6 +31,7 @@ import { HistoryDrawer } from "@/components/studio/workspace-shell";
 import { isWorking } from "@/lib/studio";
 import { FigureView, MissingFigure } from "@/components/studio/figure-view";
 import type { StudioFigure } from "@/lib/figures";
+import { chatDocumentPrompt } from "@/lib/chat-document";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const reviewable = (d: Pick<Document, "contentType" | "name">) => d.contentType === "application/pdf" || d.contentType === DOCX_TYPE || /\.(pdf|docx)$/i.test(d.name);
@@ -133,14 +134,17 @@ function AskInner() {
   const sourceAnalysis = evidenceTurns.find(t => t.id === sourceAnalysisId) ?? evidenceTurns.at(-1);
   const hasDirtyDraft = Object.values(draftBuffers).some(value => value.dirty);
   useUnsavedGuard("ask-draft", hasDirtyDraft, "You have unsaved draft changes in AI Chat.");
-  const { project: activeProject } = useActiveProject();
-  const intent = projectIntent(question);
+  const { project: activeProject, select: selectProject } = useActiveProject();
+  const chatContext = currentThread.filter(t => t.status === "completed").map(t => ({ question: t.question, answer: t.content }));
+  const intent = projectIntent(question, chatContext);
+  const createProject = useCreateProject();
   const generate = useGenerateStudioDocument();
   const saveContext = useSaveStudioItem();
   const docs = useListDocuments({ query: { queryKey: getListDocumentsQueryKey(), enabled: pickOpen || !!attached } });
   const readyDocs = (docs.data ?? []).filter(d => reviewable(d) && (d.status === "ready" || d.status === "completed"));
   const reviewsQ = useListStudioItems({ projectId: activeProject?.id ?? "" }, { query: { queryKey: getListStudioItemsQueryKey({ projectId: activeProject?.id ?? "" }), enabled: !!activeProject } });
   const reviews = (reviewsQ.data ?? []).filter(i => i.kind === REVIEW_KIND).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const projectDrafts = latestItems(reviewsQ.data ?? []).filter(i => ["journal", "thesis", "literature", "synopsis"].includes(i.kind));
   const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
   const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
@@ -218,17 +222,23 @@ function AskInner() {
     if (intent) {
       // Explicit "my idea / my references" request: generate from the active project, never silently fall back to public research.
       // Quota is decided by the backend for the inferred kind (reviews vs answers); only warn locally from the matching allowance.
-      if (problem || generate.isPending || saveContext.isPending) return;
-      if (!activeProject) {
+      if (problem || generate.isPending || saveContext.isPending || createProject.isPending) return;
+      if (!activeProject && (!intent.document || intent.evidenceMode === "project")) {
         toast({ title: "Choose a project first", description: intent.figure ? "Figures are built from a project's own data and sources. Pick or create a project in the sidebar, then send again." : "You asked to use your own material. Pick or create a project in the sidebar, then send again.", variant: "destructive" });
         return;
       }
       if (sendLimit) { toast({ title: "Limit reached", description: sendLimit, variant: "destructive" }); return; }
       if (!mayLeave()) return;
       try {
+        let project = activeProject;
+        if (!project) {
+          project = await createProject.mutateAsync({ data: { name: `${intent.kind === "journal" ? "Journal" : intent.kind} research`, description: "Research document started from AI Chat." } });
+          await qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+          selectProject(project.id, { skipGuard: true });
+        }
         // Carry the selected conversation into the new document, not a random recent project item.
-        const savedContext = parent ? await saveContext.mutateAsync({ data: { projectId: activeProject.id, kind: "answer", title: parent.question.slice(0, 300), content: parent.content, analysisId: parent.id } }) : null;
-        const item = await generate.mutateAsync({ data: { projectId: activeProject.id, kind: intent.kind, parentId: savedContext?.id, prompt: (intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: "project", includePatents: true } });
+        const savedContext = parent ? await saveContext.mutateAsync({ data: { projectId: project.id, kind: "answer", title: parent.question.slice(0, 300), content: parent.content, analysisId: parent.id } }) : null;
+        const item = await generate.mutateAsync({ data: { projectId: project.id, kind: intent.kind, parentId: savedContext?.id, prompt: (intent.document ? chatDocumentPrompt(question, chatContext) : intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: intent.evidenceMode ?? "project", includePatents: true, ...(intent.document && intent.kind === "journal" && /\bieee\s+access\b/i.test(question) ? { templateId: "ieee-access" } : {}) } });
         qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
         void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -236,7 +246,7 @@ function AskInner() {
         const route = ROUTE_FOR_KIND[item.kind] ?? intent.route;
         setLocation(`${route}${route.includes("?") ? "&" : "?"}item=${encodeURIComponent(item.id)}`);
       } catch (error) {
-        toast({ title: "Couldn't start from your project", description: friendlyError(error), variant: "destructive" });
+        toast({ title: "Couldn't start the document", description: friendlyError(error), variant: "destructive" });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
       }
       return;
@@ -455,11 +465,14 @@ function AskInner() {
           </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>
         </aside>}
       </div>}
-      <HistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} title="History and reviews" description="Saved research conversations and document reviews. Opening one restores every saved turn.">
+      <HistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} title="History and reviews" description="Reopen saved conversations, research drafts and document reviews.">
         <div className="es-recent es-drawer-list" aria-label="Saved conversations"><span className="es-eyebrow">Your conversations</span>
           {threads.map(item => <button key={item.id} aria-current={thread?.id === item.id ? "page" : undefined} onClick={() => openThread(item.id)} data-testid={`button-open-thread-${item.id}`}>{item.turns[0]?.question}<small>{item.turns.length} {item.turns.length === 1 ? "turn" : "turns"}</small></button>)}
-          {!threads.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
+          {!threads.length && !projectDrafts.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
         </div>
+        {activeProject && projectDrafts.length > 0 && <div className="es-recent es-drawer-list" aria-label="Saved research drafts"><span className="es-eyebrow">Research drafts in {activeProject.name}</span>
+          {projectDrafts.slice(0, 20).map(item => <button key={item.id} onClick={() => { if (!mayLeave()) return; setHistoryOpen(false); setLocation(`${ROUTE_FOR_KIND[item.kind]}?item=${encodeURIComponent(item.id)}`); }} data-testid={`button-open-chat-draft-${item.id}`}>{item.title}<small>{item.kind === "journal" ? "Journal manuscript" : item.kind} · {isWorking(item.status) ? "Writing…" : item.status === "failed" ? "Needs retry" : "Saved draft"}</small></button>)}
+        </div>}
         {activeProject ? <div className="es-recent es-drawer-list dr-review-hist" aria-label="Document reviews"><span className="es-eyebrow">Document reviews in {activeProject.name}</span>
           {reviews.slice(0, 12).map(item => <button key={item.id} aria-current={reviewId === item.id ? "page" : undefined} onClick={() => { if (!mayLeave()) return; setHistoryOpen(false); setPanel(null); setLocation(`/ask?review=${encodeURIComponent(item.id)}`); }} data-testid={`button-open-review-${item.id}`}>{item.title}<small>{isWorking(item.status) ? "Reviewing" : item.status === "failed" ? "Failed" : "Ready"}</small></button>)}
           {!reviews.length && <p className="es-small">{reviewsQ.isLoading ? "Loading reviews..." : "Attach a PDF or Word file with the paperclip to start one."}</p>}

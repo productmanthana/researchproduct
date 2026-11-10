@@ -18,6 +18,7 @@ import { figureCsv, referencedFigures, type ScientificFigure } from "../lib/scie
 import { figurePng, figureSvg } from "../lib/figure-renderer";
 import { validStudioContext } from "../lib/studio-conversation";
 import { conversationContext } from "../lib/ask-discovery";
+import { figureRevisionRequest } from "../lib/manuscript-policy";
 const router=Router();
 router.use("/studio",requireUser);
 router.get("/studio/templates",async(_req,res)=>res.json(studioTemplates));
@@ -83,7 +84,7 @@ router.post("/studio/generate",async(req,res)=>{
   await ownedStudioProject(b.projectId,owner);
   let parent:any;
   // Resolve explicit Chat insertion requests against this owner's current project only.
-  if(!b.parentId&&figureRequested(b.prompt)&&/\b(?:my|this|the|existing)\s+(?:latest\s+)?(?:journal|thesis|paper|manuscript|draft|literature|document)/i.test(b.prompt)){
+  if(!b.parentId&&figureRevisionRequest(b.prompt,b.kind,b.kind)&&/\b(?:my|this|the|existing)\s+(?:latest\s+)?(?:journal|thesis|paper|manuscript|draft|literature|document)/i.test(b.prompt)){
     const {rows}=await pool.query(`SELECT s.* FROM research_studio_items s WHERE project_id=$1 AND owner_id=$2 AND status='completed'
       AND kind IN('journal','thesis','literature','synopsis','answer') AND NOT EXISTS(SELECT 1 FROM research_studio_items c WHERE c.parent_id=s.id)
       ORDER BY created_at DESC LIMIT 50`,[b.projectId,owner]);
@@ -96,7 +97,7 @@ router.post("/studio/generate",async(req,res)=>{
   if(b.parentId){
     parent=await ownedStudio(b.parentId,owner);
     if(!validStudioContext(parent,b))throw new HttpError(400,"Use a completed message in this project, or retry the exact question of a failed answer.");
-    if(figureRequested(b.prompt)){
+    if(figureRevisionRequest(b.prompt,b.kind,parent.kind)){
       b.templateId??=parent.metadata?.templateId??undefined;
       b.documentDetails??=parent.metadata?.documentDetails;
     }
@@ -114,7 +115,7 @@ router.post("/studio/generate",async(req,res)=>{
     if(active.rowCount)throw new HttpError(409,"Please wait for your current research request to finish.");
     const id=randomUUID();
     await client.query("INSERT INTO research_usage(id,owner_id,period,kind) VALUES($1,$2,$3,$4)",[id,owner,u.period,kind]);
-    const revisionParent=parent?.status==="completed"&&figureRequested(b.prompt)?parent:undefined;
+    const revisionParent=parent?.status==="completed"&&figureRevisionRequest(b.prompt,b.kind,parent.kind)?parent:undefined;
     if(revisionParent&&(await client.query("SELECT id FROM research_studio_items WHERE parent_id=$1",[parent.id])).rowCount)throw new HttpError(409,"A newer revision already exists. Open the newest version before adding figures.");
     const {rows}=await client.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,status,metadata,parent_id,revision)
       VALUES($1,$2,$3,$4,$5,'queued',$6,$7,$8) RETURNING *`,[id,owner,b.projectId,b.kind,b.prompt.slice(0,200),JSON.stringify({request:b,stage:"Queued",templateId:b.templateId??null,documentDetails:b.documentDetails??{},...(revisionParent?{figureRevisionOf:revisionParent.id}:{})}),null,(revisionParent?.revision??0)+1]);

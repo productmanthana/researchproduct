@@ -22,6 +22,7 @@ import { generateDocumentReview } from "./document-review";
 import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
+import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS } from "./manuscript-policy";
 
 const Idea=z.object({title:z.string().min(1),problem:z.string(),question:z.string(),method:z.string(),feasibility:z.string()});
 const Generated=z.object({title:z.string().min(1).max(300),content:z.string().min(1).max(100000),ideas:z.array(Idea).optional()});
@@ -29,7 +30,7 @@ const instructions:Record<string,string>={
   ideas:IDEA_INSTRUCTIONS,
   literature:"Produce a developed academic literature survey with scope/search approach, introduction, thematic synthesis, comparison table of methods/settings/results/limitations, agreement and disagreement, possible gaps, and conclusion. Do not call this an exhaustive systematic review.",
   synopsis:"Produce a research synopsis: background, problem, evidence-qualified gap, objectives, questions/hypotheses, proposed methods, data/ethics, timeline/resources, expected contribution and limitations. Label plans and expected outcomes as proposed.",
-  journal:"Produce a journal manuscript draft using the requested profile. Include abstract, keywords, introduction, related work, methodology, results, discussion, limitations and declarations where appropriate. If actual methods/results are absent, mark those sections 'Research input required'; never invent completed experiments or results.",
+  journal:JOURNAL_DRAFT_INSTRUCTIONS,
   thesis:"Produce a substantial thesis working draft and chapter plan: front matter placeholders, abstract, introduction, literature review, proposed or supplied methodology, results (only if supplied), discussion, conclusion and appendices. Explicitly identify chapters needing actual data or supervisor input. Do not portray an outline as a completed thesis.",
   answer:"Respond professionally to the actual question using the selected project's idea and references. If asked for a survey, synopsis or manuscript, produce that structure. Ask a concise clarification if 'my idea' or 'my references' is ambiguous. Never invent scientific findings.",
 };
@@ -48,7 +49,7 @@ async function generate(row:any) {
   if(request.parentId&&!parentRow)throw new HttpError(400,"The earlier message is no longer available in this project. Reopen an existing conversation or start a new topic.");
   const conversation=parentRow?await loadStudioConversation(parentRow.id,owner,project.id):{turns:[],trimmed:false};
   if(conversation.trimmed)warnings.push("Earlier long conversation messages were shortened for model context; saved chat history is unchanged.");
-  const figureOnly=parentRow?.status==="completed"&&figureRequested(request.prompt);
+  const figureOnly=parentRow?.status==="completed"&&figureRevisionRequest(request.prompt,request.kind,parentRow.kind);
   const ideas=items.filter(i=>i.kind==="idea");
   const threadIdea=conversation.turns.find(turn=>turn.kind==="idea");
   const chosen=(parentRow?.kind==="idea"?parentRow:undefined)??(threadIdea?{id:threadIdea.id,title:threadIdea.title,content:threadIdea.answer}:undefined)??ideas.find(i=>i.id===request.parentId)??ideas.find(i=>request.prompt.toLowerCase().includes(i.title.toLowerCase()));
