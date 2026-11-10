@@ -15,6 +15,21 @@ export function documentLayout(id?:string):Layout {
   if(["jisc","jiei","pramana"].includes(id??""))return {...base,size:"A4",fontSize:10,lineSpacing:1.5};
   return base;
 }
+/** Apply only bounded settings extracted from this exact selected official source. */
+export function documentLayoutFor(row:any):Layout {
+  const base=documentLayout(row.metadata?.templateId),check=row.metadata?.requirementsCheck;
+  if(check?.status!=="retrieved"||check.templateId!==row.metadata?.templateId)return base;
+  const supplied=check.appliedLayout??{},layout={...base,margins:{...base.margins}};
+  if(["A4","LETTER"].includes(supplied.size))layout.size=supplied.size;
+  if(Number.isFinite(supplied.fontSize)&&supplied.fontSize>=8&&supplied.fontSize<=16)layout.fontSize=supplied.fontSize;
+  if(Number.isFinite(supplied.lineSpacing)&&supplied.lineSpacing>=1&&supplied.lineSpacing<=2.5)layout.lineSpacing=supplied.lineSpacing;
+  if(supplied.columns===1||supplied.columns===2)layout.columns=supplied.columns;
+  for(const side of ["top","right","bottom","left"] as const){
+    const value=supplied.margins?.[side];
+    if(Number.isFinite(value)&&value>=18&&value<=144)layout.margins[side]=value;
+  }
+  return layout;
+}
 export function layoutDescription(id:string){
   const l=documentLayout(id);
   return `${l.size==="LETTER"?"US Letter":"A4"} · ${l.fontSize} pt · ${l.columns} column${l.columns===1?"":"s"} · ${l.lineSpacing}× line spacing · margins T/R/B/L ${[l.margins.top,l.margins.right,l.margins.bottom,l.margins.left].map(n=>(n/72).toFixed(2)).join("/")} in${l.thesis?" · title page, contents and separate preliminary/body pagination":""}.`;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreatePaperReview, exportPaperScorecard, getListStudioItemsQueryKey, type StudioItem } from "@workspace/api-client-react";
+import { useCreatePaperReview, useListStudioTemplates, exportPaperScorecard, getListStudioItemsQueryKey, type StudioItem } from "@workspace/api-client-react";
 import { ClipboardCheck, Download, FileSearch, History, Info, Scale, TriangleAlert } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { ErrorState } from "@/components/states";
@@ -17,6 +17,8 @@ import { useActiveProject } from "@/lib/active-project";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError, isWorking, KIND_LABEL, latestItems } from "@/lib/studio";
 import { confirmLeave } from "@/lib/unsaved";
+import { RequirementsCheck, ResearchCoverage, requirementsCheckOf, researchCoverageOf } from "@/components/studio/requirements-check";
+import { ApplyFormatAction } from "@/components/studio/apply-format-action";
 import "./paper-review.css";
 
 type DocType = "manuscript" | "proposal" | "thesis" | "literature";
@@ -161,6 +163,13 @@ function ReviewView({ id, onClose }: { id: string; onClose: () => void }) {
     <div className="space-y-5">
       {job && <div className="sx-card p-4" data-testid="status-paper-review-working"><AgentProgressChip jobKey={job.key} /><p className="mt-2 text-xs text-muted-foreground">Your manuscript stays readable below while the review runs. You can leave and return; progress is saved.</p></div>}
       {item.status === "failed" && <ErrorState error={{ message: item.error || "The review did not finish." }} title="Review failed" />}
+      {!isWorking(item.status) && <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div>
+        <RequirementsCheck formatCopy data={requirementsCheckOf(item)} emptyHint="This review has no saved requirements check. Reviews started before this feature, or without a target, show scores and comparisons only." />
+          <ApplyFormatAction review={item} />
+        </div>
+        {researchCoverageOf(item) ? <ResearchCoverage data={researchCoverageOf(item)} /> : <section className="sx-card p-4 text-xs text-muted-foreground" data-testid="panel-research-coverage-empty"><p className="sx-eyebrow">What was searched</p><p className="mt-2">Search counts were not recorded for this review. The comparisons below list every source that was used.</p></section>}
+      </div>}
       <ScorecardPanel item={item} />
       <div className="es-root paper-review-document" data-mobile-view={mobileView}>
         <div className="paper-review-mobile-tabs" role="tablist" aria-label="Manuscript review view">
@@ -181,6 +190,8 @@ function Inner() {
   const { source, item: reviewId, set } = useParams();
   const [docType, setDocType] = useState<DocType | "">("");
   const [target, setTarget] = useState("");
+  const [tplPick, setTplPick] = useState<string | null>(null);
+  const templates = useListStudioTemplates();
   const [busy, setBusy] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const create = useCreatePaperReview({ mutation: { onSuccess: () => void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() }) } });
@@ -190,11 +201,16 @@ function Inner() {
   const choices = latestItems(all.filter(i => i.status === "completed" && i.content.trim() && i.kind !== "document-review" && !md(i).paperReview));
   const chosen = choices.find(i => i.id === source);
   const type: DocType = docType || kindToType(chosen?.kind);
+  const tplKind = type === "thesis" || type === "proposal" ? "thesis" : "journal";
+  const tplOptions = (templates.data ?? []).filter(t => t.kind === tplKind || (type === "proposal" && t.kind === "synopsis"));
+  const inherited = typeof md(chosen).templateId === "string" ? md(chosen).templateId as string : "";
+  const tplId = tplPick ?? (tplOptions.some(t => t.id === inherited) ? inherited : "");
+  const tpl = tplOptions.find(t => t.id === tplId);
   const history = all.filter(isPaperReview).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   const run = async () => {
     if (!chosen || create.isPending || busy) return;
     try {
-      const r = await create.mutateAsync({ data: { projectId: project.id, sourceItemId: chosen.id, documentType: type, ...(target.trim() ? { target: target.trim() } : {}) } });
+      const r = await create.mutateAsync({ data: { projectId: project.id, sourceItemId: chosen.id, documentType: type, ...(tpl ? { target: tpl.name } : target.trim() ? { target: target.trim() } : {}) } });
       set({ item: r.id, source: chosen.id });
     } catch (e) { toast({ title: "Could not start the review", description: friendlyError(e), variant: "destructive" }); }
   };
@@ -211,27 +227,35 @@ function Inner() {
           <div className="md:col-span-2">
             <label htmlFor="select-review-source" className="sx-eyebrow">Document to review</label>
             {items.isError && <ErrorState error={items.error} onRetry={() => void items.refetch()} />}
-            <select id="select-review-source" className="sx-input mt-1.5" value={source} onChange={e => { set({ source: e.target.value || null }); setDocType(""); }} disabled={items.isLoading} data-testid="select-review-source">
+            <select id="select-review-source" className="sx-input mt-1.5" value={source} onChange={e => { set({ source: e.target.value || null }); setDocType(""); setTplPick(null); }} disabled={items.isLoading} data-testid="select-review-source">
               <option value="">{items.isLoading ? "Loading..." : choices.length ? "Choose a saved document" : "No saved documents yet - attach a PDF or Word file below"}</option>
               {choices.map(i => <option key={i.id} value={i.id}>{KIND_LABEL[i.kind] ?? i.kind}: {i.title} (rev {i.revision})</option>)}
             </select>
           </div>
           <div>
             <label htmlFor="select-doc-type" className="sx-eyebrow">Review it as</label>
-            <select id="select-doc-type" className="sx-input mt-1.5" value={type} onChange={e => setDocType(e.target.value as DocType)} data-testid="select-document-type">
+            <select id="select-doc-type" className="sx-input mt-1.5" value={type} onChange={e => { setDocType(e.target.value as DocType); setTplPick(null); }} data-testid="select-document-type">
               {DOC_TYPES.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
             </select>
           </div>
           <div>
+            <label htmlFor="select-target-template" className="sx-eyebrow">{tplKind === "journal" ? "Target journal" : "Target university format"}</label>
+            <select id="select-target-template" className="sx-input mt-1.5" value={tplId} onChange={e => setTplPick(e.target.value)} disabled={templates.isLoading} data-testid="select-target-template">
+              <option value="">{templates.isLoading ? "Loading..." : templates.isError ? "Couldn't load the list - describe it below" : "None - describe guidelines below"}</option>
+              {tplOptions.map(t => <option key={t.id} value={t.id}>{t.name}{t.publisher ? ` (${t.publisher})` : ""}</option>)}
+            </select>
+            <p className="mt-1 text-[11px] text-muted-foreground" data-testid="text-target-hint">{tpl ? `${tplId === inherited ? "Taken from this document's saved layout. " : ""}We retrieve ${tpl.name}'s official instructions where available and list what still needs your action.` : "Pick one so we can retrieve its official instructions, or describe your own below."}</p>
+          </div>
+          {!tpl && <div className="md:col-span-2">
             <label htmlFor="input-target" className="sx-eyebrow">Target journal or guidelines (optional)</label>
             <textarea id="input-target" className="sx-input mt-1.5 min-h-[42px]" rows={2} maxLength={2000} value={target} onChange={e => setTarget(e.target.value)} placeholder="e.g. Journal name, word limit, required sections" data-testid="input-target" />
-            <p className="mt-1 text-[11px] text-muted-foreground">Used as you write it. We do not verify official compliance.</p>
-          </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Used as you write it. These are not checked against an official source.</p>
+          </div>}
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-[hsl(90_14%_86%)] bg-[hsl(66_22%_95%)] px-4 py-3">
           <ProjectAttachMenu projectId={project.id} items={all} onBusyChange={setBusy} />
-          <button className="sx-btn sx-primary" disabled={!chosen || create.isPending || busy} onClick={() => void run()} data-testid="button-start-paper-review"><ClipboardCheck />{create.isPending ? "Starting..." : busy ? "Preparing document..." : "Start paper review"}</button>
-          <span className="min-w-0 flex-1 text-xs text-muted-foreground">Scores are heuristic guidance, not acceptance odds. You approve or dismiss each suggested change.</span>
+          <button className="sx-btn sx-primary" disabled={!chosen || create.isPending || busy} onClick={() => void run()} data-testid="button-start-paper-review"><ClipboardCheck />{create.isPending ? "Starting..." : busy ? "Preparing document..." : "Check requirements & research"}</button>
+          <span className="min-w-0 flex-1 text-xs text-muted-foreground">Checks the official rules we can retrieve for your target, then compares your draft with relevant papers and patents. Scores are guidance, not acceptance odds; you approve each change.</span>
         </div>
       </section>}
 

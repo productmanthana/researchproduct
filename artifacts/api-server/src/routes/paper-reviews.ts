@@ -6,6 +6,9 @@ import { requireUser, uid, routeId, usage, allowanceReached, HttpError } from ".
 import { ownedStudio, ownedStudioProject, studioView } from "../lib/studio-store";
 import { renderStudioPdf } from "../lib/studio-pdf";
 import { scorecardMarkdown } from "../lib/paper-review";
+import { studioTemplates } from "../lib/studio-templates";
+import { syncProjectItem } from "../lib/studio-index";
+import { logger } from "../lib/logger";
 const router=Router();
 router.use("/studio",requireUser);
 router.post("/studio/paper-reviews",async(req,res)=>{
@@ -27,6 +30,37 @@ router.post("/studio/paper-reviews",async(req,res)=>{
     const {rows}=await client.query("INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,status,metadata) VALUES($1,$2,$3,'document-review',$4,'queued',$5) RETURNING *",[id,owner,b.projectId,`Paper review: ${source.title}`,JSON.stringify({paperReview:true,sourceItemId:source.id,sourceRevision:source.revision,request,stage:"Queued"})]);
     await client.query("COMMIT");res.json(studioView(rows[0]));
   }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+});
+router.post("/studio/items/:id/apply-format",async(req,res)=>{
+  const owner=uid(req),id=routeId(req),client=await pool.connect();
+  let created:any;
+  try{
+    await client.query("BEGIN");
+    const review=(await client.query("SELECT * FROM research_studio_items WHERE id=$1 AND owner_id=$2 FOR UPDATE",[id,owner])).rows[0];
+    if(!review?.metadata?.paperReview||review.status!=="completed")throw new HttpError(409,"Complete the requirements and research check first.");
+    const check=review.metadata.requirementsCheck,template=studioTemplates.find(t=>t.id===check?.templateId);
+    if(check?.status!=="retrieved"||!template||!Object.keys(check.appliedLayout??{}).length)throw new HttpError(409,"No supported format settings were confirmed from readable official instructions. Review the source and unresolved requirements first.");
+    const sourceId=review.metadata.currentDraftId??review.metadata.sourceItemId;
+    const parent=(await client.query("SELECT * FROM research_studio_items WHERE id=$1 AND owner_id=$2 AND project_id=$3 FOR UPDATE",[sourceId,owner,review.project_id])).rows[0];
+    if(!parent||parent.status!=="completed")throw new HttpError(409,"The source draft is no longer available.");
+    if(review.metadata.formattedDraftId){
+      await client.query("COMMIT");res.json(studioView(parent));return;
+    }
+    if((await client.query("SELECT id FROM research_studio_items WHERE parent_id=$1",[parent.id])).rowCount)throw new HttpError(409,"Your document has a newer version. Run this check on the latest version before applying its format.");
+    const uploaded=parent.kind==="document",content=uploaded?review.content:parent.content;
+    const metadata={...parent.metadata,templateId:template.id,requirementsCheck:check,
+      documentDetails:review.metadata.documentDetails??parent.metadata.documentDetails??{},
+      ...(uploaded?{figures:review.metadata.figures??[]}:{}),formatReviewId:id};
+    for(const key of ["pdfExport","docxExport","review","reviewedAt","request","scorecard","paperReview","similarity"])delete metadata[key];
+    const nextId=randomUUID(),kind=template.kind==="thesis"?"thesis":template.kind==="synopsis"?"synopsis":"journal";
+    created=(await client.query("INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,status,parent_id,revision,metadata) VALUES($1,$2,$3,$4,$5,$6,'completed',$7,$8,$9) RETURNING *",
+      [nextId,owner,parent.project_id,kind,`Formatted draft: ${review.metadata.originalName??parent.title}`.slice(0,300),content,parent.id,parent.revision+1,JSON.stringify(metadata)])).rows[0];
+    review.metadata.currentDraftId=nextId;review.metadata.formattedDraftId=nextId;
+    await client.query("UPDATE research_studio_items SET metadata=$3 WHERE id=$1 AND owner_id=$2",[id,owner,JSON.stringify(review.metadata)]);
+    await client.query("COMMIT");
+  }catch(error){await client.query("ROLLBACK");throw error;}finally{client.release();}
+  void syncProjectItem(created.id,owner).catch(()=>logger.warn({itemId:created.id},"Formatted draft indexing unavailable"));
+  res.json(studioView(created));
 });
 router.get("/studio/items/:id/scorecard",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));

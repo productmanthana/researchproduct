@@ -11,6 +11,7 @@ import { exportStudioFile } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
 import { studioTemplates } from "../lib/studio-templates";
 import { formatIssues } from "../lib/studio-formatting";
+import { invalidateRequirementsCheck } from "../lib/submission-requirements";
 import { searchPatents } from "../lib/studio-patents";
 import { storage } from "../lib/documents";
 import { figureRequested } from "../lib/studio-figures";
@@ -46,6 +47,7 @@ router.post("/studio/items",async(req,res)=>{
   }
   if(b.documentDetails)metadata.documentDetails=b.documentDetails;
   if(b.templateId===null)delete metadata.templateId;
+  if(parent)invalidateRequirementsCheck(metadata,metadata.templateId!==parent.metadata?.templateId);
   if(!b.title.trim())throw new HttpError(400,"Enter a document title.");
   if(b.documentId){
     const document=await ownedDocument(b.documentId,owner);

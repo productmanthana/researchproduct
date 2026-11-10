@@ -92,6 +92,12 @@ export async function generateDocumentReview(row:any){
     ...patents.patents.slice(0,8).map((p:any,i:number)=>({id:`patent-${i+1}`,title:p.title,url:p.url,text:`Patent publication ${p.id}. ${p.abstract}`,evidenceLevel:"Patent publication record; not a legal/patentability assessment"})),
     ...webEvidence.results,
   ];
+  const researchCoverage={
+    papersRetrieved:new Set(evidence.slice(0,20).map(e=>(e as any).paperId??e.title.replace(/\s+[—–-]\s*page\s+\d+$/i,""))).size,
+    paperEvidenceUnits:evidence.slice(0,20).length,patentsRetrieved:patents.patents.slice(0,8).length,
+    patentMessage:patents.message,
+    scope:"Relevant works are retrieved from connected scholarly catalogues including OpenAlex. Catalogue coverage (such as 320M+ works) is not the number of papers read. Only the listed passages/abstracts and patent publication records are compared. This is not an exhaustive novelty, patentability or market-availability check.",
+  };
   if(!patents.available)warnings.push(patents.message);
   const figureSources:FigureSource[]=[{id:"uploaded-text",title:"uploaded document text (user supplied, unverified)",text:checkedText},{id:"request",title:"user instructions and supplied data",text:request.prompt},...reviewSources];
   await stage("Evidence Review Agent · proposing text and diagram corrections");
@@ -108,7 +114,7 @@ For claims needing evidence, propose cautious wording, not invented findings/cit
 For diagrams, describe visual issues (labels, axes, legends, flow, readability) and proposed corrections. You MAY add a figure object for an actionable reconstruction only if it is a conceptual flowchart or a chart grounded in an exact supplied text table. Mark conceptual reconstructions proposed, not faithful pixel edits. If unsupported raster/photograph, illegible graph, native Word drawing, or missing numerical data, omit figure and explain what user must supply; never invent graph points or experimental photographs.
 Figure schema: title,caption,kind diagram|line|bar|scatter|theory. diagram requires nodes [{id,label}] 2–9, label<=80chars, edges[{from,to,label?}] <=16. Numeric charts require sourceId from FIGURE SOURCES, sourceQuote exact contiguous table including header and2–200rows, separator comma/pipe/tab, xColumn zero-based, yColumns array, xLabel,yLabel withunits. Do not return points. theory requires exact sourced expression using x,numbers,+,-,*,/,^,sin,cos,exp,log,sqrt,abs, range{min,max},axes. Suggest a theory reconstruction only if all assumptions are supplied.
 Avoid changing an entire paragraph for a tiny edit. Do not include [[figure:...]] markers in replacement text. Recommendations require author approval; you do not apply changes.`,[
-      {type:"text",text:JSON.stringify({request:request.prompt,batch:batch+1,totalBatches:chunks.length,documentText:chunks[batch],visuals:imageBatch.map(i=>({id:i.id,label:i.label})),sources:reviewSources,figureSources:figureSources.map(s=>({...s,text:s.text.slice(0,24000)})),patentStatus:patents.message})},
+      {type:"text",text:JSON.stringify({request:request.prompt,submissionRequirements:request.requirementContext,batch:batch+1,totalBatches:chunks.length,documentText:chunks[batch],visuals:imageBatch.map(i=>({id:i.id,label:i.label})),sources:reviewSources,figureSources:figureSources.map(s=>({...s,text:s.text.slice(0,24000)})),patentStatus:patents.message})},
       ...imageBatch.flatMap(i=>[{type:"text",text:`Original visual ${i.id}: ${i.label}`},{type:"image_url",image_url:{url:i.image,detail:"high"}}]),
     ],SCIENTIFIC_MODEL);
     const parsed=z.object({suggestions:z.array(Suggestion).max(8),summary:z.string().max(2000)}).parse(output.value);
@@ -150,7 +156,7 @@ Avoid changing an entire paragraph for a tiny edit. Do not include [[figure:...]
   const content=`${baseText}${visual.figures.length?`\n\n## Original visual material\n\n${visual.figures.map(f=>`[[figure:${f.id}]]`).join("\n\n")}`:""}`;
   const figures=[...visual.figures,...proposed.map(s=>s.figure!)];
   return {title:`Review: ${document.name}`,content,metadata:{...row.metadata,stage:"Completed",documentId:source&&!originalUpload?null:document.id,originalName:document.name,currentDraftId:null,
-    figures,reviewSuggestions:all,reviewSources,patentStatus:{available:patents.available,message:patents.message,links:patents.links},
+    figures,reviewSuggestions:all,reviewSources,researchCoverage,patentStatus:{available:patents.available,message:patents.message,links:patents.links},
     reviewWarnings:[...new Set(warnings)],searchQueries:topicPlan.queries,webEvidence,generationModel:SCIENTIFIC_MODEL,
     reviewCoverage:{textCharacters:checkedText.length,totalTextCharacters:baseText.length,visualsReviewed:visual.images.length,visualsAvailable:visual.available,visualLabels:visual.images.map(i=>i.label),
       scope:`Relevant evidence retrieved from connected scholarly catalogues; ${reviewSources.filter(s=>s.id.startsWith("paper")).length} paper passages/abstracts and ${reviewSources.filter(s=>s.id.startsWith("patent")).length} patent records supplied. Not an exhaustive check against every indexed paper. This creates a converted working draft; original PDF/Word layout is not preserved.`},

@@ -4,6 +4,9 @@ import { jsonCall } from "./ai-json";
 import { SCIENTIFIC_MODEL } from "./ai-budget";
 import { generateDocumentReview } from "./document-review";
 import { reviewDocument } from "./studio-checks";
+import { ownedStudio } from "./studio-store";
+import { studioTemplates } from "./studio-templates";
+import { prepareRequirements,evaluateRequirements } from "./submission-requirements";
 
 export const reviewCategories=[
   {key:"contribution",label:"Question and contribution",role:"Subject reviewer"},
@@ -40,8 +43,18 @@ export function boundReview(value:unknown,role:string,sourceIds:Set<string>,opti
   };
 }
 export async function generatePaperReview(row:any){
+  const request=row.metadata.request;
+  const original=request.sourceItemId?await ownedStudio(request.sourceItemId,row.owner_id):undefined;
+  const target=request.target?.trim();
+  const template=target?studioTemplates.find(t=>t.name.toLowerCase()===target.toLowerCase()):studioTemplates.find(t=>t.id===original?.metadata?.templateId);
+  await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Submission Requirements Agent · reading official instructions"})]);
+  const requirementPlan=await prepareRequirements(template?.id,!template&&target?.length>100?target:undefined);
+  request.requirementContext={sourceUrl:requirementPlan.source.sourceUrl,status:requirementPlan.source.status,rules:requirementPlan.rules,layout:requirementPlan.layout};
   const generated=await generateDocumentReview(row);
-  const m:any=generated.metadata,request=row.metadata.request;
+  const m:any=generated.metadata;
+  m.templateId=template?.id??null;
+  m.documentDetails=original?.metadata?.documentDetails??{};
+  m.requirementsCheck=evaluateRequirements({content:generated.content,metadata:m},requirementPlan);
   const sources=m.reviewSources??[],sourceIds=new Set<string>(sources.map((s:any)=>s.id));
   const reviewers=[];
   for(const role of ["Subject reviewer","Methods reviewer","Editorial reviewer"]){
@@ -52,12 +65,12 @@ Return JSON {summary,categories:[{key,score:number 0..10 or null,rationale,locat
 Assess exactly these categories: ${JSON.stringify(keys)}. Scores are explained rubric estimates: 0-2 major omissions, 3-4 substantial weaknesses, 5-6 developing, 7-8 well supported with revisions, 9-10 exceptionally complete in the reviewed scope. Use null when not assessable; never infer missing experiments, source verification or visual inspections. For a proposal assess the proposed design, not absent completed results. Requirements can only be assessed against supplied target text, not assumed journal/university rules. Results may be null when absent. Citations refer only to review-source IDs supplied, never invented identifiers.
 Only Subject reviewer should return overlaps and gaps; the others return empty arrays. A related patent/paper is not proof of copying, invalidity or market availability. Explain the specific disclosed overlap, distinguish differences and what the author must verify. Candidate gaps need cited evidence and caveats, not assertions that no one has done something. Web pages are supplemental, patent records are disclosures not tested commercial products. Do not claim to have checked every indexed paper, certify originality or predict acceptance.
 Findings need exact section/page if available; use 'Section not identified' otherwise; do not invent page numbers. Limit findings to 8 actionable items per reviewer. For visuals use only actual inspected images/validated visual-review findings, not figure markers alone.`,[{type:"text",text:JSON.stringify({
-      documentType:request.documentType,target:request.target??"",manuscript:generated.content.slice(0,120000),
+      documentType:request.documentType,target:request.target??"",requirements:request.requirementContext,requirementsCheck:m.requirementsCheck,manuscript:generated.content.slice(0,120000),
       coverage:m.reviewCoverage,reviewedVisualFindings:m.reviewSuggestions.filter((s:any)=>s.type==="diagram"),
       sources:sources.map((s:any)=>({...s,text:s.text?.slice(0,3500)})),
       patentStatus:m.patentStatus,webStatus:m.webEvidence?.status,
     })}],SCIENTIFIC_MODEL);
-    reviewers.push(boundReview(result.value,role,sourceIds,{visuals:m.reviewCoverage.visualsReviewed>0,target:!!request.target?.trim(),proposal:request.documentType==="proposal",external:sources.some((s:any)=>s.id.startsWith("paper-"))}));
+    reviewers.push(boundReview(result.value,role,sourceIds,{visuals:m.reviewCoverage.visualsReviewed>0,target:requirementPlan.rules.length>0,proposal:request.documentType==="proposal",external:sources.some((s:any)=>s.id.startsWith("paper-"))}));
   }
   const categories=reviewers.flatMap(r=>r.categories).map(c=>({...c,assessments:c.score===null?0:1}));
   const scorecard={...readinessScore(categories),categories,reviewers,checkedAt:new Date().toISOString(),documentType:request.documentType,
@@ -77,6 +90,23 @@ Review date: ${s.checkedAt.slice(0,10)}. Document: ${m.originalName}. Source rev
 Estimated readiness: ${s.overall===null?"Not assessed":`${s.overall}/100`} across ${s.assessedCategories}/8 assessable categories.
 
 ${s.scope}
+
+## Selected submission requirements
+
+${m.requirementsCheck?`${m.requirementsCheck.templateName??"Target requirements"}: ${m.requirementsCheck.message}
+
+${m.requirementsCheck.sourceUrl?`Official instructions: ${m.requirementsCheck.sourceUrl}`:""}
+${m.requirementsCheck.fetchedAt?`Source retrieved: ${m.requirementsCheck.fetchedAt}`:""}
+
+${m.requirementsCheck.checks.map((c:any)=>`- **${c.status.toUpperCase()}: ${c.label}.** ${c.detail}${c.quote?` Source rule: "${c.quote}"`:""}${c.action?` Action: ${c.action}`:""}`).join("\n\n")}
+
+${m.requirementsCheck.coverage}`:"No selected-target requirement check was completed."}
+
+## Research comparison coverage
+
+${m.researchCoverage?`${m.researchCoverage.papersRetrieved} relevant papers; ${m.researchCoverage.paperEvidenceUnits} evidence passages/abstracts; ${m.researchCoverage.patentsRetrieved} patent publication records.
+
+${m.researchCoverage.scope}`:"See the evidence coverage below."}
 
 ## Category scorecard
 

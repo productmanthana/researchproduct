@@ -17,6 +17,9 @@
         "responses":{"200":{"description":"Queued manuscript readiness review","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}
       }
     },
+    "/studio/items/{id}/apply-format": {
+      "post":{"operationId":"applyReviewedFormat","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Separate saved draft with source-grounded export settings; original unchanged","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
     "/studio/items/{id}/scorecard": {
       "get":{"operationId":"exportPaperScorecard","parameters":[{"in":"path","name":"id","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Manuscript readiness PDF","content":{"application/pdf":{"schema":{"type":"string","format":"binary"}}}}}}
     },

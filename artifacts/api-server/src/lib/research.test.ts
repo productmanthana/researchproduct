@@ -9,6 +9,7 @@ import "./idea-generation.test";
 import "./studio-conversation.test";
 import "./manuscript-policy.test";
 import "./export-references.test";
+import "./submission-requirements.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { pool } from "@workspace/db";

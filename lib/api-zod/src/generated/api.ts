@@ -34,6 +34,26 @@ export const CreatePaperReviewResponse = zod.object({
 })
 
 
+export const ApplyReviewedFormatParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ApplyReviewedFormatResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
 export const ExportPaperScorecardParams = zod.object({
   "id": zod.coerce.string()
 })

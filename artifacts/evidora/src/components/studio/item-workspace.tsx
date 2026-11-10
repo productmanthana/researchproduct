@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { AcademicAnswer } from "@/components/academic-answer";
 import { GenerationStatus } from "./generation-status";
 import { CheckPanel } from "./check-panel";
+import { RequirementsCheck, requirementsCheckOf } from "./requirements-check";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
 import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
@@ -208,7 +209,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
             {canSave && dirty && <button className="sx-btn sx-primary" disabled={save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-toolbar"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>}
-            {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Review this document</Link>}
+            {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Check requirements &amp; research</Link>}
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>
@@ -282,6 +283,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             {profileDirty && <p className="text-xs text-vermilion" data-testid="text-profile-dirty">{templateId ? `Switching to ${profileName ?? "your chosen format"}` : "Switching to the standard format"}. Save a new version to apply this; earlier versions stay unchanged.</p>}
           </div>
         )}
+        {docKind && <RequirementsCheck compact data={requirementsCheckOf(item)} emptyHint={item.status === "completed" ? "No requirements check is saved with this version yet. Use Check requirements & research to compare this draft with the official instructions for your journal or university, and with relevant papers and patents." : undefined} />}
         <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
         {figNotices.length > 0 && <div className="sx-card p-4 text-sm" data-testid="panel-figure-notices"><p className="sx-eyebrow mb-1">Figure notes</p><ul className="list-disc space-y-1 pl-5 text-muted-foreground">{figNotices.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
         {(m.sources.length > 0 || m.warnings.length > 0) && (

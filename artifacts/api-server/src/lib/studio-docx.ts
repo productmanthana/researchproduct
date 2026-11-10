@@ -1,11 +1,11 @@
 import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun,ExternalHyperlink,TabStopType } from "docx";
-import { documentBlocks,documentLayout,sectionText } from "./studio-formatting";
+import { documentBlocks,documentLayoutFor,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
 import { figurePng,figureAspect } from "./figure-renderer";
 import { parseExportReference, prepareExportReferences } from "./export-references";
 export async function renderStudioWord(row:any):Promise<Buffer>{
   row=prepareExportReferences(row);
-  const id=row.metadata?.templateId,l=documentLayout(id),d=row.metadata?.documentDetails??{};
+  const id=row.metadata?.templateId,l=documentLayoutFor(row),d=row.metadata?.documentDetails??{};
   const figures=referencedFigures(row.content,row.metadata?.figures??[]);
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   const title=row.title,body=row.content.replace(new RegExp("^# "+title.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\n"),"");

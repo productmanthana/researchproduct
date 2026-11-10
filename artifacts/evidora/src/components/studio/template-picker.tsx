@@ -2,12 +2,9 @@ import { useMemo, useState } from "react";
 import { useListStudioTemplates, type StudioTemplate } from "@workspace/api-client-react";
 import { BookMarked, ExternalLink } from "lucide-react";
 import { RowSkeleton, ErrorState } from "@/components/states";
-import { instructionsReviewed } from "@/lib/template-guidance";
 
-type RankFilter = "" | "Q1" | "Q2" | "Q3" | "unverified";
-const isVerified = instructionsReviewed;
+type RankFilter = "" | "Q1" | "Q2" | "Q3";
 const quartile = (t: StudioTemplate) => (t.ranking?.quartile ?? "").toUpperCase().trim();
-const fmtDate = (s?: string) => { if (!s) return ""; const d = new Date(s); return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }); };
 
 /** Ranking as published by its named source; never presented as a universal "Q" grade. */
 export function RankingLine({ t }: { t: StudioTemplate }) {
@@ -34,7 +31,7 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
   const countries = [...new Set(all.map(t => t.country).filter(Boolean))].sort();
   const hasRankings = all.some(t => t.ranking?.quartile);
   const shown = all.filter(t => (!publisher || t.publisher === publisher) && (!country || t.country === country)
-    && (!rank || (rank === "unverified" ? !isVerified(t) : quartile(t) === rank)));
+    && (!rank || quartile(t) === rank));
   const selected = all.find(t => t.id === value);
 
   return (
@@ -49,23 +46,22 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
           <option value="">All countries</option>{countries.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by journal ranking or instruction review">
-        {(["", "Q1", "Q2", "Q3", "unverified"] as RankFilter[]).map(r => (
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by journal ranking">
+        {(["", "Q1", "Q2", "Q3"] as RankFilter[]).map(r => (
           <button key={r || "all"} type="button" aria-pressed={rank === r} onClick={() => setRank(r)}
-            disabled={r !== "" && r !== "unverified" && !hasRankings}
+            disabled={r !== "" && !hasRankings}
             className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${rank === r ? "border-[hsl(var(--teal))] bg-[hsl(var(--teal))] text-[hsl(52_30%_97%)]" : "bg-[hsl(52_40%_98%)] hover:bg-[hsl(90_20%_93%)] disabled:opacity-40"}`}
-            data-testid={`filter-rank-${r || "all"}`}>{r === "" ? "All" : r === "unverified" ? "Needs review" : r}</button>
+            data-testid={`filter-rank-${r || "all"}`}>{r === "" ? "All" : r}</button>
         ))}
       </div>
       {hasRankings && <p className="text-[11px] text-muted-foreground">Q1 means the top 25% in a subject category; Q2 and Q3 are the next groups. Rankings depend on the subject and year, not approval of your paper. Each ranking links to its source.</p>}
-      <p className="text-[11px] leading-relaxed text-muted-foreground">“Instructions reviewed” means a review of the submission instructions is recorded. “Needs review” means no completed review is recorded. It does not mean the journal is unreliable.</p>
+      <p className="text-[11px] leading-relaxed text-muted-foreground" data-testid="text-template-check-note">Choosing one saves its page layout. The real requirements check runs on your draft: use Check requirements &amp; research after it is written.</p>
       {q.isLoading && <RowSkeleton rows={2} />}
       {q.isError && <ErrorState error={q.error} onRetry={() => void q.refetch()} title="Couldn't load available formats" />}
       {!q.isLoading && !q.isError && !shown.length && <p className="text-sm text-muted-foreground">No matches. Clear a filter, or continue with a standard format.</p>}
       <div className={`${compact ? "max-h-56" : "max-h-72"} space-y-1.5 overflow-y-auto pr-1`}>
         {shown.map(t => {
           const on = t.id === value;
-          const verified = isVerified(t);
           return (
             <button key={t.id} type="button" onClick={() => onChange(on ? null : t)} aria-pressed={on}
               className={`w-full rounded-lg border p-3 text-left transition-colors ${on ? "border-[hsl(var(--teal))] bg-[hsl(var(--teal)/0.08)]" : "bg-[hsl(52_40%_98%)] hover:bg-[hsl(90_20%_93%)]"}`}
@@ -77,7 +73,7 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
                   <p className="text-xs text-muted-foreground">{[t.publisher, t.country].filter(Boolean).join(" · ")}</p>
                   <RankingLine t={t} />
                 </div>
-                <span className={`sx-chip shrink-0 ${verified ? "ok" : "warn"}`} title={verified ? `Submission instructions reviewed${t.verifiedAt ? ` on ${fmtDate(t.verifiedAt)}` : "; date not recorded"}. Not publisher approval.` : "Submission instructions still need review. This is not a judgement of journal quality."}>{verified ? "Instructions reviewed" : "Needs review"}</span>
+                <span className="sx-chip shrink-0" title="A saved page layout. Requirements are checked against your draft, not here.">Saved layout</span>
               </div>
             </button>
           );
@@ -92,7 +88,7 @@ export function TemplatePicker({ kind, value, onChange, label, compact }: { kind
             ? <a className="mt-2 inline-flex items-center gap-1 font-medium text-[hsl(var(--ink-teal))] underline" href={selected.guidelines} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" />Read the official submission instructions</a>
             : <p className="mt-1 text-muted-foreground">{selected.guidelines}</p>)}
           {selected.requirements.length > 0 && <ul className="mt-2 list-disc space-y-0.5 pl-4">{selected.requirements.map((r, i) => <li key={i}>{r}</li>)}</ul>}
-          <p className="mt-2 text-muted-foreground">{isVerified(selected) ? `Instructions last reviewed: ${fmtDate(selected.verifiedAt) || "date not recorded"}. Requirements may have changed since then.` : "We have not recorded a completed review of these instructions. Check the official instructions before submitting."}</p>
+          <p className="mt-2 text-muted-foreground">Once your draft exists, Check requirements &amp; research compares it with these official instructions and lists what still needs your action.</p>
           {selected.officialTemplateUrl && <a className="mt-1 inline-flex items-center gap-1 font-medium text-[hsl(var(--ink-teal))] underline" href={selected.officialTemplateUrl} target="_blank" rel="noreferrer" data-testid="link-official-template"><ExternalLink className="h-3 w-3" />Official author template</a>}
           <p className="mt-2 text-muted-foreground">This is a starting layout, not an official publisher or university template. Review the latest submission instructions before sending your paper.</p>
         </div>

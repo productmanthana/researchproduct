@@ -185,6 +185,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCreatePaperReviewMutationOptions(options), queryClient);
     }
 
+export const getApplyReviewedFormatUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/apply-format`
+}
+
+export const applyReviewedFormat = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+  return customFetch<StudioItem>(getApplyReviewedFormatUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getApplyReviewedFormatMutationKey = () => ['applyReviewedFormat'] as const;
+
+export const getApplyReviewedFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyReviewedFormat>>, TError,ApplyReviewedFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyReviewedFormat>>, TError,ApplyReviewedFormatMutationVariables, TContext> => {
+
+const mutationKey = getApplyReviewedFormatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyReviewedFormat>>, ApplyReviewedFormatMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  applyReviewedFormat(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyReviewedFormatMutationResult = NonNullable<Awaited<ReturnType<typeof applyReviewedFormat>>>
+
+    export type ApplyReviewedFormatMutationError = ErrorType<unknown>
+    export type ApplyReviewedFormatMutationVariables = {id: string}
+
+    export const useApplyReviewedFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyReviewedFormat>>, TError,ApplyReviewedFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyReviewedFormat>>,
+        TError,
+        ApplyReviewedFormatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyReviewedFormatMutationOptions(options), queryClient);
+    }
+
 export const getExportPaperScorecardUrl = (id: string,) => {
 
 

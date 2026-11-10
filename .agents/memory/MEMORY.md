@@ -8,3 +8,4 @@
 - [Research visuals](research-visuals.md) — optional paper maps with explained links and topic-specific coloured scientific illustrations, not generic boxes.
 - [Paper Review](paper-review-policy.md) — manuscript scorecards with bounded scholarly/patent comparisons; estimates, not publication or novelty guarantees.
 - [Bibliography versus evidence](bibliography-evidence.md) — one entry per paper, while retaining page-specific evidence and keeping citation remapping consistent.
+- [Submission requirements](submission-requirements.md) — selected journal/university rules and paper/patent comparisons belong together; preset layouts are not verification.
