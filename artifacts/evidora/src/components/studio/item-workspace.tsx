@@ -1,4 +1,3 @@
-import { SavedWebEvidence } from "@/components/web-evidence";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -130,12 +129,12 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
   const [figOpen, setFigOpen] = useState(false);
   const [figPrompt, setFigPrompt] = useState("");
   const canFigure = !!genKind && canSave && item.status === "completed" && !isProjectInfo;
-  const doFigure = async () => {
-    if (!genKind || dirty || figPrompt.trim().length < 5 || gen.isPending) return;
+  const doFigure = async (prompt = figPrompt) => {
+    if (!genKind || dirty || prompt.trim().length < 5 || gen.isPending) return;
     if (figLimit) { toast({ title: "Limit reached", description: figLimit, variant: "destructive" }); return; }
     try {
       const created = await gen.mutateAsync({ data: { projectId: item.projectId, kind: genKind, parentId: item.id, evidenceMode: "project",
-        prompt: `Add or revise a figure in "${item.title}". ${figPrompt.trim()}`.slice(0, 4700) + FIGURE_GUARD } });
+        prompt: `Add or revise a figure in "${item.title}". ${prompt.trim()}`.slice(0, 4700) + FIGURE_GUARD } });
       qc.setQueryData(getGetStudioItemQueryKey(created.id), created);
       void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -150,7 +149,8 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
   const words = content.trim() ? content.trim().split(/\s+/).length : 0;
 
   const doSave = async () => {
-    if (!dirty || !title.trim()) return;
+    if (!dirty || !title.trim() || save.isPending) return;
+    setConflict(null);
     try {
       const saved = await save.mutateAsync({ data: {
         projectId: item.projectId, kind: item.kind as StudioItemInputKind, title: title.trim(), content,
@@ -158,16 +158,17 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
         // Explicit profile choice (or the inherited one); details always carried forward so revisions never drop them.
         // docKind: always explicit (null clears the profile). Other kinds omit it, which means inherit.
         ...(docKind ? { templateId: templateId || null } : {}),
-        ...(docKind && hasDetails(details) ? { documentDetails: cleanDetails(details) } : {}),
+        ...(docKind ? { documentDetails: cleanDetails(details) } : {}),
       } });
       setConflict(null);
       qc.setQueryData(getGetStudioItemQueryKey(saved.id), saved);
       await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
       toast({ title: `Saved revision ${saved.revision}`, description: profileDirty ? "New formatting profile applied to this revision. Earlier versions keep theirs." : "Earlier versions are kept in history." });
+      setToolsOpen(false);
       onOpen(saved.id);
     } catch (e) {
-      if (statusOf(e) === 409) setConflict(friendlyError(e));
-      else toast({ title: "Couldn't save", description: friendlyError(e), variant: "destructive" });
+      setConflict(friendlyError(e));
+      if (statusOf(e) !== 409) toast({ title: "Couldn't save", description: friendlyError(e), variant: "destructive" });
     }
   };
 
@@ -206,6 +207,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           <div className="ml-auto flex flex-wrap gap-1.5">
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
+            {canSave && dirty && <button className="sx-btn sx-primary" disabled={save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-toolbar"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>}
             {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Review this document</Link>}
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
@@ -223,12 +225,12 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
                 <textarea className="sx-editor" value={content} onChange={e => setContent(e.target.value)} spellCheck aria-label="Document text" data-testid="input-item-content" /></>
               : content.trim() ? <AcademicAnswer content={reading ? withoutRepeatedTitle(content, title) : content} inline={plainInline} renderFigure={renderFigure} referenceSources={m.sources} linkCitations /> : <p className="text-sm text-muted-foreground">This item has no text yet. </p>}
           </div>
-          {mode !== "edit" && !isProjectInfo && <div className="mt-6"><SavedWebEvidence metadata={item.metadata} /></div>}
         </div>
         {canFigure && <div className="mx-5 mb-4 rounded-md border bg-[hsl(66_20%_97%)] p-3" data-testid="panel-add-figure">
           {!figOpen ? <div className="flex flex-wrap items-center gap-2">
             <LineChart className="h-4 w-4 text-[hsl(var(--cyan-ink))]" />
             <span className="text-sm">{figures.length ? `${figures.length} figure${figures.length === 1 ? "" : "s"} in this revision.` : "No figures yet."}</span>
+            {!figures.length && <button className="sx-btn sx-primary" disabled={dirty || gen.isPending} onClick={() => void doFigure("Create a coloured conceptual illustration of the methodology or research themes explicitly described in this saved manuscript. Follow this manuscript's scope and exact section names, not unrelated project drafts. Label it conceptual/proposed and do not invent measurements or results.")} data-testid="button-create-missing-figure">{gen.isPending ? "Starting…" : "Generate suggested diagram"}</button>}
             <button className="sx-btn ml-auto" disabled={dirty} title={dirty ? "Save or discard your edits first" : undefined} onClick={() => setFigOpen(true)} data-testid="button-open-add-figure"><LineChart />Add or revise a figure</button>
           </div> : <div className="space-y-2">
             <p className="sx-eyebrow">Add or revise a figure</p>
@@ -293,10 +295,15 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
       </div>);
         return reading
           ? <Sheet open={toolsOpen} onOpenChange={setToolsOpen}>
-              <SheetContent side="right" className="w-full overflow-y-auto bg-[hsl(52_30%_96%)] sm:max-w-[400px]" data-testid="drawer-item-tools">
-                <SheetHeader className="mb-4 text-left"><SheetTitle className="sx-title text-xl">Versions, checks and sources</SheetTitle>
+              <SheetContent side="right" className="flex w-full flex-col overflow-hidden bg-[hsl(52_30%_96%)] p-0 sm:max-w-[400px]" data-testid="drawer-item-tools">
+                <SheetHeader className="shrink-0 px-6 pb-4 pt-6 text-left"><SheetTitle className="sx-title text-xl">Versions, checks and sources</SheetTitle>
                   <SheetDescription>Revision {item.revision} of &ldquo;{item.title}&rdquo;</SheetDescription></SheetHeader>
-                {tools}
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">{tools}</div>
+                {canSave && <div className="shrink-0 border-t bg-[hsl(52_30%_96%)] px-6 py-4" data-testid="panel-tools-save">
+                  {conflict && <p className="mb-2 text-xs text-vermilion" role="alert">{conflict}</p>}
+                  <p className="mb-2 text-xs text-muted-foreground" role="status">{dirty ? "Unsaved changes. Save a new version to apply them to exports." : "All changes saved."}</p>
+                  <button className="sx-btn sx-primary w-full" disabled={!dirty || save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-drawer"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>
+                </div>}
               </SheetContent>
             </Sheet>
           : <aside>{tools}</aside>; })()}

@@ -166,6 +166,12 @@ Do not expose the platform's underlying AI model or provider in user-facing scre
 
 **How to apply:** Keep operational model settings and spend accounting internal. Research papers may legitimately discuss named models; do not corrupt source titles or quotations to hide those.
 
+Do not display the saved “Internet evidence / retrieved” status box in research document views.
+
+**Why:** The user explicitly asked to remove that box, including when Internet sources were successfully retrieved.
+
+**How to apply:** Keep Internet search and saved evidence working, and preserve original-source links and honest reference provenance. Hide the separate operational retrieval panel, not the citations.
+
 Proceed with a useful answer instead of repeatedly asking optional preference questions. Reuse the topic, scope and requested length from prior turns; explicit page counts take precedence over generic words such as “brief.”
 
 **Why:** The user showed a three-page report request followed by “global,” then another question asking whether they wanted global scope.

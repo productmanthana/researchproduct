@@ -100,12 +100,6 @@ export function LiveWebEvidence({ q }: { q: string }) {
   return <WebEvidencePanel data={res.data} onRefresh={canRefresh ? () => void res.refetch() : undefined} refreshing={res.isFetching} />;
 }
 
-/** For saved items: renders persisted metadata.webEvidence only; never runs a new search. */
-export function SavedWebEvidence({ metadata }: { metadata: unknown }) {
-  const data = webEvidenceFrom(metadata);
-  return data ? <WebEvidencePanel data={data} saved testId="panel-web-evidence-saved" /> : null;
-}
-
 /** For analyses: shows a label and limits note when sources include Internet-level evidence. Citations stay as-is. */
 export function InternetSourcesNote({ sources, warnings = [] }: { sources: { evidenceLevel?: string | null }[]; warnings?: string[] }) {
   const n = sources.filter(s => /^internet/i.test(s.evidenceLevel ?? "")).length;

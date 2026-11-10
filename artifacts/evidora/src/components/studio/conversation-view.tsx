@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { StudioItem } from "@workspace/api-client-react";
 import { ChevronDown, ChevronUp, Lightbulb, PenLine } from "lucide-react";
 import { AcademicAnswer } from "@/components/academic-answer";
-import { SavedWebEvidence } from "@/components/web-evidence";
 import { FigureView, MissingFigure } from "./figure-view";
 import { GenerationStatus } from "./generation-status";
 import { ItemWorkspace, withoutRepeatedTitle } from "./item-workspace";
@@ -46,7 +45,6 @@ function PastAnswer({ item, allItems, onOpen, onRetry }: { item: StudioItem; all
       <div className="mt-4">
         {item.content.trim() ? <AcademicAnswer content={withoutRepeatedTitle(item.content, item.title)} inline={plain} renderFigure={renderFigure} referenceSources={meta(item).sources} linkCitations /> : <p className="text-sm text-muted-foreground">No text.</p>}
       </div>
-      <div className="mt-5"><SavedWebEvidence metadata={item.metadata} /></div>
     </article>
   );
 }

@@ -13,7 +13,6 @@ import { figuresOf, markerOrder, isolateMarkers, type StudioFigure } from "@/lib
 import { friendlyError, isWorking, statusOf } from "@/lib/studio";
 import { DECISION_LABEL, SEVERITY_LABEL, quoteRanges, reviewOf, type ReviewSource, type ReviewSuggestion } from "./review-model";
 import "./document-review.css";
-import { SavedWebEvidence } from "@/components/web-evidence";
 import { LiveDraft } from "@/components/live-draft";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { reviewWorkflow } from "@/lib/agent-workflow";
@@ -218,7 +217,6 @@ function Coverage({ review, working, metadata }: { review: ReturnType<typeof rev
         <p>{review.patent.message || (review.patent.available ? "Patent results were included where relevant." : "Patent search was unavailable for this review.")}</p>
         {review.patent.links.length > 0 && <ul>{review.patent.links.map(l => <li key={l.url}><a href={l.url} target="_blank" rel="noreferrer">{l.label}<ExternalLink /></a></li>)}</ul>}
       </div>
-      <SavedWebEvidence metadata={metadata} />
       {review.warnings.length > 0 && <div className="dr-warnings" role="status" data-testid="list-review-warnings"><p><AlertTriangle />Limits of this review</p><ul>{review.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
       {review.sources.length > 0 && <details className="dr-sources"><summary>Retrieved sources ({review.sources.length})<ChevronDown /></summary><ol>{review.sources.map(s => <li key={s.id}>{s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : s.title}{s.evidenceLevel && <small> · {s.evidenceLevel}</small>}</li>)}</ol></details>}
     </>}
