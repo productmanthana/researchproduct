@@ -3,7 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { useClerk, useUser } from "@clerk/react";
 import { useGenerateStudioDocument, useSaveStudioItem, getListStudioItemsQueryKey, getGetStudioItemQueryKey, useCreateAnalysis, useListAnalyses, getListAnalysesQueryKey, useGetUsage, getGetUsageQueryKey, useSaveAnalysisDraft, type Analysis, useCreateDocumentReview, useListDocuments, getListDocumentsQueryKey, useListStudioItems, type Document } from "@workspace/api-client-react";
-import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, FolderOpen, History, LogOut, MoreHorizontal, Plus, ScanSearch, Wind, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUp, BookOpen, Check, Copy, FileText, FolderOpen, History, LogOut, Plus, ScanSearch, Wind, X } from "lucide-react";
 import { RequireAuth } from "@/components/require-auth";
 import { EmptyState, ErrorState, RowSkeleton } from "@/components/states";
 import { StudioTurn } from "@/components/research-studio/turn";
@@ -378,14 +378,14 @@ function AskInner() {
                 <button className="es-button" onClick={() => exploreFurther(analysis)}><Wind />Explore further</button>
                 {analysis.responseMode !== "guidance" && analysis.sources.length > 0 && <button className="es-button es-primary" onClick={() => startDraft(analysis)}><FileText />{analysis.draftContent != null || draftBuffers[analysis.id] ? "Continue draft" : "Start a draft"}</button>}
                 {analysis.responseMode !== "guidance" && analysis.content && <SaveAnalysisToProject analysis={analysis} />}
-                {analysis.content && <details className="es-more-actions"><summary aria-label="More answer actions"><MoreHorizontal />More</summary><div role="group" aria-label="More answer actions">
-                  <button className="es-button" onClick={() => void copyAnswer(analysis)}><Copy />Copy answer &amp; references</button>
+                {analysis.content && <>
+                  <button className="es-button" onClick={() => void copyAnswer(analysis)}><Copy />Copy answer</button>
                   <button className="es-button" onClick={() => {
                     const references = answerReferences(analysis);
                     const url = URL.createObjectURL(new Blob([analysis.content + (references ? `\n\n## References\n\n${references}` : "")], { type: "text/markdown" }));
                     const anchor = document.createElement("a"); anchor.href = url; anchor.download = "evidora-answer.md"; anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
                   }}><ArrowDownToLine />Export</button>
-                </div></details>}
+                </>}
               </div>}
             </div>)}
           </div></div>
