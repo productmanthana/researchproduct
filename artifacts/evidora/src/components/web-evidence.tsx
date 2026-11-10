@@ -109,13 +109,9 @@ export function SavedWebEvidence({ metadata }: { metadata: unknown }) {
 /** For analyses: shows a label and limits note when sources include Internet-level evidence. Citations stay as-is. */
 export function InternetSourcesNote({ sources, warnings = [] }: { sources: { evidenceLevel?: string | null }[]; warnings?: string[] }) {
   const n = sources.filter(s => /^internet/i.test(s.evidenceLevel ?? "")).length;
-  // Surface Internet-search status warnings (e.g. missing key, provider failure) even when no web source was cited.
+  // Keep empty search diagnostics in research notes, not the answer's source summary.
+  if (!n) return null;
   const webWarnings = warnings.filter(w => /internet|web (evidence|search)|search provider/i.test(w));
-  if (!n && !webWarnings.length) return null;
-  if (!n) return <div className="mt-2 rounded border border-[hsl(var(--turmeric)/0.55)] bg-[hsl(var(--turmeric)/0.06)] px-3 py-2 text-[11px]" role="status" data-testid="text-internet-status-note">
-    <p className="flex items-center gap-1.5 font-medium"><Globe className="h-3 w-3" />Internet evidence: none cited</p>
-    <ul className="mt-1 list-disc pl-4">{webWarnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-  </div>;
   return <p className="mt-2 flex items-start gap-1.5 rounded border border-[hsl(var(--turmeric)/0.55)] bg-[hsl(var(--turmeric)/0.06)] px-3 py-2 text-[11px]" role="note" data-testid="text-internet-sources-note">
     <Globe className="mt-0.5 h-3 w-3 shrink-0" />{n} of {sources.length} cited source{sources.length === 1 ? " is" : "s are"} labelled Internet evidence, not papers or patents. {webWarnings.join(" ")} {LIMIT_NOTE}
   </p>;

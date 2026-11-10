@@ -20,3 +20,18 @@ id = "Uh0129CtFLDFgP-MVab03"
 uri = "file://.local/outputs/Evidora---Research--with-evidence.pptx"
 type = "slides"
 title = "Evidora | Research, with evidence.pptx"
+logical_id = "d7ddec09-b898-47a6-b0fb-1292d2f3de92"
+
+[[outputs]]
+id = "BKY5KKx_1DOeMhZH3VEwG"
+uri = "file://generated-artifacts/reports/power-generation-three-page-report.pdf"
+type = "pdf"
+title = "Corrected three-page research report"
+description = "Exactly three pages, with 752 words of independently checked findings, a coloured explanatory diagram, captions and references."
+logical_id = "f23e4239-ae9a-4639-81ed-f70a6e7c5972"
+content_hash = "sha256:28d0be18145df169c9f1a02b154b63291b74623bbd4af1a19682b2a878da78fd"
+size = 249694
+mtime_ms = 1794296351310
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:448b76d4-4245-4ca8-8e14-91f634a7d03e/f23e4239-ae9a-4639-81ed-f70a6e7c5972/fef850c9-736d-475a-b2c4-22334c883fab"
+storage_version_token = "1794296366345515"
+content_type = "application/pdf"

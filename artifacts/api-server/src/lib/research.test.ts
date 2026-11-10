@@ -20,18 +20,20 @@ import { allowanceReached, entitlement } from "./common";
 import { paperScopeFromQuestion, matchesPaperScope, publisherName } from "./paper-scope";
 import { academicContent, scientificLimitations, readableResearchText } from "./research-writing";
 import { validateDraftClaims } from "./claim-validation";
-import { recoverClaimDraft } from "./claim-recovery";
+import { recoverClaimDraft, recoveryExcerpts } from "./claim-recovery";
+import { preserveReportRequirements } from "./report-requirements";
 import { jsonCall } from "./ai-json";
 import { Claim } from "./evidence";
 import { publicationDate, dateParts, freshness, recentFirst, researchCurrency } from "./publication-currency";
 import { matchesSearchFocus } from "./search-focus";
-import { checkedSynthesis, needsAnswerExpansion } from "./synthesis-pipeline";
+import { checkedSynthesis, needsAnswerExpansion, fitReportClaims } from "./synthesis-pipeline";
 import { synthesisPrompt, evidenceQuestion, requestedPageWords } from "./synthesis-prompts";
 import { routeAskIntent, validateAskIntent, scopedResearchFollowUp, decideAskIntent, ASK_INTENT_PROMPT } from "./ask-intent";
 import mammoth from "mammoth";
 import { FigureProposal, validateFigure } from "./scientific-figures";
 import { academicTitle } from "./academic-style";
-import { writeFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { makeDraftRevision, usageStatusForResult, withDraftPreservingAnswer } from "./analysis-draft";
 const depthSource={id:"depth-source",title:"Synthetic unit-test evidence",url:"https://example.org/test",evidenceLevel:"Selected PDF text",page:2,
   text:"Adaptive pitch control reduced simulated power fluctuations. "+"Detailed study conditions and distinct reported outcomes support further explanation. ".repeat(110)};
@@ -77,7 +79,8 @@ test("Short verified answers develop once; additions need literal evidence AND i
 test("Full developed drafts need no extra generation; every section remains citation-linked",async()=>{
   const names=["Overview","Evidence-based findings","Critical discussion","Conclusion"];
   const claims=Array.from({length:12},(_,i)=>depthClaim(`${i}: `+"Evidence-supported discussion of the mechanism and reported experimental conditions. ".repeat(7),names[i%4]));
-  const script=scriptedSynthesis([{claims,limitations:[]},{supported:claims.map((_,i)=>i)}]);
+  const unitCount=claims.flatMap(c=>[...new Intl.Segmenter("en",{granularity:"sentence"}).segment(c.text)]).length;
+  const script=scriptedSynthesis([{claims,limitations:[]},{supported:Array.from({length:unitCount},(_,i)=>i)}]);
   const result=await checkedSynthesis({kind:"answer",question:"Compare methods",sources:[depthSource],call:script.call});
   assert.equal(script.count(),2);assert.equal(result.claims.length,12);
   assert.equal(result.validation.expansionAttempted,false);
@@ -118,10 +121,10 @@ test("Live developed synthesis uses cached public evidence without overwriting t
     :"SELECT id,owner_id,question,input,result FROM research_analyses WHERE id=$1",id==="latest"?[]:[id]);
   assert.ok(rows.length,"No cached answer available");
   const row=rows[0],sources:any[]=[];
-  const ids=[...new Set<string>((row.result.sources??[]).map((s:any)=>s.paperId).filter(Boolean))].slice(0,3);
+  const ids=[...new Set<string>([...(row.input.paperIds??[]),...(row.result.sources??[]).map((s:any)=>s.paperId).filter(Boolean)])].slice(0,8);
   for(const paperId of ids){
     const p=await getPaper(paperId);
-    const chunks=await pool.query("SELECT page,string_agg(text,E'\\n') AS text FROM research_evidence_chunks WHERE scope='public' AND source_key=$1 GROUP BY page ORDER BY page LIMIT 8",[paperId]);
+    const chunks=await pool.query("SELECT page,string_agg(text,E'\\n') AS text FROM research_evidence_chunks WHERE scope='public' AND source_key=$1 GROUP BY page ORDER BY page LIMIT 3",[paperId]);
     if(chunks.rows.length)for(const page of chunks.rows)sources.push({id:`${p.id}-oa-p${page.page}`,paperId:p.id,title:`${p.title} — page ${page.page}`,url:p.url,evidenceLevel:"Cached public PDF text",text:page.text.slice(0,6000),page:page.page});
     else if(p.abstract)sources.push({id:p.id,paperId:p.id,title:p.title,url:p.url,evidenceLevel:"Abstract only",text:p.abstract,page:null});
   }
@@ -129,12 +132,20 @@ test("Live developed synthesis uses cached public evidence without overwriting t
   await aiContext.run({owner:row.owner_id,analysisId:row.id},async()=>{
     const result=await checkedSynthesis({kind:"answer",question:row.question,sources});
     const words=result.claims.reduce((n,c)=>n+c.text.split(/\s+/).length,0);
-    const content=academicContent({kind:"answer",claims:result.claims,sources});
+    const used=new Set(result.claims.flatMap(c=>c.evidence.map(e=>e.sourceId)));
+    const cited=sources.filter(s=>used.has(s.id));
+    let content=academicContent({kind:"answer",claims:result.claims,sources:cited});
+    const figures=row.result.figures??[];
+    if(figures.length)content+=`\n\n## Explanatory figure\n\n${figures.map((f:any)=>`[[figure:${f.id}]]`).join("\n\n")}`;
+    const exported=await exportResearch({question:row.question,content,sources:cited,figures,warnings:[]},"ieee","pdf");
+    assert.ok(Buffer.isBuffer(exported));
+    await writeFile("/tmp/evidora-live-report.pdf",exported);
+    await writeFile("/tmp/evidora-live-report.json",JSON.stringify({question:row.question,content,sources:cited,figures,warnings:[]}));
     const sectionCount=(content.match(/^## /gm)??[]).length;
     console.log(`Live depth check: ${words} verified words; ${result.claims.length} paragraphs; ${sectionCount} rendered sections.`);
     // The writing target is deliberately not a minimum that forces invention.
     // Require a substantial multi-section report, not an exact model word count.
-    assert.ok(words>=350,`Only ${words} verified words; validation ${JSON.stringify(result.validation)}`);
+    assert.ok(words>=(requestedPageWords(row.question)?requestedPageWords(row.question)!.min-100:350),`Only ${words} verified words; validation ${JSON.stringify(result.validation)}`);
     assert.ok(sectionCount>=3,"Missing developed rendered sections");
     assert.equal(validateDraftClaims(result.claims,sources).claims.length,result.claims.length);
     console.log(`Live developed synthesis: ${words} verified words, ${result.claims.length} paragraphs, ${sectionCount} rendered sections; original answer unchanged.`);
@@ -597,6 +608,67 @@ test("Requested page counts override brief-answer defaults without requiring exa
   assert.deepEqual(requestedPageWords("three-page climate change overview"),{min:750,max:900});
   assert.equal(requestedPageWords("Explain briefly"),null);
   assert.match(synthesisPrompt("answer","brief report of about 3 pages"),/750–900/);
+});
+test("Report requirements survive both intent and search rewrites",()=>{
+  const original="generate 3 pages on power system generation on recent trends";
+  const routed=preserveReportRequirements(original,"What are recent power generation trends?");
+  const searched=preserveReportRequirements(routed,"Recent renewable generation developments");
+  assert.deepEqual(requestedPageWords(searched),{min:750,max:900});
+  assert.match(searched,/explanatory figure/);
+  assert.match(searched,/3 pages in total/);
+  assert.equal(preserveReportRequirements("What is a turbine?","Wind turbines"),"Wind turbines");
+});
+test("Recovery attaches exact source excerpts without model-transcribed quotation errors",async()=>{
+  const source={...depthSource,text:"A capacity of 3.5 MW was reported for the test system.\n"+depthSource.text};
+  const excerpts=recoveryExcerpts([source]);
+  assert.ok(excerpts.length);
+  assert.ok(excerpts.every(e=>source.text.includes(e.quote)));
+  assert.ok(excerpts[0].quote.includes("3.5 MW"));
+  const result=await recoverClaimDraft("three pages on pitch control",[source],[],[],{expanded:true,call:async()=>({value:{claims:[{text:"A test system was studied.",section:"Findings",evidence:[{excerptId:excerpts[0].excerptId}]}],limitations:[]},usage:{}})});
+  assert.deepEqual(result.value.claims[0].evidence[0],{sourceId:source.id,quote:excerpts[0].quote,page:source.page});
+});
+test("Recovery banks original text rather than decorated retrieval context",async()=>{
+  let sawRecovery=false;
+  await checkedSynthesis({kind:"answer",question:"Create 3 pages on pitch control",sources:[{...depthSource,text:"[Selected retrieved passage]\n"+depthSource.text}],rawSources:[depthSource],call:async(system,body)=>{
+    const input=JSON.parse(body[0].text);
+    if(input.excerpts){
+      sawRecovery=true;
+      assert.ok(input.excerpts.every((e:any)=>depthSource.text.includes(e.quote)));
+      assert.ok(input.excerpts.every((e:any)=>!e.quote.includes("[Selected retrieved passage]")));
+      return {value:{claims:[],limitations:[]},usage:{}};
+    }
+    if(system.includes("independent evidence verifier"))return {value:{supported:[0]},usage:{}};
+    return {value:{claims:[depthClaim("Adaptive pitch control reduced simulated power fluctuations.")],limitations:[]},usage:{}};
+  }});
+  assert.equal(sawRecovery,true);
+});
+test("A false sentence does not erase the supported part of a paragraph",async()=>{
+  const result=await checkedSynthesis({kind:"review",question:"Review pitch control",sources:[depthSource],call:async(system,body)=>{
+    if(system.includes("independent evidence verifier")){
+      const input=JSON.parse(body[0].text);
+      assert.equal(input.claims.length,2);
+      return {value:{supported:[0]},usage:{}};
+    }
+    return {value:{claims:[depthClaim("Adaptive pitch control reduced simulated power fluctuations. The turbine flew to Mars.")],limitations:[]},usage:{}};
+  }});
+  assert.equal(result.claims[0].text,"Adaptive pitch control reduced simulated power fluctuations.");
+  assert.doesNotMatch(result.claims[0].text,/Mars/);
+});
+test("Page budgets retain section coverage without rewriting verified paragraphs",()=>{
+  const claims=Array.from({length:20},(_,i)=>depthClaim((`Verified${i} `).repeat(80).trim(),["Overview","Evidence-based findings","Critical discussion","Conclusion"][i%4]));
+  const fitted=fitReportClaims("Generate 3 pages",claims);
+  assert.ok(fitted.reduce((n,c)=>n+c.text.split(/\s+/).length,0)<=800);
+  assert.equal(new Set(fitted.map(c=>c.section)).size,4);
+  assert.ok(fitted.every(c=>claims.some(original=>original===c)));
+});
+test("Saved three-page report exports within the requested page budget",{skip:!process.env.REPORT_EXPORT_JSON},async()=>{
+  const view=JSON.parse(await readFile(process.env.REPORT_EXPORT_JSON!,"utf8"));
+  const bytes=await exportResearch(view,"ieee","pdf");assert.ok(Buffer.isBuffer(bytes));
+  await writeFile("/tmp/evidora-live-report.pdf",bytes);
+  const info=execFileSync("pdfinfo",["/tmp/evidora-live-report.pdf"],{encoding:"utf8"});
+  const pages=Number(info.match(/Pages:\s+(\d+)/)?.[1]);
+  assert.equal(pages,3);
+  assert.ok(view.figures.length>0);
 });
 test("Guided Ask accepts only bounded intent replies and routes ambiguous turns to guidance",()=>{
   assert.deepEqual(routeAskIntent({intent:"guidance",reply:"Which field interests you, and what makes it timely?",standaloneQuestion:"latest topic"}),{

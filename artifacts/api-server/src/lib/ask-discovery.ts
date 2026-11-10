@@ -7,6 +7,7 @@ import { researchProgress } from "./research-progress";
 import { indexPublicPapers, searchPaperIndex } from "./weaviate-paper-index";
 import { paperScopeFromQuestion, matchesPaperScope, hasPaperScope, scopeDescription, publisherName } from "./paper-scope";
 import { recentFirst, freshness } from "./publication-currency";
+import { preserveReportRequirements } from "./report-requirements";
 
 const Plan=z.object({
   standaloneQuestion:z.string().min(5).max(2000),
@@ -125,10 +126,11 @@ Prioritise relevant research with confirmed publication dates within the last 60
     notices.push(...(previous?.input?.discoveryWarnings??[]).filter((s:string)=>!s.startsWith("Automatically selected")&&!s.startsWith("Search scope:")));
   }
   notices.push(queries.length?"Research freshness: Recent publications were prioritised in catalogue retrieval and paper selection; relevant older research remains eligible. Indexing delays and missing publication dates can limit recency.":"Research freshness: Existing papers were reused; no new live search for newer publications was performed.");
-  const input={...job.input,paperIds:selected.map(p=>p.id),discoveredPapers:discoverySnapshot(found,selected.map(p=>p.id)),searchQueries:queries,discoveryWarnings:[...new Set(notices)],resolvedQuestion:plan.standaloneQuestion};
+  const resolvedQuestion=preserveReportRequirements(job.question,plan.standaloneQuestion);
+  const input={...job.input,paperIds:selected.map(p=>p.id),discoveredPapers:discoverySnapshot(found,selected.map(p=>p.id)),searchQueries:queries,discoveryWarnings:[...new Set(notices)],resolvedQuestion};
   await pool.query("UPDATE research_analyses SET input=$3 WHERE id=$1 AND owner_id=$2 AND status='running'",[job.id,job.owner_id,JSON.stringify(input)]);
   job.input=input;
-  job.question=plan.standaloneQuestion;
+  job.question=resolvedQuestion;
 }
 
 export function discoverySnapshot(papers:Paper[],selected:string[]) {

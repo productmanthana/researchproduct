@@ -74,7 +74,7 @@ export function illustratedDiagramSvg(f:ScientificFigure){
     // Explicit geometry works in both browser SVG and the PNG/PDF rasterizer;
     // SVG marker support differs between renderers.
     const tangent=Math.atan2(y2-my,x2-mx),ux=Math.cos(tangent),uy=Math.sin(tangent);
-    out.push(`<polygon points="${x2},${y2} ${x2-14*ux+5*uy},${y2-14*uy-5*ux} ${x2-14*ux-5*uy},${y2-14*uy+5*ux}" fill="${tone.ink}"/>`);
+    if(e.role!=="association")out.push(`<polygon points="${x2},${y2} ${x2-14*ux+5*uy},${y2-14*uy-5*ux} ${x2-14*ux-5*uy},${y2-14*uy+5*ux}" fill="${tone.ink}"/>`);
     if(e.label){
       const lx=(x1+2*mx+x2)/4,ly=(y1+2*my+y2)/4,lines=wrap(e.label,14);
       // Keep labels above the path: an opaque label box can otherwise cover a
@@ -97,6 +97,6 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   if(edges.some(e=>e.role==="feedback")&&!roles.includes("feedback"))roles.push("feedback");
   const legendWidth=roles.length*258;
   roles.forEach((role,i)=>{const x=(width-legendWidth)/2+i*258;out.push(`<circle cx="${x+9}" cy="${legendY}" r="7" fill="${tones[role].ink}"/>`);text(x+26,legendY+5,tones[role].label,15,"#52665f");});
-  text(width/2,height-30,"Colours identify functional roles; arrow direction follows the stated method. No measured results are implied.",14,"#65766e","middle");
+  text(width/2,height-30,edges.every(e=>e.role==="association")?"Undirected lines show relationships, not causal or power-flow direction. No measured results are implied.":"Colours identify functional roles; arrows show direction and plain lines show associations. No measured results are implied.",14,"#65766e","middle");
   out.push("</svg>");return out.join("");
 }

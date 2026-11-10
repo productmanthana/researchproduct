@@ -19,7 +19,7 @@ export const FigureProposal=z.object({
   layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
   explanation:z.string().max(1800).optional(),
   nodes:z.array(diagramNode).min(2).max(9).optional(),
-  edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback"]).optional()})).max(16).optional(),
+  edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback","association"]).optional()})).max(16).optional(),
 });
 export type FigureProposalType=z.infer<typeof FigureProposal>;
 export type FigureSource={id:string;title:string;text:string};
@@ -29,7 +29,7 @@ export type ScientificFigure={
   series?:{name:string;points:{x:number|string;y:number}[]}[];
   expression?:string;range?:{min:number;max:number};
   layout?:FigureProposalType["layout"];explanation?:string;
-  nodes?:z.infer<typeof diagramNode>[];edges?:{from:string;to:string;label?:string;role?:"flow"|"feedback"}[];
+  nodes?:z.infer<typeof diagramNode>[];edges?:{from:string;to:string;label?:string;role?:"flow"|"feedback"|"association"}[];
   svgPath?:string;pngPath?:string;
   replacesId?:string;
   width?:number;height?:number;

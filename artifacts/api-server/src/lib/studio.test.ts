@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { reviewDocument } from "./studio-checks";
 import { studioTemplates } from "./studio-templates";
-import { searchPatents } from "./studio-patents";
+import { searchPatents, epoCredentials } from "./studio-patents";
 import { documentLayout,formatIssues,documentBlocks } from "./studio-formatting";
 import { renderStudioWord } from "./studio-docx";
 import { renderStudioPdf } from "./studio-pdf";
@@ -75,9 +75,15 @@ test("Word and PDF export structured thesis without duplicating its abstract",as
   assert.equal((pdf.toString("latin1").match(/\/Type \/Page\b/g)??[]).length,5);
 });
 test("unconfigured patent API exposes the blocker, not synthetic records",async()=>{
-  if(process.env.EPO_CLIENT_ID||process.env.EPO_CLIENT_SECRET)return;
+  const credentials=epoCredentials(process.env);
+  if(credentials.key&&credentials.secret)return;
   const result=await searchPatents("wind turbine");
   assert.equal(result.available,false);
   assert.equal(result.patents.length,0);
   assert.ok(result.links.some(l=>l.label.includes("India")));
+});
+test("EPO accepts consumer secret names without mixing credential pairs",()=>{
+  assert.deepEqual(epoCredentials({EPO_Consumerkey:"example-key",EPO_Consumersecret_key:"example-secret"}),{key:"example-key",secret:"example-secret"});
+  assert.deepEqual(epoCredentials({EPO_CLIENT_ID:"legacy",EPO_Consumerkey:"example-key",EPO_Consumersecret_key:"example-secret"}),{key:"example-key",secret:"example-secret"});
+  assert.deepEqual(epoCredentials({EPO_CLIENT_ID:"legacy",EPO_CLIENT_SECRET:"legacy-secret",EPO_Consumerkey:"example-key",EPO_Consumersecret_key:"example-secret"}),{key:"legacy",secret:"legacy-secret"});
 });

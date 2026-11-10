@@ -19,7 +19,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
         const height=Math.min(id==="academic-report"?340:650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
         result.push(new Paragraph({keepNext:true,children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
         result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`));
-        if(f.explanation)result.push(paragraph(f.explanation));
+        if(f.explanation&&id!=="academic-report")result.push(paragraph(f.explanation));
         result.push(paragraph(f.provenance));
       }else result.push(paragraph(b.text));
     }

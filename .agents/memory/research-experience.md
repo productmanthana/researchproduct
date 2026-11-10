@@ -177,3 +177,15 @@ Requested report length includes figures and references; operational processing 
 **Why:** The user requested three pages but received six, with repeated findings, duplicate references, no diagram and several pages of processing notes.
 
 **How to apply:** Reserve room for relevant captioned figures and a bibliography, use natural academic prose across modules, and retain scientific limitations without exporting infrastructure logs by default. Never pad a short evidence base or imply university endorsement.
+
+Preserve requested page counts and visual requirements through intent routing AND search-query rewriting, not just in the initial prompt.
+
+**Why:** The user repeated the three-page requirement after receiving a one-page export: a later search rewrite had removed the length instruction and thereby skipped report-specific figure generation.
+
+**How to apply:** Verify constraints at the final synthesis input. A short verified result or missing figure must be visibly labelled incomplete, not silently treated as the requested finished report.
+
+Evidence recovery must select excerpts from original source text, not retrieval labels or concatenated presentation snippets. Verify individual sentences before regrouping a developed paragraph.
+
+**Why:** Live reports repeatedly lost most of their content: labelled context failed literal quote matching, and one unsupported sentence discarded a whole otherwise supported paragraph.
+
+**How to apply:** Keep original text separate from retrieval annotations, resolve selected excerpt IDs server-side, and retain only independently approved sentences. Preserve evidence checks; do not relax them to meet a length target. Confirm actual PDF pagination, not only word counts or synthetic layout fixtures.

@@ -65,13 +65,17 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         for(let i=0;i<pages;i++){addPage();contentsPages.push(pageIndex);}
         addPage();bodyStart=pageIndex;
       }else{y+=14;columns=l.columns;}
+      let references=false,disclosure=false;
       for(const block of documentBlocks(body)){
         if(block.kind==="heading"){
+          references=/^References\b/i.test(block.text);
+          disclosure=id==="academic-report"&&/^AI-use disclosure\b/i.test(block.text);
+          if(disclosure){ensure(48);text(block.text,9,true,false,1.05);continue;}
           if(l.thesis&&/^(chapter\s+\d|introduction|conclusions?)/i.test(block.text)&&y>l.margins.top+5)addPage();
           ensure(60);
           if(l.thesis&&block.level<=2)toc.push({title:block.text,page:pageIndex-bodyStart+1});
           text(block.text,block.level===1?17:block.level===2?14:12,true,false,1.2);
-        }else if(block.kind==="paragraph")text(block.text);
+        }else if(block.kind==="paragraph")text(block.text,disclosure?8.5:references&&id==="academic-report"?9.5:l.fontSize,false,false,disclosure?1.05:references&&id==="academic-report"?1.05:l.lineSpacing);
         else if(block.kind==="figure"){
           const f=figures.find(f=>f.id===block.id)!;
           const previousColumns=columns;
@@ -81,7 +85,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
           pdf.image(images.get(f.id)!,x(),y,{width:imageHeight/figureAspect(f),height:imageHeight});
           y+=imageHeight+8;
           text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
-          if(f.explanation)text(f.explanation,10,false,false,1.3);
+          if(f.explanation&&id!=="academic-report")text(f.explanation,10,false,false,1.3);
           text(f.provenance,9,false,false,1.15);
           if(previousColumns===2){columns=previousColumns;addPage();}
         }

@@ -2,6 +2,12 @@ import { XMLParser } from "fast-xml-parser";
 import { SearchStudioPatentsResponse } from "@workspace/api-zod";
 const arr=(x:any):any[]=>x==null?[]:Array.isArray(x)?x:[x];
 const text=(x:any):string=>typeof x==="string"?x:typeof x==="number"?String(x):x?.["#text"]??"";
+export function epoCredentials(env:Record<string,string|undefined>){
+  // Select a complete pair; never mix credentials from two registered clients.
+  return env.EPO_CLIENT_ID&&env.EPO_CLIENT_SECRET
+    ?{key:env.EPO_CLIENT_ID,secret:env.EPO_CLIENT_SECRET}
+    :{key:env.EPO_Consumerkey,secret:env.EPO_Consumersecret_key};
+}
 export async function searchPatents(q:string,region="world") {
   const links=[
     {label:"Worldwide · Espacenet",url:`https://worldwide.espacenet.com/patent/search?q=${encodeURIComponent(q)}`},
@@ -9,11 +15,15 @@ export async function searchPatents(q:string,region="world") {
     {label:"International · WIPO PATENTSCOPE",url:"https://patentscope.wipo.int/search/en/search.jsf"},
     {label:"USA · USPTO",url:"https://ppubs.uspto.gov/pubwebapp/"},
   ];
-  const key=process.env.EPO_CLIENT_ID,secret=process.env.EPO_CLIENT_SECRET;
+  const {key,secret}=epoCredentials(process.env);
   if(!key||!secret)return SearchStudioPatentsResponse.parse({available:false,message:"Live patent API requires EPO access credentials. Official patent search links are available; no patent search has been performed.",patents:[],links});
+  let failureMessage="Patent API is unavailable or access was rejected. No patent conclusions were generated. Use official search links or retry.";
   try{
     const auth=await fetch("https://ops.epo.org/3.2/auth/accesstoken",{method:"POST",headers:{Authorization:`Basic ${Buffer.from(`${key}:${secret}`).toString("base64")}`,"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=client_credentials",signal:AbortSignal.timeout(15000)});
-    if(!auth.ok)throw new Error("Patent authentication failed");
+    if(!auth.ok){
+      failureMessage=`EPO authentication was rejected (HTTP ${auth.status}). Check that your OPS application is approved and the consumer credentials are active. No patent search was completed.`;
+      throw new Error("Patent authentication failed");
+    }
     const token=await auth.json() as {access_token:string};
     const terms=q.replace(/[^\p{L}\p{N}\s-]/gu," ").trim().split(/\s+/).slice(0,12).join(" ");
     const cql=`ta="${terms}"${region==="world"?"":` and pn=${region}`}`;
@@ -33,6 +43,6 @@ export async function searchPatents(q:string,region="world") {
     }).filter(p=>p.id);
     return SearchStudioPatentsResponse.parse({available:true,message:"Retrieved EPO publication records. Verify family membership and current legal status at the official source; not a patentability opinion.",patents:[...new Map(patents.map(p=>[p.id,p])).values()],links});
   }catch{
-    return SearchStudioPatentsResponse.parse({available:false,message:"Patent API is unavailable or access was rejected. No patent conclusions were generated. Use official search links or retry.",patents:[],links});
+    return SearchStudioPatentsResponse.parse({available:false,message:failureMessage,patents:[],links});
   }
 }
