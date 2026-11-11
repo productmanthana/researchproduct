@@ -11,7 +11,7 @@ import { ItemWorkspace } from "./item-workspace";
 /** One persisted document/chat ancestry, shared by every project workspace. */
 export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false, hideTurnIds, attachSlot, emptySlot }: {
   item: StudioItem; allItems: StudioItem[]; onOpen: (id: string | null) => void; hideDocument?: boolean; attachSlot?: ReactNode;
-  /** Turns shown elsewhere (e.g. the document in the right-hand Document tab). */
+  /** Turns rendered elsewhere on the page. */
   hideTurnIds?: string[]; emptySlot?: ReactNode;
 }) {
   const [scrollTo, setScrollTo] = useState<string | null>(null);

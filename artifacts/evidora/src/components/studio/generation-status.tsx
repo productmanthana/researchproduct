@@ -6,7 +6,7 @@ import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/prov
 import { studioWorkflow } from "@/lib/agent-workflow";
 
 /** Honest progress: reflects only the server-reported status, no simulated steps. Stage detail lives in the shared popup. */
-/** `inline`: stream inside the page (Document tab) without registering the shared progress popup. */
+/** `inline`: stream inside the page without registering the shared progress popup. */
 export function GenerationStatus({ item, onRetry, inline = false }: { item: StudioItem; onRetry?: () => void; inline?: boolean }) {
   const working = item.status === "queued" || item.status === "running";
   const job = working ? studioWorkflow(item) : null;

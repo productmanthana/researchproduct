@@ -2,9 +2,10 @@ import { pool } from "@workspace/db";
 import { z } from "zod";
 import { aiContext, SCIENTIFIC_MODEL } from "./ai-budget";
 import { jsonCall, liveJsonCall } from "./ai-json";
-import { savedCustomFormat,customFormatContent,customFormatWarnings } from "./custom-format";
+import { customFormatContent,customFormatWarnings } from "./custom-format";
 import { withLiveGeneration, clearLive } from "./live-generation";
 import { parallelEvidence } from "./parallel-evidence";
+import { generationCustomFormat, generationFiguresEnabled } from "./studio-generation-preferences";
 import { retrievalContext } from "./semantic-retrieval";
 import { discoverForQuestion } from "./ask-discovery";
 import { sourcesFor } from "./research-engine";
@@ -151,7 +152,8 @@ Do not add a References section; it will be assembled from actual sources. Prese
     webEvidence,
   })]);
   const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,conversation:conversation.turns,project:{name:project.name,description:project.description},context:projectMaterial,...(parentRow?.kind==="ideas"?{selectedIdeaSet:parentRow.metadata?.ideas??[]}:{}),passages,template,officialRequirements:requirementPlan?{status:requirementPlan.source.status,sourceUrl:requirementPlan.source.sourceUrl,rules:requirementPlan.rules,layout:requirementPlan.layout}:undefined,documentDetails:request.documentDetails,evidence,date:new Date().toISOString().slice(0,10)})}];
-  const personalFormat=parentRow&&selectedTemplateId!==parentRow.metadata?.templateId?undefined:savedCustomFormat(parentRow??row);
+  const personalFormat=generationCustomFormat(request,parentRow??row,selectedTemplateId);
+  const includeFigures=generationFiguresEnabled(request,parentRow);
   if(personalFormat)body.push({type:"text",text:JSON.stringify({personalFormattingPreferences:personalFormat,note:"These are the author's preferences/instructions, not verified scholarly evidence or official approval. Follow their headings/order and length limits without fabricating research, results or declarations."})});
   for(const source of sources.filter(s=>s.image).slice(0,3))body.push({type:"text",text:`Original page image for reference [${sources.indexOf(source)+1}]`},{type:"image_url",image_url:{url:source.image,detail:"high"}});
   if(!figureOnly)await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Writing Agent · drafting with retrieved evidence"})]);
@@ -177,7 +179,9 @@ Do not add a References section; it will be assembled from actual sources. Prese
     ...existing.filter(f=>f.sourceQuote).map(f=>({id:`figure:${f.id}`,title:`preserved figure source: ${f.provenance}`,text:f.sourceQuote!})),
   ];
   await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Scientific Figure Agent · validating data and diagrams"})]);
-  const planned=await planStudioFigures({kind:request.kind,request:request.prompt,content,sources:figureSources,existing});
+  const planned=!includeFigures
+    ?{figures:[],notices:[]}
+    :await planStudioFigures({kind:request.kind,request:request.prompt,content,sources:figureSources,existing});
   const generatedFigures=await persistStudioFigures(owner,row.id,planned.figures);
   // Keep source figures only when their marker survived; reject unknown markers.
   const retained=referencedFigures(content,existing).filter(f=>!generatedFigures.some(n=>n.replacesId===f.id));
@@ -195,6 +199,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   }).join("\n\n");
   const final=figureOnly?content:`${content}${references?`\n\n## References\n\n${references}`:""}\n\n## Author review\n\nAI-assisted working draft. Verify sources, actual research inputs and target submission requirements before use.`;
   const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:sources.map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode};
+  metadata.includeFigures=includeFigures;
   delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
   const formattedFinal=personalFormat?customFormatContent(final,personalFormat,draft.title):final;
   if(personalFormat)Object.assign(metadata,{customFormat:personalFormat,customFormatWarnings:customFormatWarnings({content:formattedFinal,metadata},personalFormat),customFormatStatus:"Customised — not verified"});

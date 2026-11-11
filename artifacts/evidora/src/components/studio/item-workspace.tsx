@@ -70,7 +70,7 @@ type Props = {
   extra?: ReactNode;
   /** "default" keeps the two-column layout. "reading" gives the document full width and moves tools into a drawer. */
   presentation?: "default" | "reading";
-  /** Stream generation inline (Document tab) without the progress popup. */
+  /** Stream generation inline without the progress popup. */
   inlineProgress?: boolean;
 };
 

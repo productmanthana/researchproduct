@@ -395,7 +395,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
 
   const documentPane = !isDone(d.status)
     ? <div className="p-5"><LiveDraft kind="analysis" id={id} working invalidate={[getGetAnalysisQueryKey(id)]} fallback={<p className="text-sm text-muted-foreground">Reading sources and checking quotes. Text appears here as soon as it is written.</p>} /></div>
-    : d.status === "failed" ? <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
+    : d.status === "failed" ? null
     : <div className="mx-auto w-full max-w-[760px] px-5 py-6 md:px-8">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Draft (editable)</p>
@@ -427,7 +427,6 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
     </div>;
   const hasPapers = d.sources.length > 0 || (d.discoveredPapers?.length ?? 0) > 0;
   return <ResearchWorkbench idBase="analysis" label="Analysis workspace" sourceCount={d.discoveredPapers?.length || d.sources.length}
-    document={documentPane}
     sources={hasPapers ? <div className="es-root es-source-panel" style={{ height: "auto", display: "block", overflow: "visible", background: "transparent" }}><EvidencePanel analysis={d} selected={selectedPaper} onSelect={setSelectedPaper} /></div>
       : <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-analysis-no-sources"><b>{isDone(d.status) ? "No sources saved" : "Searching"}</b>{isDone(d.status) ? "This analysis returned no papers or web sources." : "Papers and web sources are listed when the analysis finishes."}</div></div>}
     conversation={
@@ -454,12 +453,12 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
       )}
 
       {!isDone(d.status) ? (
-        <div className="space-y-4 p-5">{job && <AgentProgressChip jobKey={job.key} />}<p className="text-sm text-muted-foreground">The answer is written live in the Document tab. Papers appear in Sources when the analysis finishes.</p></div>
+        <div>{job && <div className="px-5 pt-5"><AgentProgressChip jobKey={job.key} /></div>}{documentPane}</div>
       ) : d.status === "failed" ? (
         <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
       ) : (
         <div className="p-5">
-          <p className="mb-4 text-sm text-muted-foreground" data-testid="text-draft-pointer">The editable draft is in the Document tab; every paper found is in Sources. Claims and comparisons stay here.</p>
+          <div className="-mx-5">{documentPane}</div>
           {(d.claims.length > 0 || (rows?.length ?? 0) > 0) && (
             <section className="mt-8">
               <div className="mb-3 flex items-center gap-1 border-b">

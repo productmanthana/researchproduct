@@ -1,11 +1,5 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { StudioItem } from "@workspace/api-client-react";
-import { BookOpen, ExternalLink, FileText, MessagesSquare } from "lucide-react";
-import { AcademicAnswer } from "@/components/academic-answer";
-import { FigureView, MissingFigure } from "@/components/studio/figure-view";
-import { ExportButtons, withoutRepeatedTitle } from "@/components/studio/item-workspace";
-import { figuresOf, markerOrder } from "@/lib/figures";
-import { isWorking, KIND_LABEL, meta } from "@/lib/studio";
+import { ExternalLink } from "lucide-react";
 import { sourceKindCounts, type ProvenancedSource, type SourceKind } from "@/lib/source-provenance";
 import "./workbench.css";
 
@@ -35,37 +29,22 @@ export function PanelTabs<T extends string>({ tabs, value, onChange, idBase, lab
   </div>;
 }
 
-export type WorkbenchTab = "document" | "sources";
-
 /**
- * Conversation on the left; persistent Document and Sources tabs on the right.
- * Every pane stays mounted, so switching tabs never resets edits or live writing.
+ * Conversation (each question followed by its full response, editor and follow-ups) in the main pane;
+ * Sources in a secondary pane. Both stay mounted, so toggling sources on mobile never resets edits or live writing.
  */
-export function ResearchWorkbench({ conversation, document, sources, sourceCount, tab: controlled, onTab, label = "Research workspace", idBase = "wb" }: {
-  conversation: ReactNode; document: ReactNode; sources: ReactNode; sourceCount?: number;
-  tab?: WorkbenchTab; onTab?: (t: WorkbenchTab) => void; label?: string; idBase?: string;
+export function ResearchWorkbench({ conversation, sources, sourceCount, label = "Research workspace", idBase = "wb" }: {
+  conversation: ReactNode; sources: ReactNode; sourceCount?: number; label?: string; idBase?: string;
 }) {
-  const [own, setOwn] = useState<WorkbenchTab>("document");
-  const tab = controlled ?? own;
-  const setTab = (t: WorkbenchTab) => { setOwn(t); onTab?.(t); };
-  const [mobile, setMobile] = useState<"conversation" | WorkbenchTab>("conversation");
-  const pickMobile = (v: "conversation" | WorkbenchTab) => { setMobile(v); if (v !== "conversation") setTab(v); };
+  const [mobile, setMobile] = useState<"conversation" | "sources">("conversation");
   return <div className="wb rise" data-mobile={mobile} aria-label={label} data-testid="research-workbench">
     <div className="wb-mobile-switch" role="group" aria-label="Show">
-      <button type="button" aria-pressed={mobile === "conversation"} onClick={() => pickMobile("conversation")} data-testid="button-mobile-conversation">Conversation</button>
-      <button type="button" aria-pressed={mobile === "document"} onClick={() => pickMobile("document")} data-testid="button-mobile-document">Document</button>
-      <button type="button" aria-pressed={mobile === "sources"} onClick={() => pickMobile("sources")} data-testid="button-mobile-sources">Sources{typeof sourceCount === "number" ? ` (${sourceCount})` : ""}</button>
+      <button type="button" aria-pressed={mobile === "conversation"} onClick={() => setMobile("conversation")} data-testid="button-mobile-conversation">Conversation</button>
+      <button type="button" aria-pressed={mobile === "sources"} onClick={() => setMobile("sources")} data-testid="button-mobile-sources">Sources{typeof sourceCount === "number" ? ` (${sourceCount})` : ""}</button>
     </div>
-    <section className="wb-pane wb-left" aria-label="Conversation and follow-ups">{conversation}</section>
-    <section className="wb-pane wb-right" aria-label="Document and sources">
-      <div className="wb-right-head">
-        <PanelTabs idBase={idBase} label="Document and sources" value={tab} onChange={setTab}
-          tabs={[{ value: "document", label: "Document", icon: <FileText /> }, { value: "sources", label: "Sources", count: sourceCount, icon: <BookOpen /> }]} />
-      </div>
-      <div className="wb-right-body">
-        <div className="wb-tabpanel" role="tabpanel" id={`${idBase}-panel-document`} aria-labelledby={`${idBase}-tab-document`} hidden={tab !== "document"}>{document}</div>
-        <div className="wb-tabpanel" role="tabpanel" id={`${idBase}-panel-sources`} aria-labelledby={`${idBase}-tab-sources`} hidden={tab !== "sources"}>{sources}</div>
-      </div>
+    <section className="wb-pane wb-left" aria-label="Conversation">{conversation}</section>
+    <section className="wb-pane wb-right" aria-label="Sources" id={`${idBase}-sources`}>
+      <div className="wb-right-body">{sources}</div>
     </section>
   </div>;
 }
@@ -116,24 +95,4 @@ export function SourcesList({ sources, pending, retrieved, title = "Sources", no
       {!shown.length && <p className="wb-src-note">No sources match this filter.</p>}
     </>}
   </div>;
-}
-
-/** Read-only checked document view for surfaces whose editor lives in the conversation (ideas chat). */
-export function StudioReadPane({ item, onFocusConversation }: { item?: StudioItem; onFocusConversation?: () => void }) {
-  if (!item) return <div className="wb-doc-pad"><div className="wb-empty"><b>No document open</b>Open an idea, answer or draft from the conversation to read it here.</div></div>;
-  if (isWorking(item.status)) return <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-doc-writing"><b>Being written</b>The live text is shown in the conversation turn so it is streamed only once. The checked version opens here when it finishes.</div></div>;
-  if (item.status === "failed") return <div className="wb-doc-pad"><div className="wb-empty"><b>Did not finish</b>{item.error || "The server reported a failure."} Use Try again on the turn in the conversation.</div></div>;
-  if (item.kind === "ideas") return <div className="wb-doc-pad"><div className="wb-empty"><b>{item.title}</b>Five idea cards are reviewed one by one in the conversation. Confirm one to get an editable document you can read and export here.</div></div>;
-  const figures = figuresOf(item);
-  const order = markerOrder(item.content);
-  const renderFigure = (fid: string) => { const f = figures.find(x => x.id === fid); return f ? <FigureView itemId={item.id} figure={f} number={order.indexOf(fid) + 1} /> : <MissingFigure id={fid} />; };
-  return <article className="mx-auto w-full max-w-[760px] px-5 py-6 md:px-9" data-testid={`doc-read-${item.id}`}>
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span><span className="sx-chip">rev {item.revision}</span>
-      <span className="ml-auto inline-flex gap-1.5"><ExportButtons item={item} /></span>
-    </div>
-    <h2 className="sx-title text-[28px] leading-tight md:text-[32px]">{item.title}</h2>
-    <div className="mt-5">{item.content.trim() ? <AcademicAnswer content={withoutRepeatedTitle(item.content, item.title)} inline={t => t} renderFigure={renderFigure} referenceSources={meta(item).sources} linkCitations /> : <p className="text-sm text-muted-foreground">No text.</p>}</div>
-    {onFocusConversation && <button type="button" className="sx-btn mt-6" onClick={onFocusConversation} data-testid="button-edit-in-conversation"><MessagesSquare />Edit, versions and checks are on this turn in the conversation</button>}
-  </article>;
 }

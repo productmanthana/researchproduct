@@ -114,11 +114,11 @@ The users are non-technical and want as few steps as possible; a visible six-ste
 
 **How to apply:** Keep research capabilities available without presenting a mandatory six-stage process. The user approved one chat-first workspace with conversation, evidence and writing as contextual states, not separate steps. Reveal sources and an editable draft alongside the conversation only when needed.
 
-The user specifically approved the simplified writing preview: conversation on the left, editable working draft on the right, and sources available on demand.
+Generated research documents belong directly below their question in the main conversation on the left; only Sources stays in a secondary right-side panel.
 
-**Why:** They supplied the writing-state screenshot and said “this is good.”
+**Why:** The user explicitly rejected the separate Document tab after seeing it in the literature workspace. This supersedes the earlier approval of separate Document and Sources tabs on the right.
 
-**How to apply:** Use this side-by-side composition as the preferred writing direction. Keep the conversation available while editing, without restoring a visible multi-step journey.
+**How to apply:** Keep the real active editor, live response, figures and final actions in chronological conversation order below the matching request and before follow-up entry. Preserve unsaved changes and selections when accessing Sources; do not add a duplicate document preview or restore a separate Document tab.
 
 The user now requests persistent navigation across AI Chat, Literature Survey, Synopsis, Journal Papers, Thesis, AI Plagiarism and Patents. AI Chat should offer five research ideas in a coloured popup with confirmation on each and back/forward navigation. Papers and relevant patents should support all research modules.
 
@@ -208,9 +208,3 @@ Live responses should read like a progressively written conversation, with forma
 **Why:** The user explicitly requested a ChatGPT-like live reading experience after seeing Markdown pipes and headings in the draft preview.
 
 **How to apply:** Keep an unobtrusive, truthful writing/checking status and provisional-evidence note. Respect readers scrolling back, preserve the visible draft through reconnects and checking, and enable final-result actions only after completion.
-
-Research workspaces should keep the conversation on the left and the active work on the right, with separate **Document** and **Sources** tabs across applicable research pages.
-
-**Why:** The user requested a consistent right-side paper workspace and explicitly chose both the generated document and relevant sources in separate tabs.
-
-**How to apply:** Keep the real active editor/live stream in the document pane, not a disconnected duplicate preview. Preserve edits, selection and earlier dialogue when switching tabs; distinguish retrieved inputs from checked final results.

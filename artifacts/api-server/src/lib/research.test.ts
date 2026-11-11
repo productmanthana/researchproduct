@@ -6,6 +6,7 @@ import "./custom-format.test";
 import "./web-evidence.test";
 import "./live-generation.test";
 import "./parallel-evidence.test";
+import "./studio-generation-preferences.test";
 import "./studio.test";
 import "./idea-generation.test";
 import "./selected-idea.test";

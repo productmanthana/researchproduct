@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { CustomFormat } from './customFormat';
 import type { DocumentDetails } from './documentDetails';
 import type { StudioGenerationInputEvidenceMode } from './studioGenerationInputEvidenceMode';
 import type { StudioGenerationInputKind } from './studioGenerationInputKind';
@@ -20,5 +21,8 @@ export interface StudioGenerationInput {
   templateId?: string;
   parentId?: string;
   includePatents?: boolean;
+  /** Include evidence-grounded figures. When omitted, preserve the earlier document preference; new documents enable figure planning. */
+  includeFigures?: boolean;
+  customFormat?: CustomFormat;
   documentDetails?: DocumentDetails;
 }

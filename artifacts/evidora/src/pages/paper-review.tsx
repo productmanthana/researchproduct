@@ -165,8 +165,8 @@ function ReviewView({ id, onClose }: { id: string; onClose: () => void }) {
       {item.status === "failed" && <ErrorState error={{ message: item.error || "The review did not finish." }} title="Review failed" />}
       <div className="es-root paper-review-document" data-mobile-view={mobileView}>
         <div className="paper-review-mobile-tabs" role="tablist" aria-label="Manuscript review view">
-          <button role="tab" aria-selected={mobileView==="document"} onClick={()=>setMobileView("document")}>Reviewed file</button>
-          <button role="tab" aria-selected={mobileView==="feedback"} onClick={()=>setMobileView("feedback")}>Report and sources</button>
+          <button role="tab" aria-selected={mobileView==="document"} onClick={()=>setMobileView("document")}>Manuscript and review</button>
+          <button role="tab" aria-selected={mobileView==="feedback"} onClick={()=>setMobileView("feedback")}>Sources</button>
         </div>
         <div className="es-workspace dr-mode"><DocumentReviewWorkspace reviewId={id} onClose={onClose} chatMode reportSlot={<div className="space-y-5 pb-4" data-testid="panel-review-report">
       {!isWorking(item.status) && <div className="space-y-5">

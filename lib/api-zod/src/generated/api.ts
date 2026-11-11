@@ -900,6 +900,44 @@ export const generateStudioDocumentBodyPromptMin = 5;
 export const generateStudioDocumentBodyPromptMax = 5000;
 
 export const generateStudioDocumentBodyIncludePatentsDefault = true;
+export const generateStudioDocumentBodyCustomFormatFontSizeMin = 8;
+export const generateStudioDocumentBodyCustomFormatFontSizeMax = 16;
+
+export const generateStudioDocumentBodyCustomFormatLineSpacingMax = 2.5;
+
+export const generateStudioDocumentBodyCustomFormatMarginsTopMin = 18;
+export const generateStudioDocumentBodyCustomFormatMarginsTopMax = 144;
+
+export const generateStudioDocumentBodyCustomFormatMarginsRightMin = 18;
+export const generateStudioDocumentBodyCustomFormatMarginsRightMax = 144;
+
+export const generateStudioDocumentBodyCustomFormatMarginsBottomMin = 18;
+export const generateStudioDocumentBodyCustomFormatMarginsBottomMax = 144;
+
+export const generateStudioDocumentBodyCustomFormatMarginsLeftMin = 18;
+export const generateStudioDocumentBodyCustomFormatMarginsLeftMax = 144;
+
+export const generateStudioDocumentBodyCustomFormatFigureWidthMin = 40;
+export const generateStudioDocumentBodyCustomFormatFigureWidthMax = 100;
+
+export const generateStudioDocumentBodyCustomFormatSectionOrderItemMax = 100;
+
+export const generateStudioDocumentBodyCustomFormatSectionOrderMax = 30;
+
+export const generateStudioDocumentBodyCustomFormatHeadingRenamesItemFromMax = 100;
+
+export const generateStudioDocumentBodyCustomFormatHeadingRenamesItemToMax = 100;
+
+export const generateStudioDocumentBodyCustomFormatHeadingRenamesMax = 30;
+
+export const generateStudioDocumentBodyCustomFormatMaxWordsMin = 100;
+export const generateStudioDocumentBodyCustomFormatMaxWordsMax = 100000;
+
+export const generateStudioDocumentBodyCustomFormatMaxAbstractWordsMin = 50;
+export const generateStudioDocumentBodyCustomFormatMaxAbstractWordsMax = 2000;
+
+export const generateStudioDocumentBodyCustomFormatInstructionsMax = 16000;
+
 export const generateStudioDocumentBodyDocumentDetailsAuthorMax = 500;
 
 export const generateStudioDocumentBodyDocumentDetailsAffiliationMax = 500;
@@ -924,6 +962,33 @@ export const GenerateStudioDocumentBody = zod.object({
   "templateId": zod.string().optional(),
   "parentId": zod.string().optional(),
   "includePatents": zod.boolean().default(generateStudioDocumentBodyIncludePatentsDefault),
+  "includeFigures": zod.boolean().optional().describe('Include evidence-grounded figures. When omitted, preserve the earlier document preference; new documents enable figure planning.'),
+  "customFormat": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(generateStudioDocumentBodyCustomFormatFontSizeMin).max(generateStudioDocumentBodyCustomFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(generateStudioDocumentBodyCustomFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(generateStudioDocumentBodyCustomFormatMarginsTopMin).max(generateStudioDocumentBodyCustomFormatMarginsTopMax),
+  "right": zod.number().min(generateStudioDocumentBodyCustomFormatMarginsRightMin).max(generateStudioDocumentBodyCustomFormatMarginsRightMax),
+  "bottom": zod.number().min(generateStudioDocumentBodyCustomFormatMarginsBottomMin).max(generateStudioDocumentBodyCustomFormatMarginsBottomMax),
+  "left": zod.number().min(generateStudioDocumentBodyCustomFormatMarginsLeftMin).max(generateStudioDocumentBodyCustomFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(generateStudioDocumentBodyCustomFormatFigureWidthMin).max(generateStudioDocumentBodyCustomFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(generateStudioDocumentBodyCustomFormatSectionOrderItemMax)).max(generateStudioDocumentBodyCustomFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(generateStudioDocumentBodyCustomFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(generateStudioDocumentBodyCustomFormatHeadingRenamesItemToMax)
+})).max(generateStudioDocumentBodyCustomFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(generateStudioDocumentBodyCustomFormatMaxWordsMin).max(generateStudioDocumentBodyCustomFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(generateStudioDocumentBodyCustomFormatMaxAbstractWordsMin).max(generateStudioDocumentBodyCustomFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(generateStudioDocumentBodyCustomFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+}).optional(),
   "documentDetails": zod.object({
   "author": zod.string().max(generateStudioDocumentBodyDocumentDetailsAuthorMax).optional(),
   "affiliation": zod.string().max(generateStudioDocumentBodyDocumentDetailsAffiliationMax).optional(),

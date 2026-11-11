@@ -3,10 +3,15 @@ type Kind = "journal" | "thesis" | "literature" | "synopsis";
 const routes: Record<Kind, string> = { journal: "/journals", thesis: "/thesis", literature: "/literature", synopsis: "/synopsis" };
 
 function requestedKind(text: string): Kind | null {
+  // Common writing-verb typos must not silently send a manuscript request
+  // through ordinary question answering. Only normalise for intent detection.
+  text=text.replace(/\b(?:genreate|genrate|gerenate|gernate|generte|geneate)\b/gi,"generate")
+    .replace(/\b(?:jorunal|journel|joirnal)\b/gi,"journal");
   if (/\b(?:how (?:to|do|can|should)|what (?:is|are)|outline|suggest (?:a |some )?topics?|find papers|search for papers)\b/i.test(text)) return null;
   if (/\b(?:do not|don't|not yet)\s+(?:write|generate|create|draft|prepare)\b/i.test(text)) return null;
   if (!/\b(?:write|generate|create|prepare|draft|provide|make|give|want|need)\b/i.test(text)) return null;
-  if (/\b(?:journal (?:paper|article)|research (?:paper|article)|manuscript|paper for (?:journal|publication|submission))\b/i.test(text)) return "journal";
+  if (/\b(?:journals?\s+(?:paper|article)s?|research (?:paper|article)s?|manuscript|paper for (?:journal|publication|submission))\b/i.test(text)) return "journal";
+  if (/\b(?:write|generate|create|prepare|draft|make)\b/i.test(text)&&/\bjournals?\b/i.test(text)) return "journal";
   if (/\b(?:thesis|dissertation)\b/i.test(text)) return "thesis";
   if (/\b(?:literature (?:review|survey)|lit review|review of (?:the )?literature)\b/i.test(text)) return "literature";
   if (/\bsynopsis\b/i.test(text)) return "synopsis";

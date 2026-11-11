@@ -60,7 +60,7 @@ test("Gateway HTML is not displayed as an error, but real API explanations are p
 });
 
 test("AI Chat routes real writing assignments into document generation without requiring 'my references'",()=>{
-  for(const text of ["Provide a journal paper on smart grid energy management","I told to write journal paper for submitting from my side","Write a research paper with coloured diagrams","Create an IEEE journal paper","Generate a manuscript on smart grids"]){
+  for(const text of ["Provide a journal paper on smart grid energy management","I told to write journal paper for submitting from my side","Write a research paper with coloured diagrams","Create an IEEE journal paper","Generate a manuscript on smart grids","Performance Evaluation of Bifacial Solar PV Modules in Varying Climatic Regions genreate journal paper","genrate a journal paper on bifacial PV","Generate journals on photovoltaic systems"]){
     assert.equal(chatDocumentIntent(text)?.kind,"journal",text);
     assert.equal(chatDocumentIntent(text)?.evidenceMode,"combined");
   }
@@ -70,7 +70,7 @@ test("AI Chat routes real writing assignments into document generation without r
   assert.equal(chatDocumentIntent("Write a journal paper using my references")?.evidenceMode,"project");
   assert.equal(chatDocumentIntent("Provide a journal paper using the same sources")?.evidenceMode,"project");
   assert.equal(chatDocumentIntent("yes",[{question:"Write a journal paper on smart grids",answer:"Here is an outline"}])?.kind,"journal");
-  for(const text of ["What is a journal paper?","How to write a journal paper?","Give me an outline for a journal paper","Find papers on smart grids","Don't write a journal paper yet","yes"])
+  for(const text of ["What is a journal paper?","How to write a journal paper?","Give me an outline for a journal paper","Find papers on smart grids","Don't write a journal paper yet","I need journals to publish my paper","yes"])
     assert.equal(chatDocumentIntent(text),null,text);
 });
 
@@ -172,4 +172,25 @@ test("Running items expose retrieved sources and web evidence without inventing 
   assert.equal(sourcesRetrievedOnly(running), true);
   assert.equal(sourcesRetrievedOnly({ ...running, status: "completed" }), false);
   assert.equal(studioItemSources([{ ...running, metadata: {} }]).length, 0);
+});
+
+import { defaultJournalSetup, journalGenerationExtras, journalPromptWithLength, journalSetupProblem } from "./journal-setup";
+test("journal setup: general draft sends figures flag only, custom sends sanitized format", () => {
+  const g = defaultJournalSetup("Performance Evaluation of Bifacial Solar PV Modules genreate journal paper");
+  assert.equal(g.target, "general");
+  assert.deepEqual(journalGenerationExtras(g), { includeFigures: true });
+  const c = { ...g, target: "custom" as const, includeFigures: false, details: { author: "  R. Iyer " }, customFormat: { ...g.customFormat, columns: 2 as const, margins: { top: 5, right: 72, bottom: 200, left: 54 } } };
+  const x = journalGenerationExtras(c);
+  assert.equal(x.includeFigures, false);
+  assert.equal(x.customFormat?.margins.top, 18);
+  assert.equal(x.customFormat?.margins.bottom, 144);
+  assert.equal(x.documentDetails?.author, "R. Iyer");
+  assert.equal(x.templateId, undefined);
+});
+test("journal setup: IEEE Access is suggested but needs review; preset requires a journal", () => {
+  const s = defaultJournalSetup("write for IEEE Access");
+  assert.equal(s.templateId, "ieee-access");
+  assert.equal(journalSetupProblem({ ...s, templateId: null }) !== null, true);
+  const p = journalPromptWithLength("x".repeat(6000), "short");
+  assert.ok(p.length <= 5000 && p.includes("Target length"));
 });

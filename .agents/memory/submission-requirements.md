@@ -16,3 +16,9 @@ Users may customise journal and thesis formats and keep reusable personal templa
 **Why:** The user asked for their own customisation and approved personal formats with previews, file imports, explicit conflict warnings and protected new versions.
 
 **How to apply:** Distinguish supported layout imports from full Word-template reproduction, and instruction text from inferred PDF geometry. Family substitutions and unsupported formatting must be disclosed rather than described as an exact match.
+
+New journal manuscripts started from AI Chat must offer the journal target or custom settings before generation, including author details, desired length and source-grounded diagrams. Use one coherent setup rather than repeated conversational questions. A writing request must produce a manuscript, not an ordinary research-answer export.
+
+**Why:** The user reported a journal request that produced a generic answer PDF without diagrams or a chance to enter custom journal values.
+
+**How to apply:** Confirm the new manuscript's choices before spending its generation allowance. Preserve the latest saved document settings for revisions; a stale browser-only copy must not overwrite later author or layout edits. An explicitly new manuscript or target needs a fresh choice, not an automatically reused old journal. Keep unsupported official compliance and experimental results clearly unclaimed.

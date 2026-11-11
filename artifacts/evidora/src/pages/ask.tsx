@@ -35,11 +35,13 @@ import { chatDocumentPrompt } from "@/lib/chat-document";
 import { IdeasChat } from "@/components/studio/ideas-chat";
 import { ideasIntent, CHAT_KINDS } from "@/lib/ideas-chat";
 import { buildConversations, conversationFor } from "@/lib/conversation";
-import { PanelTabs, SourcesList } from "@/components/workbench/research-workbench";
+import { SourcesList } from "@/components/workbench/research-workbench";
 import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
 import { useStudioItem } from "@/components/studio/use-studio";
 import { KIND_LABEL } from "@/lib/studio";
 import type { ProjectIntent } from "@/lib/studio";
+import { JournalSetupDialog } from "@/components/studio/journal-setup";
+import { journalGenerationExtras, journalPromptWithLength, type JournalSetup } from "@/lib/journal-setup";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const reviewable = (d: Pick<Document, "contentType" | "name">) => d.contentType === "application/pdf" || d.contentType === DOCX_TYPE || /\.(pdf|docx)$/i.test(d.name);
@@ -90,7 +92,7 @@ function AskInner() {
   const [question, setQuestion] = useState(prefill);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [panel, setPanel] = useState<"sources" | "draft" | null>(null);
+  const [panel, setPanel] = useState<"sources" | null>(null);
   const [sourceAnalysisId, setSourceAnalysisId] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [sourceRevealRequest, setSourceRevealRequest] = useState(0);
@@ -162,7 +164,6 @@ function AskInner() {
   const projectDrafts = latestItems(reviewsQ.data ?? []).filter(i => ["journal", "thesis", "literature", "synopsis"].includes(i.kind));
   const chatConvs = useMemo(() => activeProject ? buildConversations(reviewsQ.data ?? [], activeProject.id).filter(c => c.turns.some(t => CHAT_KINDS.has(t.revisions[0].kind)) && !c.turns.some(t => ["journal", "thesis", "literature", "synopsis", REVIEW_KIND].includes(t.revisions[0].kind))) : [], [reviewsQ.data, activeProject]);
   const itemQ = useStudioItem(itemId);
-  const [docTarget, setDocTarget] = useState<HTMLDivElement | null>(null);
   const itemConvItems = useMemo(() => {
     const it = itemQ.data;
     if (!it) return [];
@@ -280,7 +281,10 @@ function AskInner() {
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
     }
   };
-  const submit = async (event?: FormEvent) => {
+  const [setupOpen, setSetupOpen] = useState(false);
+  // Synchronous guard: blocks a second confirm/Enter before mutation pending state renders.
+  const startingDoc = useRef(false);
+  const submit = async (event?: FormEvent, confirmedSetup?: JournalSetup) => {
     event?.preventDefault();
     if (attached) { await submitReview(); return; }
     if (intent) {
@@ -293,7 +297,12 @@ function AskInner() {
         return;
       }
       if (sendLimit) { toast({ title: "Limit reached", description: sendLimit, variant: "destructive" }); return; }
-      if (!mayLeave()) return;
+      // Journal drafts collect format, length and diagram choices once, before any project, bridge or paid job is created.
+      const isJournal = !!intent.document && intent.kind === "journal";
+      const journalSetup = isJournal ? confirmedSetup ?? null : null;
+      if (isJournal && !journalSetup) { setSetupOpen(true); return; }
+      if (!mayLeave() || startingDoc.current) return;
+      startingDoc.current = true;
       try {
         let project = activeProject;
         if (!project) {
@@ -303,7 +312,8 @@ function AskInner() {
         }
         // Carry the selected conversation into the new document, not a random recent project item.
         const savedContext = parent ? await saveContext.mutateAsync({ data: { projectId: project.id, kind: "answer", title: parent.question.slice(0, 300), content: parent.content, analysisId: parent.id } }) : null;
-        const item = await generate.mutateAsync({ data: { projectId: project.id, kind: intent.kind, parentId: savedContext?.id, prompt: (ideaAsk ? ideaAsk.prompt : intent.document ? chatDocumentPrompt(question, chatContext) : intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: intent.evidenceMode ?? "project", includePatents: true, ...(intent.document && intent.kind === "journal" && /\bieee\s+access\b/i.test(question) ? { templateId: "ieee-access" } : {}) } });
+        const item = await generate.mutateAsync({ data: { projectId: project.id, kind: intent.kind, parentId: savedContext?.id, prompt: (ideaAsk ? ideaAsk.prompt : intent.document ? chatDocumentPrompt(question, chatContext) : intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: intent.evidenceMode ?? "project", includePatents: true, ...(journalSetup ? { ...journalGenerationExtras(journalSetup), prompt: journalPromptWithLength(chatDocumentPrompt(question, chatContext), journalSetup.length) } : {}) } });
+        if (journalSetup) setSetupOpen(false);
         qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
         void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -314,7 +324,7 @@ function AskInner() {
       } catch (error) {
         toast({ title: "Couldn't start the document", description: friendlyError(error), variant: "destructive" });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
-      }
+      } finally { startingDoc.current = false; }
       return;
     }
     if (limitMessage) {
@@ -359,13 +369,12 @@ function AskInner() {
     setActiveDraftId(analysis.id);
     setDraftSectionId(null);
     setDraftEditing(false);
-    setPanel("draft");
+    setPanel(null);
+    requestAnimationFrame(() => document.querySelector(`[data-testid="panel-inline-draft-${analysis.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   // The right panel is persistent; "closing" only hides it on small screens. Nothing unmounts, so edits are kept.
   const closePanel = () => setPanel(null);
-  const rightTab: "sources" | "draft" = panel ?? (itemId || activeDraftId ? "draft" : "sources");
-  const panelTabs = (count: number) => <PanelTabs idBase="ask" label="Document and sources" value={rightTab} onChange={v => setPanel(v)}
-    tabs={[{ value: "draft", label: "Document", icon: <FileText /> }, { value: "sources", label: "Sources", count, icon: <BookOpen /> }]} />;
+  const sourcesHead = (count: number) => <h2 className="wb-sources-title"><BookOpen />Sources <span className="wb-count">{count}</span></h2>;
   const updateDraft = (content: string) => {
     if (!activeDraftId) return;
     setDraftBuffers(current => ({ ...current, [activeDraftId]: { ...(current[activeDraftId] ?? { revision: 0, status: "Not saved yet" }), content, dirty: true, status: "Unsaved changes" } }));
@@ -446,29 +455,27 @@ function AskInner() {
   const initials = name.slice(0, 2).toUpperCase();
 
   return <div className="es-root">
+    <JournalSetupDialog open={setupOpen} topic={question.trim()} pending={generate.isPending || saveContext.isPending || createProject.isPending}
+      onCancel={() => { setSetupOpen(false); requestAnimationFrame(() => composer.current?.focus()); }}
+      onConfirm={s => void submit(undefined, s)} />
     <main className="es-main">
       <header className="es-topbar es-topbar-compact"><div className="es-top-title">
         <button className="es-button es-primary es-new-chat" onClick={reviewId || itemId ? () => { if (mayLeave()) setLocation("/ask"); } : newChat} disabled={!reviewId && !itemId && !!ownActive} data-testid="button-new-chat"><Plus /><span>New chat</span></button>
         <h1 title={reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}>{reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}</h1></div>
-        <div className="es-top-actions">{!reviewId && (threadId || itemId) && <><button className="es-button wb-mobile-only" onClick={() => setPanel("draft")} data-testid="button-mobile-open-document"><FileText />Document</button><button className="es-button wb-mobile-only" onClick={() => setPanel("sources")} data-testid="button-mobile-open-sources"><BookOpen />Sources</button></>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
+        <div className="es-top-actions">{!reviewId && (threadId || itemId) && <><button className="es-button wb-mobile-only" onClick={() => setPanel("sources")} data-testid="button-mobile-open-sources"><BookOpen />Sources</button></>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
       </header>
       {allUsageLimitMessages(usageData).length > 0 && <div className="es-limit-notice" role="status">{allUsageLimitMessages(usageData).map(message => <p key={message}>{message} <Link href="/plans" onClick={guardNavigation}>Plans &amp; usage</Link></p>)}</div>}
       {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} chatMode onClose={() => setLocation("/ask")} /></div> :
       itemId ? <div className="es-workspace"><section className="es-conversation" aria-label="Research ideas conversation"><div className="es-thread"><div className="es-thread-inner">
-        <IdeasChat itemId={itemId} documentTarget={docTarget} onShowDocument={() => setPanel("draft")} onNavigate={url => setLocation(url)} onNewTopic={() => setLocation("/ask")} onOpen={(id, opts) => { if (opts?.guard && !mayLeave()) return; setLocation(`/ask?item=${encodeURIComponent(id)}`); }} />
+        <IdeasChat itemId={itemId} onNavigate={url => setLocation(url)} onNewTopic={() => setLocation("/ask")} onOpen={(id, opts) => { if (opts?.guard && !mayLeave()) return; setLocation(`/ask?item=${encodeURIComponent(id)}`); }} />
       </div></div></section>
-        <aside className={`es-panel es-persist ${rightTab === "draft" ? "es-writing" : ""} ${panel ? "is-open" : ""}`} aria-label="Document and sources" data-testid="panel-ask-right">
-          <div className="es-panel-header">{panelTabs(itemSources.length)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
-          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-draft" aria-labelledby="ask-tab-draft" hidden={rightTab !== "draft"}>
-            {itemQ.isLoading && <div className="p-5"><RowSkeleton rows={3} /></div>}
-            {itemQ.isError && <div className="p-5"><ErrorState error={itemQ.error} onRetry={() => void itemQ.refetch()} title="Couldn't load this document" /></div>}
-            <div ref={setDocTarget} data-testid="slot-ask-document" />
-          </div>
-          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-sources" aria-labelledby="ask-tab-sources" hidden={rightTab !== "sources"}>
+        <aside className={`es-panel es-persist ${panel ? "is-open" : ""}`} aria-label="Sources" data-testid="panel-ask-right">
+          <div className="es-panel-header">{sourcesHead(itemSources.length)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
+          <div className="wb-scroll" style={{ flex: 1, minHeight: 0 }} id="ask-panel-sources">
             <SourcesList sources={itemSources} pending={itemWriting} retrieved={itemRetrieved} />
           </div>
         </aside></div> :
-      <div className={`es-workspace ${threadId && rightTab === "draft" ? "es-written" : ""}`}>
+      <div className="es-workspace">
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">
             {!threadId && !list.isLoading && !list.isError && <div className="es-welcome"><div className="es-assistant-head"><span><Wind /></span>Evidora</div><div className="es-prose"><h2>Let’s find a question you care about.</h2><p>Start with a rough idea, a writing question, or a specific scientific question. We can clarify first—or look for scholarly evidence when the question is ready.</p><p className="es-choice-note">Guidance is conversational and separate from evidence-backed research answers.</p></div></div>}
@@ -494,6 +501,26 @@ function AskInner() {
                   </DropdownMenu>
                 </>}
               </div>}
+              {editor && activeDraftId === analysis.id && <section className="es-inline-draft" aria-label="Editable working draft" data-testid={`panel-inline-draft-${analysis.id}`}><div className="es-document-toolbar"><label className="es-section-select-label">Section
+            <select aria-label="Choose draft section" value={selectedDraftSection?.id ?? ""} onChange={event => setDraftSectionId(event.target.value)}>
+              {draftSections.map(section => <option key={section.id} value={section.id}>{section.title}</option>)}
+            </select></label><div>
+            <button className="es-button es-view-toggle" onClick={() => setDraftEditing(value => !value)}>{draftEditing ? "Preview document" : "Edit selected section"}</button>
+            {sourceAnalysis && <button className="es-icon" aria-label="Open sources" title="Open sources" onClick={() => { setSourceAnalysisId(activeDraftId); setPanel("sources"); }}><BookOpen /></button>}
+            <button className="es-icon" aria-label="Download working draft" title="Download draft" onClick={exportDraft}><ArrowDownToLine /></button>
+          </div></div>
+          <div className="es-document"><span className="es-eyebrow">Editable research working draft</span>
+            {draftEditing && selectedDraftSection
+              ? <div className="es-section-editor"><h3>{selectedDraftSection.title}</h3><textarea className="es-editor" aria-label={`Edit ${selectedDraftSection.title}`} value={selectedDraftSection.body} onChange={event => updateDraftSection(event.target.value)} spellCheck /></div>
+              : <div className="es-document-preview"><AcademicAnswer content={editor.content} inline={draftInline} renderFigure={id=>{
+                const figures=(draftAnalysis?.figures??[]) as StudioFigure[];
+                const index=figures.findIndex(f=>f.id===id);
+                return index<0?<MissingFigure id={id}/>:<FigureView itemId={activeDraftId} figure={figures[index]} number={index+1} analysis/>;
+              }}/></div>}
+            <p className="es-provenance">{draftAnalysis?.draftProvenance ?? "AI-assisted source answer retained above."} Local edits are user-authored and not evidence-checked. No study results are generated.</p>
+            <div className="es-status" role="status">{editor.status}</div><button className="es-button es-primary es-save-draft" onClick={() => void saveCurrentDraft()} disabled={saveDraft.isPending || !editor.dirty}><Check />{saveDraft.isPending ? "Saving…" : "Save draft"}</button>
+          </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>
+</section>}
             </div>)}
           </div></div>
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
@@ -524,31 +551,9 @@ function AskInner() {
               <span role="status">{attached ? (question.trim().length < 5 ? "Describe what to review (at least 5 characters)." : !activeProject ? "Choose a project to save this review." : pageParse.error ?? "Sends a document review, not a chat answer.") : sendLimit ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${sendLimit ? "es-limit-send" : ""}`} type="submit" disabled={attached ? (createReview.isPending || question.trim().length < 5 || !activeProject || !!pageParse.error) : askSendDisabled({ limitReached: !!sendLimit, blocked: !!problem, pending: create.isPending || generate.isPending, loading: list.isLoading || usage.isLoading })} aria-label={attached ? "Start document review" : sendLimit ? "Limit reached" : "Send message"} data-testid="button-ask-send">{!attached && sendLimit ? "Limit reached" : <ArrowUp />}</button></div>
           </form><p className="es-local-note">Enter to send · Shift+Enter for a new line · AI-assisted answers need original-source review.</p></div>
         </section>
-        {threadId && <aside className={`es-panel es-persist ${rightTab === "draft" ? "es-writing" : ""} ${panel ? "is-open" : ""}`} aria-label="Document and sources" data-testid="panel-ask-right">
-          <div className="es-panel-header">{panelTabs(sourceAnalysis ? (sourceAnalysis.discoveredPapers?.length || sourceAnalysis.sources.length) : 0)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
-          <div className="wb-tabpanel" role="tabpanel" id="ask-panel-draft" aria-labelledby="ask-tab-draft" hidden={rightTab !== "draft"}>
-            {editor && activeDraftId ? <><div className="es-document-toolbar"><label className="es-section-select-label">Section
-            <select aria-label="Choose draft section" value={selectedDraftSection?.id ?? ""} onChange={event => setDraftSectionId(event.target.value)}>
-              {draftSections.map(section => <option key={section.id} value={section.id}>{section.title}</option>)}
-            </select></label><div>
-            <button className="es-button es-view-toggle" onClick={() => setDraftEditing(value => !value)}>{draftEditing ? "Preview document" : "Edit selected section"}</button>
-            {sourceAnalysis && <button className="es-icon" aria-label="Open sources" title="Open sources" onClick={() => { setSourceAnalysisId(activeDraftId); setPanel("sources"); }}><BookOpen /></button>}
-            <button className="es-icon" aria-label="Download working draft" title="Download draft" onClick={exportDraft}><ArrowDownToLine /></button>
-          </div></div>
-          <div className="es-document"><span className="es-eyebrow">Editable research working draft</span>
-            {draftEditing && selectedDraftSection
-              ? <div className="es-section-editor"><h3>{selectedDraftSection.title}</h3><textarea className="es-editor" aria-label={`Edit ${selectedDraftSection.title}`} value={selectedDraftSection.body} onChange={event => updateDraftSection(event.target.value)} spellCheck /></div>
-              : <div className="es-document-preview"><AcademicAnswer content={editor.content} inline={draftInline} renderFigure={id=>{
-                const figures=(draftAnalysis?.figures??[]) as StudioFigure[];
-                const index=figures.findIndex(f=>f.id===id);
-                return index<0?<MissingFigure id={id}/>:<FigureView itemId={activeDraftId} figure={figures[index]} number={index+1} analysis/>;
-              }}/></div>}
-            <p className="es-provenance">{draftAnalysis?.draftProvenance ?? "AI-assisted source answer retained above."} Local edits are user-authored and not evidence-checked. No study results are generated.</p>
-            <div className="es-status" role="status">{editor.status}</div><button className="es-button es-primary es-save-draft" onClick={() => void saveCurrentDraft()} disabled={saveDraft.isPending || !editor.dirty}><Check />{saveDraft.isPending ? "Saving…" : "Save draft"}</button>
-          </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>
-        </> : <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-ask-no-draft"><b>No working draft yet</b>{evidenceTurns.length ? "Choose Start a draft under an evidence answer to open an editable, citation-linked draft here." : active ? "An answer is being written in the conversation. When an evidence answer finishes you can start a draft from it." : "Guidance replies have no draft. Ask a research question to get an evidence answer you can turn into a draft."}</div></div>}
-          </div>
-          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-sources" aria-labelledby="ask-tab-sources" hidden={rightTab !== "sources"}>
+        {threadId && <aside className={`es-panel es-persist ${panel ? "is-open" : ""}`} aria-label="Sources" data-testid="panel-ask-right">
+          <div className="es-panel-header">{sourcesHead(sourceAnalysis ? (sourceAnalysis.discoveredPapers?.length || sourceAnalysis.sources.length) : 0)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
+          <div className="wb-scroll" style={{ flex: 1, minHeight: 0 }} id="ask-panel-sources">
             {evidenceTurns.length > 1 && <label className="es-section-select-label" style={{ padding: "12px 17px 0", display: "flex", gap: 8, alignItems: "center" }}>Answer
               <select aria-label="Choose which answer's sources to show" value={sourceAnalysis?.id ?? ""} onChange={e => { setSourceAnalysisId(e.target.value); setSelectedSource(null); }} data-testid="select-source-answer">
                 {evidenceTurns.map((t, i) => <option key={t.id} value={t.id}>{i + 1}. {t.question.slice(0, 70)}</option>)}

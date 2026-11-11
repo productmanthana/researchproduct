@@ -64,6 +64,7 @@ function Inner() {
           <span className="min-w-0 flex-1 text-xs text-muted-foreground">Project scope only. Attached files join the comparison set. The shared-wording figure is not a global originality percentage, web-wide plagiarism score or AI-authorship verdict.</span>
         </div>
       </section>
+      {chosen && <div className="mt-5" data-testid="originality-draft"><ItemWorkspace key={chosen.id} item={chosen} allItems={all} presentation="reading" inlineProgress onOpen={x => { if (x) { setId(x); setDiscussionId(null); check.reset(); } else pick(""); }} /></div>}
       <div className="mt-5 min-w-0 space-y-5" aria-live="polite">
         {check.isError && <ErrorState error={{ message: friendlyError(check.error) }} title="Check failed" onRetry={run} />}
         {result ? <div className="sx-card rise p-6"><CheckResult key={`${id}:${result.checkedAt ?? ""}`} result={result} missing={chosen ? missingRequirements(chosen.kind, chosen.title, detailsOf(chosen)) : []} save={chosen ? { projectId: project.id, draftTitle: chosen.title } : undefined} /></div>
@@ -77,10 +78,9 @@ function Inner() {
         ? <WorkspaceBar newLabel="Check another draft" onNew={() => pick("")} label={`Originality · ${chosen.title}`} onHistory={() => setDrawer(true)} projectName={project.name} />
         : <WorkspaceIntro kicker="Originality" title="Check a draft against your own project." sub={intro} projectName={project.name} onHistory={() => setDrawer(true)} />}
       {chosen ? (() => { const srcs = [...studioItemSources([chosen], k => KIND_LABEL[k] ?? k), ...mergeSources([{ origin: "Originality check matches", sources: (result?.matches ?? []).filter(x => x.url).map(x => ({ title: x.title, url: x.url, text: x.sourceExcerpt || x.excerpt, evidenceLevel: x.matchType })) }])]; return <ResearchWorkbench idBase="originality" label="Originality workspace" sourceCount={srcs.length}
-        conversation={<div className="space-y-0 pb-3">
+        conversation={<div className="mx-auto w-full max-w-[900px] pb-3">
         {leftBody}
         </div>}
-        document={<ItemWorkspace key={chosen.id} item={chosen} allItems={all} presentation="reading" inlineProgress onOpen={x => { if (x) { setId(x); setDiscussionId(null); check.reset(); } else pick(""); }} />}
         sources={<SourcesList sources={srcs} note="Sources saved with this draft, plus any linked project material the originality check matched. The check compares only within this project." />} />; })()
       : <>
         {leftBody}

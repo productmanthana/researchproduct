@@ -42,15 +42,15 @@
 .wb-empty b{display:block;font:400 17px 'Fraunces',serif;color:hsl(var(--foreground));margin-bottom:4px}
 
 /* Ask: persistent right panel */
-.es-persist{width:clamp(360px,40%,560px)}
-.es-persist.es-writing{width:min(54%,820px)}
+.es-persist{width:clamp(300px,30%,440px)}
+
 .es-persist .wb-tabpanel{overflow:hidden}
 .es-persist .wb-tabpanel.wb-scroll{overflow-y:auto}
 .es-persist .es-panel-header{padding:10px 14px;border-bottom:1px solid var(--line)}
 .wb-mobile-only{display:none!important}
 
 @media (min-width:1024px){
-  .wb{grid-template-columns:minmax(360px,1fr) minmax(540px,1.3fr);height:calc(100dvh - 9.5rem);min-height:560px}
+  .wb{grid-template-columns:minmax(0,1fr) minmax(320px,400px);height:calc(100dvh - 9.5rem);min-height:560px}
   .wb-left{overflow-y:auto;overscroll-behavior:contain;padding:22px 22px 0;border-right:1px solid hsl(var(--border))}
   .wb-right{border-top:0}
 }
@@ -70,3 +70,7 @@
   .wb-mobile-only{display:inline-flex!important}
 }
 @media (prefers-reduced-motion:reduce){.wb-tab,.wb *{transition:none!important;animation:none!important}}
+
+.wb-sources-title{display:flex;align-items:center;gap:8px;font:400 20px 'Fraunces',serif}.wb-sources-title svg{width:17px;height:17px}
+.es-inline-draft{margin:18px 0 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.es-inline-draft .es-document{overflow:visible;flex:none}.es-inline-draft .es-editor{min-height:420px}

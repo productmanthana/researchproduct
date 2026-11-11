@@ -373,6 +373,9 @@ export interface StudioGenerationInput {
   templateId?: string;
   parentId?: string;
   includePatents?: boolean;
+  /** Include evidence-grounded figures. When omitted, preserve the earlier document preference; new documents enable figure planning. */
+  includeFigures?: boolean;
+  customFormat?: CustomFormat;
   documentDetails?: DocumentDetails;
 }
 

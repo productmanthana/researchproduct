@@ -47,14 +47,20 @@ type Props = {
   resolve?: (prompt: string) => { kind: StudioGenerationInputKind; prompt: string; evidenceMode?: StudioGenerationInputEvidenceMode } | null;
   /** Handles a message locally (e.g. "select idea 2"); return true to consume it without sending. */
   intercept?: (prompt: string) => boolean;
+  /** Extra generation fields (e.g. journal customFormat/includeFigures) merged into each request. */
+  extra?: Record<string, unknown>;
+  /** Async step before a paid request (e.g. journal setup). Resolve null to cancel and keep the text. */
+  prepare?: (req: { kind: StudioGenerationInputKind; prompt: string }) => Promise<{ prompt?: string; extra?: Record<string, unknown> } | null>;
 };
 
-export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label, parentId, compact, disabled, disabledNote, attachSlot, resolve, intercept }: Props) {
+export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label, parentId, compact, disabled, disabledNote, attachSlot, resolve, intercept, extra, prepare }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const gen = useGenerateStudioDocument();
   const save = useSaveStudioItem();
   const [prompt, setPrompt] = useState(initialPrompt);
+  const inFlight = useRef(false);
+  const [preparing, setPreparing] = useState(false);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [detailsDirty, setDetailsDirty] = useState(false);
   const guardId = useId();
@@ -92,11 +98,28 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
 
   const generate = async () => {
     if (intercept?.(trimmed)) { if (compact) setPrompt(""); return; }
-    if (problem || gen.isPending || disabled) return;
+    if (problem || gen.isPending || disabled || inFlight.current) return;
+    inFlight.current = true;
+    try { await runGenerate(); } finally { inFlight.current = false; setPreparing(false); }
+  };
+  const runGenerate = async () => {
     setLimitError(null);
     const over = resolve?.(trimmed) ?? null;
+    const reqKind = over?.kind ?? kind;
+    let reqPrompt = over?.prompt ?? trimmed;
+    let more: Record<string, unknown> = extra ?? {};
+    if (prepare) {
+      setPreparing(true);
+      let prep: Awaited<ReturnType<typeof prepare>>;
+      try { prep = await prepare({ kind: reqKind, prompt: reqPrompt }); }
+      catch (e) { toast({ title: "Couldn't prepare the request", description: friendlyError(e), variant: "destructive" }); return; }
+      finally { setPreparing(false); }
+      if (!prep) return;
+      if (prep.prompt) reqPrompt = prep.prompt;
+      more = { ...more, ...(prep.extra ?? {}) };
+    }
     try {
-      const item = await gen.mutateAsync({ data: { projectId, kind: over?.kind ?? kind, prompt: over?.prompt ?? trimmed, ...(parentId ? { parentId } : {}), evidenceMode: over?.evidenceMode ?? mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload } });
+      const item = await gen.mutateAsync({ data: { projectId, kind: reqKind, prompt: reqPrompt, ...(parentId ? { parentId } : {}), evidenceMode: over?.evidenceMode ?? mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload, ...more } });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
       finish(item);
     } catch (e) {
@@ -123,7 +146,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
           {attachmentControl}
           <textarea id={promptId} rows={2} className="min-h-[44px] flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground" placeholder={placeholder} value={prompt} maxLength={5000} onChange={e => setPrompt(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void generate(); } }} data-testid="input-studio-prompt" />
-          <button className="sx-btn sx-primary shrink-0" disabled={!!problem || gen.isPending || disabled} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{gen.isPending ? "Sending..." : cta}</button>
+          <button className="sx-btn sx-primary shrink-0" disabled={!!problem || gen.isPending || preparing || disabled} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{preparing ? "Setting up..." : gen.isPending ? "Sending..." : cta}</button>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[hsl(90_14%_88%)] bg-[hsl(66_22%_96%)] px-3 py-2">
           <div className="sx-seg" role="radiogroup" aria-label="Evidence to use">
@@ -174,7 +197,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
           {limitError && <div className="rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-3 text-sm" role="alert" data-testid="status-limit">{limitError} <Link href="/plans" className="font-medium underline">Plans &amp; usage</Link></div>}
           <div className="flex flex-wrap items-center gap-2">
             {attachmentControl}
-            <button className="sx-btn sx-primary min-w-[200px] flex-1 sm:flex-none" disabled={!!problem || gen.isPending} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{gen.isPending ? "Sending..." : cta}</button>
+            <button className="sx-btn sx-primary min-w-[200px] flex-1 sm:flex-none" disabled={!!problem || gen.isPending || preparing} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{preparing ? "Setting up..." : gen.isPending ? "Sending..." : cta}</button>
             {saveKind && <button className="sx-btn" disabled={!!problem || save.isPending} onClick={() => void saveBlank()} title="Save your text as a new item without AI" data-testid="button-save-to-library"><BookmarkPlus />Save to Library</button>}
             <span className="ml-auto hidden font-mono text-[10.5px] text-muted-foreground sm:inline">Ctrl + Enter to send</span>
           </div>
@@ -204,7 +227,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
       {limitError && <div className="rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-3 text-sm" role="alert" data-testid="status-limit">{limitError} <Link href="/plans" className="font-medium underline">Plans &amp; usage</Link></div>}
       <div className="flex flex-wrap gap-2">
         {attachmentControl}
-        <button className="sx-btn sx-primary flex-1" disabled={!!problem || gen.isPending} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{gen.isPending ? "Sending..." : cta}</button>
+        <button className="sx-btn sx-primary flex-1" disabled={!!problem || gen.isPending || preparing} onClick={() => void generate()} data-testid="button-generate"><Sparkles />{preparing ? "Setting up..." : gen.isPending ? "Sending..." : cta}</button>
         {saveKind && <button className="sx-btn" disabled={!!problem || save.isPending} onClick={() => void saveBlank()} title="Save your text as a new item without AI" data-testid="button-save-to-library"><BookmarkPlus />Save to Library</button>}
       </div>
       <p className="text-xs text-muted-foreground" role="status">{problem ?? "Generated drafts are saved to your project automatically. AI drafts need your review against the original sources."}</p>

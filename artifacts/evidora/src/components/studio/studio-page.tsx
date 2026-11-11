@@ -11,18 +11,18 @@ import { Composer } from "./composer";
 import { ItemList } from "./item-list";
 import { StudioDiscussion } from "./studio-discussion";
 import { TemplatePicker } from "./template-picker";
+import { useToast } from "@/hooks/use-toast";
+import { JournalSetupForm } from "./journal-setup";
+import { defaultJournalSetup, journalGenerationExtras, journalPromptWithLength, journalSetupProblem } from "@/lib/journal-setup";
 import { AttachDocuments } from "./attach-documents";
 import { useProjectItems, useStudioItem } from "./use-studio";
 import { useItemParam } from "./use-item-param";
 import { ProjectAttachMenu } from "./project-attach";
 import { HistoryDrawer, WorkspaceBar, WorkspaceIntro } from "./workspace-shell";
-import { ItemWorkspace } from "./item-workspace";
 import { ResearchWorkbench, SourcesList } from "@/components/workbench/research-workbench";
 import { buildConversations, conversationFor } from "@/lib/conversation";
 import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
 import { isWorking, KIND_LABEL } from "@/lib/studio";
-
-const DOC_KINDS = new Set(["literature", "synopsis", "journal", "thesis"]);
 
 export type StudioPageConfig = {
   kind: Exclude<StudioGenerationInputKind, "ideas" | "answer">;
@@ -62,6 +62,9 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
   const sourcePrompt = source ? `Update the ${cfg.kicker.toLowerCase()} for this project, taking into account the newly found source "${source.title}":\n\n${source.content.slice(0, 3000)}` : "";
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const { toast } = useToast();
+  const [setup, setSetup] = useState(() => defaultJournalSetup());
+  const isJournal = cfg.templateKind === "journal";
   const kinds = [cfg.kind as string, cfg.saveKind as string];
   const all = items.data ?? [];
 
@@ -95,8 +98,22 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
           </div>}
           {sourceId && sourceQ.isLoading && <div className="sx-card h-16 animate-pulse" />}
           <Composer key={`${project.id}:${source?.id ?? ""}`} variant="wide" label={`Describe your ${cfg.kicker.toLowerCase()} topic`} initialPrompt={sourcePrompt.slice(0, 5000)} projectId={project.id} kind={cfg.kind} saveKind={cfg.saveKind} placeholder={cfg.placeholder} cta={cfg.cta}
-            templateId={templateId} attachSlot={attach}
-            templateSlot={cfg.templateKind ? (
+            templateId={isJournal ? null : templateId} attachSlot={attach}
+            extra={isJournal ? (({ documentDetails: _d, ...rest }) => rest)(journalGenerationExtras(setup)) : undefined}
+            prepare={isJournal ? async req => {
+              const problem = journalSetupProblem(setup);
+              if (problem) { toast({ title: "Finish the journal setup", description: problem, variant: "destructive" }); return null; }
+              return { prompt: journalPromptWithLength(req.prompt, setup.length) };
+            } : undefined}
+            templateSlot={isJournal ? (
+              <details open className="rounded-lg border bg-[hsl(52_40%_98%)]" data-testid="panel-journal-setup">
+                <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
+                  Journal setup
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">Format, length and diagrams · change the format again after writing</span>
+                </summary>
+                <div className="border-t p-3"><JournalSetupForm value={setup} onChange={setSetup} showDetails={false} /></div>
+              </details>
+            ) : cfg.templateKind ? (
               <details className="rounded-lg border bg-[hsl(52_40%_98%)]" data-testid="panel-formatting-profile">
                 <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium">
                   {cfg.templateLabel ?? "Choose a format"}
@@ -118,12 +135,9 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
     );
   }
 
-  // The document turn lives in the right Document tab; follow-ups stay in the conversation on the left.
+  // Each request is followed by its full document/answer in the conversation; Sources sit in the secondary pane.
   const merged = item ? [...all.filter(i => i.projectId === item.projectId && i.id !== item.id), item] : all;
   const conv = item ? conversationFor(buildConversations(merged, project.id), item.id) : undefined;
-  const docKinds = new Set([...DOC_KINDS, cfg.kind as string, cfg.saveKind as string]);
-  const docTurn = item ? (conv?.turns.find(t => t.revisions.some(r => r.id === item.id) && docKinds.has(item.kind)) ?? [...(conv?.turns ?? [])].reverse().find(t => docKinds.has(t.latest.kind))) : undefined;
-  const docItem = item ? (docTurn ? docTurn.revisions.find(r => r.id === item.id) ?? docTurn.latest : docKinds.has(item.kind) ? item : undefined) : undefined;
   const shownItems = item ? (conv ? conv.turns.map(t => t.revisions.find(r => r.id === item.id) ?? t.latest) : [item]) : [];
   const sources = studioItemSources(shownItems, k => KIND_LABEL[k] ?? k);
   const writing = shownItems.some(i => isWorking(i.status));
@@ -137,15 +151,7 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
         {open.isError && <ErrorState variant={item ? "warning" : "error"} error={loadFailure.message ? { message: `${loadFailure.message} Reconnecting automatically.` } : open.error} onRetry={() => void open.refetch()} title={loadFailure.title} />}
         {open.data && open.data.projectId !== project.id && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it, or start a new draft.</p>}
         {item && <ResearchWorkbench idBase="studio" label={`${cfg.kicker} workspace`} sourceCount={sources.length}
-          conversation={<div className="flex min-h-full flex-col gap-4 pb-3">
-            {docTurn?.prompt && <div className="flex justify-end" data-testid="text-document-request"><div className="max-w-[90%] rounded-2xl rounded-br-md border border-[hsl(var(--teal)/0.25)] bg-[hsl(var(--teal)/0.07)] px-4 py-3"><p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[hsl(var(--teal))]">You</p><p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{docTurn.prompt.length > 600 ? `${docTurn.prompt.slice(0, 600)}…` : docTurn.prompt}</p></div></div>}
-            {docItem && <p className="sx-card px-4 py-3 text-[13.5px] text-muted-foreground" data-testid="text-document-pointer"><span className="font-medium text-foreground">{docItem.title}</span> {isWorking(docItem.status) ? "is being written in the Document tab." : `opens in the Document tab (revision ${docItem.revision}). Edit, save versions, check and export it there.`}</p>}
-            <div className="flex-1"><StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} hideTurnIds={docTurn ? [docTurn.id] : undefined}
-              emptySlot={<p className="text-[13px] text-muted-foreground" data-testid="status-no-followups">No follow-ups yet. Ask below to refine sections, compare evidence or request a figure; each answer appears here and your document stays on the right.</p>} /></div>
-          </div>}
-          document={docItem
-            ? <ItemWorkspace key={docItem.id} item={docItem} allItems={merged} onOpen={x => setId(x)} presentation="reading" inlineProgress />
-            : <div className="wb-doc-pad"><div className="wb-empty"><b>No document in this conversation</b>This thread holds answers only. Ask for a {cfg.kicker.toLowerCase()} to write one; it opens here.</div></div>}
+          conversation={<div className="mx-auto w-full max-w-[860px] pb-3"><StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} /></div>}
           sources={<SourcesList sources={sources} pending={writing} retrieved={retrieved} />} />}
       </section>
       {drawerEl}

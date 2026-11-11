@@ -16,7 +16,7 @@ import "./document-review.css";
 import { LiveDraft } from "@/components/live-draft";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { reviewWorkflow } from "@/lib/agent-workflow";
-import { PanelTabs, SourcesList } from "@/components/workbench/research-workbench";
+import { SourcesList } from "@/components/workbench/research-workbench";
 import { mergeSources } from "@/lib/source-provenance";
 
 const plain = (t: string): ReactNode => t;
@@ -29,7 +29,7 @@ const FIG = /^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/;
 const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 1000) / 10) : 0);
 
 export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, reportSlot }: { reviewId: string; onClose: () => void; chatMode?: boolean;
-  /** Generated review report (e.g. paper-review scorecard), shown at the top of the right Document tab. */
+  /** Generated review report (e.g. paper-review scorecard), shown at the top of the review report below the manuscript. */
   reportSlot?: ReactNode }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -46,7 +46,6 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, rep
   const [busyId, setBusyId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [origBusy, setOrigBusy] = useState(false);
-  const [side, setSide] = useState<"document" | "sources">("document");
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => { setView("original"); setOpenId(null); setConfirmId(null); setConflict(null); }, [reviewId]);
@@ -61,7 +60,6 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, rep
   const counts = { approved: review.suggestions.filter(s => s.decision === "approved").length, dismissed: review.suggestions.filter(s => s.decision === "dismissed").length };
 
   const focusCard = (id: string) => {
-    setSide("document");
     setFilter(f => (review.suggestions.find(s => s.id === id)?.decision === "pending" ? f : "all"));
     setOpenId(id);
     requestAnimationFrame(() => { const el = cardRefs.current[id]; el?.scrollIntoView({ block: "nearest", behavior: "smooth" }); el?.querySelector<HTMLButtonElement>(".dr-card-head")?.focus(); });
@@ -120,7 +118,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, rep
   };
 
   return <>
-    <section className="es-conversation dr-doc" aria-label="Reviewed document">
+    <section className="es-conversation dr-doc" aria-label="Reviewed document and review report">
       <div className="dr-doc-bar">
         <button className="es-button dr-small" onClick={onClose} data-testid="button-review-back"><ArrowLeft />{(item.metadata as Record<string,unknown>)?.paperReview ? "Paper Review" : "Chat"}</button>
         <div className="dr-toggle" role="tablist" aria-label="Document version">
@@ -144,39 +142,38 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, rep
           </>}
           {view === "draft" && <DraftView draft={draft.data} loading={draft.isLoading} error={draft.isError ? draft.error : null} retry={() => void draft.refetch()} />}
         </div>
+        <div className="dr-paper dr-report" aria-label="Review report" data-testid="panel-review-report-main">
+        {reportSlot}
+          {!reportSlot && <p className="dr-eyebrow" data-testid="text-review-report-heading">Review report</p>}
+          <Coverage review={review} working={working} metadata={item.metadata} />
+          {conflict && <div className="dr-alert" role="alert" data-testid="status-review-conflict"><AlertTriangle />{conflict}</div>}
+          {!working && item.status === "completed" && <>
+            <div className="dr-filter" role="group" aria-label="Filter suggestions">
+              <button aria-pressed={filter === "open"} onClick={() => setFilter("open")} data-testid="button-filter-open">Open ({pending.length})</button>
+              <button aria-pressed={filter === "all"} onClick={() => setFilter("all")} data-testid="button-filter-all">All ({review.suggestions.length})</button>
+              <span>{counts.approved} approved · {counts.dismissed} dismissed</span>
+            </div>
+            <div className="dr-legend" aria-label="Colour legend">{(["issue", "evidence", "style", "visual"] as const).map(k => <span key={k} className={`dr-pill dr-${k}`}>{SEVERITY_LABEL[k]}</span>)}</div>
+            {shown.length === 0 && <div className="dr-empty" data-testid="status-review-empty"><Check /><p>{review.suggestions.length ? "Every suggestion has a decision. Switch to All to see them." : "No changes were suggested for the reviewed portion. That is not a guarantee the paper is error-free."}</p></div>}
+            <ol className="dr-cards">{shown.map(s => <li key={s.id}>
+              <SuggestionCard s={s} open={openId === s.id} onToggle={() => { setOpenId(openId === s.id ? null : s.id); setConfirmId(null); }}
+                sources={s.sourceIds.map(id => sourceById.get(id)).filter((x): x is ReviewSource => !!x)}
+                figure={s.imageId ? figures.find(f => f.id === s.imageId) : undefined} proposed={proposedFigure(s, figures)} itemId={item.id}
+                confirming={confirmId === s.id} setConfirming={v => setConfirmId(v ? s.id : null)}
+                busy={busyId === s.id} locked={!!busyId} onDecide={a => void run(s, a)}
+                refEl={el => { cardRefs.current[s.id] = el; }} />
+            </li>)}</ol>
+          </>}
+        </div>
       </div>
     </section>
 
-    <aside className={`es-panel dr-panel ${reportSlot ? "dr-panel-wide" : ""}`} aria-label="Review document and sources">
-      <div className="es-panel-header"><PanelTabs idBase={`review-${item.id}`} label="Review document and sources" value={side} onChange={value => { if (value === "document" || value === "sources") setSide(value); }}
-        tabs={[{ value: "document" as const, label: "Document", count: pending.length }, { value: "sources" as const, label: "Sources", count: review.sources.length }]} /><button className="es-icon" aria-label={(item.metadata as Record<string,unknown>)?.paperReview ? "Close review" : "Close review and return to chat"} onClick={onClose}><X /></button></div>
-      {side === "sources" && <div className="dr-panel-scroll" role="tabpanel" id={`review-${item.id}-panel-sources`} aria-labelledby={`review-${item.id}-tab-sources`}>
+    <aside className="es-panel dr-panel" aria-label="Review sources">
+      <div className="es-panel-header"><h2 className="wb-sources-title">Sources <span className="wb-count">{review.sources.length}</span></h2><button className="es-icon" aria-label={(item.metadata as Record<string,unknown>)?.paperReview ? "Close review" : "Close review and return to chat"} onClick={onClose}><X /></button></div>
+      <div className="dr-panel-scroll" id={`review-${item.id}-sources`}>
         <SourcesList sources={mergeSources([{ origin: "This review", sources: review.sources }])} pending={working}
           note="Papers, patent records and web pages retrieved for this review. Suggestions compare your document only with these, not the whole literature."
           emptyBody={working ? "Sources are listed when the review finishes." : "No sources were returned with this review."} />
-      </div>}
-      <div className="dr-panel-scroll" role="tabpanel" id={`review-${item.id}-panel-document`} aria-labelledby={`review-${item.id}-tab-document`} style={side === "document" ? undefined : { display: "none" }}>
-        {reportSlot}
-        {!reportSlot && <p className="dr-eyebrow" data-testid="text-review-report-heading">Review report</p>}
-        <Coverage review={review} working={working} metadata={item.metadata} />
-        {conflict && <div className="dr-alert" role="alert" data-testid="status-review-conflict"><AlertTriangle />{conflict}</div>}
-        {!working && item.status === "completed" && <>
-          <div className="dr-filter" role="group" aria-label="Filter suggestions">
-            <button aria-pressed={filter === "open"} onClick={() => setFilter("open")} data-testid="button-filter-open">Open ({pending.length})</button>
-            <button aria-pressed={filter === "all"} onClick={() => setFilter("all")} data-testid="button-filter-all">All ({review.suggestions.length})</button>
-            <span>{counts.approved} approved · {counts.dismissed} dismissed</span>
-          </div>
-          <div className="dr-legend" aria-label="Colour legend">{(["issue", "evidence", "style", "visual"] as const).map(k => <span key={k} className={`dr-pill dr-${k}`}>{SEVERITY_LABEL[k]}</span>)}</div>
-          {shown.length === 0 && <div className="dr-empty" data-testid="status-review-empty"><Check /><p>{review.suggestions.length ? "Every suggestion has a decision. Switch to All to see them." : "No changes were suggested for the reviewed portion. That is not a guarantee the paper is error-free."}</p></div>}
-          <ol className="dr-cards">{shown.map(s => <li key={s.id}>
-            <SuggestionCard s={s} open={openId === s.id} onToggle={() => { setOpenId(openId === s.id ? null : s.id); setConfirmId(null); }}
-              sources={s.sourceIds.map(id => sourceById.get(id)).filter((x): x is ReviewSource => !!x)}
-              figure={s.imageId ? figures.find(f => f.id === s.imageId) : undefined} proposed={proposedFigure(s, figures)} itemId={item.id}
-              confirming={confirmId === s.id} setConfirming={v => setConfirmId(v ? s.id : null)}
-              busy={busyId === s.id} locked={!!busyId} onDecide={a => void run(s, a)}
-              refEl={el => { cardRefs.current[s.id] = el; }} />
-          </li>)}</ol>
-        </>}
       </div>
     </aside>
   </>;

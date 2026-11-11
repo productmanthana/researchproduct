@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useGenerateStudioDocument, getGetStudioItemQueryKey, getListStudioItemsQueryKey, getGetUsageQueryKey, type StudioItem } from "@workspace/api-client-react";
-import { FileText, MessageSquareText, Sparkles, Wand2 } from "lucide-react";
-import { ItemWorkspace } from "./item-workspace";
+import { MessageSquareText, Sparkles, Wand2 } from "lucide-react";
 import { ErrorState } from "@/components/states";
 import { AcademicAnswer } from "@/components/academic-answer";
 import { useActiveProject } from "@/lib/active-project";
@@ -18,6 +16,8 @@ import { analysisTurnsOf, CHAT_KINDS, confirmedFor, conversationContext, ideaSel
 import { chatDocumentPrompt } from "@/lib/chat-document";
 import { FIGURE_GUARD, ROUTE_FOR_KIND } from "@/lib/figures";
 import { useToast } from "@/hooks/use-toast";
+import { JournalSetupDialog } from "./journal-setup";
+import { journalGenerationExtras, journalPromptWithLength } from "@/lib/journal-setup";
 import { friendlyError, isWorking, meta, projectIntent } from "@/lib/studio";
 
 const TONES = ["170 36% 28%", "16 58% 44%", "43 70% 38%", "210 40% 34%", "330 30% 38%"];
@@ -130,12 +130,10 @@ function PriorChat({ root }: { root: StudioItem }) {
   </section>;
 }
 
-type Props = { itemId: string; onOpen: (id: string, opts?: { guard?: boolean }) => void; onNewTopic: () => void; onNavigate: (url: string) => void;
-  /** When set, the active item (idea cards, live writing, editor) is mounted once here (the right Document tab); the chat keeps a compact pointer. */
-  documentTarget?: HTMLElement | null; onShowDocument?: () => void };
+type Props = { itemId: string; onOpen: (id: string, opts?: { guard?: boolean }) => void; onNewTopic: () => void; onNavigate: (url: string) => void };
 
 /** Ideas, selected ideas and project answers as one AI Chat conversation at /ask?item=ID. */
-export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate, documentTarget, onShowDocument }: Props) {
+export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate }: Props) {
   const { project, select, loading: projectsLoading, error: projectsError, refetch: refetchProjects } = useActiveProject();
   const open = useStudioItem(itemId);
   const aligned = useRef<string | null>(null);
@@ -155,6 +153,7 @@ export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate, documentTarg
   const qc = useQueryClient();
   const { toast } = useToast();
   const regen = useGenerateStudioDocument();
+  const [setupReq, setSetupReq] = useState<{ prompt: string; resolve: (v: { prompt: string; extra: Record<string, unknown> } | null) => void } | null>(null);
 
   if (!open.isLoading && open.data && !project && projectsError) return <ErrorState error={projectsError} onRetry={() => { aligned.current = null; refetchProjects(); }} title="Couldn't load your projects" />;
   if (open.isLoading || (open.data && !project && !alignBlocked)) return <div className="space-y-3" data-testid="status-item-loading"><div className="h-10 w-2/3 animate-pulse rounded-md bg-[hsl(90_14%_88%)]" /><div className="sx-card h-72 animate-pulse" /></div>;
@@ -197,15 +196,7 @@ export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate, documentTarg
   };
 
   const needsDevelop = item.kind === "idea" && item.status === "completed" && wordCount(item.content) < 400;
-  const activeTurn = conv?.turns.find(t => t.revisions.some(r => r.id === item.id));
-  const retryActive = item.status === "failed" ? () => void retry(activeTurn ?? { id: item.id, prompt: requestPrompt(item), revisions: [item], latest: item, seed: true, createdAt: item.createdAt }) : undefined;
-  const docMode = !!documentTarget;
-  const pointer = (shown: StudioItem) => <button type="button" onClick={onShowDocument} className="sx-card lift ev-focus flex w-full items-center gap-3 p-4 text-left" data-testid={`button-show-document-${shown.id}`}>
-    <FileText className="h-4 w-4 shrink-0 text-[hsl(var(--teal))]" aria-hidden />
-    <span className="min-w-0 flex-1"><span className="sx-eyebrow block">{isWorking(shown.status) ? "Writing now in the Document tab" : shown.status === "failed" ? "Did not finish · details in the Document tab" : shown.kind === "ideas" ? `${meta(shown).ideas.length} idea cards in the Document tab` : "Open in the Document tab"}</span><span className="sx-title block truncate text-lg">{shown.title}</span></span>
-  </button>;
   const renderItem = (shown: StudioItem, turn?: Turn<StudioItem>) => {
-    if (docMode && shown.id === item.id) return bridged && root && shown.id === root.id ? null : pointer(shown);
     if (shown.kind === "ideas") return <IdeaSetView set={shown} onRetry={shown.status === "failed" ? () => void retry(turn ?? { id: shown.id, prompt: requestPrompt(shown), revisions: [shown], latest: shown, seed: true, createdAt: shown.createdAt }) : undefined} confirmed={confirmedFor(shown, merged)} pick={pick} autoOpen={shown.id === item.id} onOpenIdea={x => { setScrollTo(x); onOpen(x); }} />;
     if (bridged && root && shown.id === root.id) return null; // shown once, in "Earlier in this chat"
     return undefined;
@@ -219,13 +210,10 @@ export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate, documentTarg
         ? <ConversationView conv={conv} selectedId={item.id} allItems={merged} onOpen={x => { if (x) onOpen(x); }} onOpenSet={x => onOpen(x, { guard: true })}
             onRetry={t => void retry(t)} scrollTo={scrollTo} onScrolled={() => setScrollTo(null)} renderItem={renderItem} />
         : renderItem(item) ?? null}
-      {needsDevelop && !docMode && <DevelopIdea item={item} onCreated={x => { setScrollTo(x); onOpen(x); }} />}
-      {docMode && documentTarget && createPortal(<div className="space-y-4 px-4 py-5 md:px-6" data-testid="ideas-document">
-        {item.kind === "ideas"
-          ? <IdeaSetView set={item} onRetry={retryActive} confirmed={confirmedFor(item, merged)} pick={pick} autoOpen onOpenIdea={x => { setScrollTo(x); onOpen(x); }} />
-          : <ItemWorkspace key={item.id} item={item} allItems={merged} presentation="reading" inlineProgress onRetry={retryActive} onOpen={x => { if (x) onOpen(x); else onNewTopic(); }} />}
-        {needsDevelop && <DevelopIdea item={item} onCreated={x => { setScrollTo(x); onOpen(x); }} />}
-      </div>, documentTarget)}
+      {needsDevelop && <DevelopIdea item={item} onCreated={x => { setScrollTo(x); onOpen(x); }} />}
+      <JournalSetupDialog open={!!setupReq} topic={setupReq?.prompt.split("\n")[0].slice(0, 300) ?? ""}
+        onCancel={() => { setupReq?.resolve(null); setSetupReq(null); }}
+        onConfirm={s => { if (!setupReq) return; setupReq.resolve({ prompt: journalPromptWithLength(setupReq.prompt, s.length), extra: journalGenerationExtras(s) as Record<string, unknown> }); setSetupReq(null); }} />
       {(parentForFollowUp || busy) && (
         <section aria-label="Follow up" className="sticky bottom-3 z-10 pt-2">
           <Composer key={`follow-${conv?.rootId ?? item.id}`} compact parentId={parentForFollowUp ?? undefined} label="Continue this conversation"
@@ -245,6 +233,13 @@ export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate, documentTarg
               const r = ideasIntent(p, ctx);
               if (r) return { kind: "ideas", prompt: r.prompt, evidenceMode: r.own ? "project" : "combined" };
               return doc && doc.kind !== "answer" ? { kind: doc.kind, prompt: chatDocumentPrompt(p, ctx).slice(0, 5000), evidenceMode: "project" } : null;
+            }}
+            prepare={async req => {
+              if (req.kind !== "journal") return {};
+              // Revising an existing journal: the backend inherits its saved settings; the latest request governs length.
+              const parentKind = merged.find(x => x.id === parentForFollowUp)?.kind;
+              if (parentKind === "journal") return {};
+              return new Promise(res => setSetupReq({ prompt: req.prompt, resolve: v => res(v) }));
             }}
             onCreated={it => {
               const route = ROUTE_FOR_KIND[it.kind];
