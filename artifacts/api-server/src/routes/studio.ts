@@ -21,6 +21,7 @@ import { figurePng, figureSvg } from "../lib/figure-renderer";
 import { validStudioContext } from "../lib/studio-conversation";
 import { conversationContext } from "../lib/ask-discovery";
 import { figureRevisionRequest } from "../lib/manuscript-policy";
+import { selectedIdeaContext } from "../lib/selected-idea";
 const router=Router();
 router.use("/studio",requireUser);
 router.get("/studio/templates",async(_req,res)=>res.json(studioTemplates));
@@ -35,6 +36,10 @@ router.post("/studio/items",async(req,res)=>{
   const b=SaveStudioItemBody.parse(req.body),owner=uid(req);
   await ownedStudioProject(b.projectId,owner);
   let parent:any,content=b.content,metadata:Record<string,any>={};
+  if(b.ideaSetId){
+    const source=await ownedStudio(z.string().uuid().parse(b.ideaSetId),owner);
+    metadata=selectedIdeaContext(source,b);
+  }
   if(b.parentId){
     parent=await ownedStudio(z.string().uuid().parse(b.parentId),owner);
     if(parent.project_id!==b.projectId||parent.status!=="completed")throw new HttpError(400,"Select a completed document in this project to revise.");

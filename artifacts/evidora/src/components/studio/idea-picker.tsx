@@ -39,10 +39,10 @@ export function IdeaPicker({ open, onOpenChange, set, ideas, confirmed, onOpenId
       const sourceNumbers=[...new Set([...prose.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1])))].sort((a,b)=>a-b);
       const sources=meta(set).sources;
       const references=sourceNumbers.filter(n=>sources[n-1]).map(n=>`[${n}] ${sources[n-1].title}. ${sources[n-1].url??""}`).join("\n\n");
-      const item = await save.mutateAsync({ data: { projectId: set.projectId, kind: "idea", title: idea.title.slice(0, 300), content: `# ${idea.title}\n\n${prose}${references?`\n\n## References\n\n${references}`:""}` } });
+      const item = await save.mutateAsync({ data: { projectId: set.projectId, kind: "idea", ideaSetId: set.id, title: idea.title.slice(0, 300), content: `# ${idea.title}\n\n${prose}${references?`\n\n## References\n\n${references}`:""}` } });
       qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
       await qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
-      toast({ title: "Idea confirmed", description: `"${idea.title}" is saved. Opening it now; use Back to five ideas to review the others.` });
+      toast({ title: "Idea confirmed", description: `"${idea.title}" is saved. It continues in this chat; the five ideas stay above.` });
       onOpenChange(false);
       onOpenIdea(item.id);
     } catch (e) { toast({ title: "Couldn't save idea", description: friendlyError(e), variant: "destructive" }); }

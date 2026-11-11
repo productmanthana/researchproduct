@@ -43,9 +43,13 @@ type Props = {
   disabledNote?: string;
   /** Paperclip/attachment control rendered inside the composer (project scope). */
   attachSlot?: ReactNode;
+  /** Per-message override: e.g. explicit idea requests run the structured ideas generator. */
+  resolve?: (prompt: string) => { kind: StudioGenerationInputKind; prompt: string; evidenceMode?: StudioGenerationInputEvidenceMode } | null;
+  /** Handles a message locally (e.g. "select idea 2"); return true to consume it without sending. */
+  intercept?: (prompt: string) => boolean;
 };
 
-export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label, parentId, compact, disabled, disabledNote, attachSlot }: Props) {
+export function Composer({ projectId, kind, saveKind, placeholder, cta, templateId, templateSlot, defaultMode = "combined", initialPrompt = "", onCreated, variant = "stacked", label, parentId, compact, disabled, disabledNote, attachSlot, resolve, intercept }: Props) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const gen = useGenerateStudioDocument();
@@ -87,10 +91,12 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
   };
 
   const generate = async () => {
+    if (intercept?.(trimmed)) { if (compact) setPrompt(""); return; }
     if (problem || gen.isPending || disabled) return;
     setLimitError(null);
+    const over = resolve?.(trimmed) ?? null;
     try {
-      const item = await gen.mutateAsync({ data: { projectId, kind, prompt: trimmed, ...(parentId ? { parentId } : {}), evidenceMode: mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload } });
+      const item = await gen.mutateAsync({ data: { projectId, kind: over?.kind ?? kind, prompt: over?.prompt ?? trimmed, ...(parentId ? { parentId } : {}), evidenceMode: over?.evidenceMode ?? mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload } });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
       finish(item);
     } catch (e) {

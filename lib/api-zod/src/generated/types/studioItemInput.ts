@@ -18,6 +18,8 @@ export interface StudioItemInput {
   /** @maxLength 500000 */
   content: string;
   parentId?: string;
+  /** Completed idea set in this project from which this selected idea was confirmed. Links conversation context without creating a document revision. */
+  ideaSetId?: string;
   documentId?: string;
   analysisId?: string;
   /** @nullable */

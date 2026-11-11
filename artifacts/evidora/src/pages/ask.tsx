@@ -32,6 +32,10 @@ import { isWorking } from "@/lib/studio";
 import { FigureView, MissingFigure } from "@/components/studio/figure-view";
 import type { StudioFigure } from "@/lib/figures";
 import { chatDocumentPrompt } from "@/lib/chat-document";
+import { IdeasChat } from "@/components/studio/ideas-chat";
+import { ideasIntent, CHAT_KINDS } from "@/lib/ideas-chat";
+import { buildConversations } from "@/lib/conversation";
+import type { ProjectIntent } from "@/lib/studio";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const reviewable = (d: Pick<Document, "contentType" | "name">) => d.contentType === "application/pdf" || d.contentType === DOCX_TYPE || /\.(pdf|docx)$/i.test(d.name);
@@ -67,6 +71,8 @@ function AskInner() {
   const threadId = params.get("t");
   const prefill = params.get("q") ?? "";
   const reviewId = params.get("review");
+  const itemId = reviewId ? null : params.get("item");
+  const answerMode = params.get("mode") === "answer";
   const qc = useQueryClient();
   const { toast } = useToast();
   const { user } = useUser();
@@ -136,7 +142,12 @@ function AskInner() {
   useUnsavedGuard("ask-draft", hasDirtyDraft, "You have unsaved draft changes in AI Chat.");
   const { project: activeProject, select: selectProject } = useActiveProject();
   const chatContext = currentThread.filter(t => t.status === "completed").map(t => ({ question: t.question, answer: t.content }));
-  const intent = projectIntent(question, chatContext);
+  const baseIntent = projectIntent(question, chatContext);
+  // Explicit idea requests run the structured five-idea generator, never a generic guided answer.
+  const ideaAsk = baseIntent?.document || baseIntent?.figure ? null : ideasIntent(question, chatContext);
+  const intent: ProjectIntent | null = ideaAsk ? { kind: "ideas", route: "/ask", evidenceMode: ideaAsk.own ? "project" : "combined" }
+    : baseIntent ?? (answerMode && !threadId && question.trim() ? { kind: "answer", route: "/ask", evidenceMode: "project" } : null);
+  const needsOwnProject = !!intent && (ideaAsk ? ideaAsk.own : (!intent.document || intent.evidenceMode === "project"));
   const createProject = useCreateProject();
   const generate = useGenerateStudioDocument();
   const saveContext = useSaveStudioItem();
@@ -145,6 +156,7 @@ function AskInner() {
   const reviewsQ = useListStudioItems({ projectId: activeProject?.id ?? "" }, { query: { queryKey: getListStudioItemsQueryKey({ projectId: activeProject?.id ?? "" }), enabled: !!activeProject } });
   const reviews = (reviewsQ.data ?? []).filter(i => i.kind === REVIEW_KIND).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const projectDrafts = latestItems(reviewsQ.data ?? []).filter(i => ["journal", "thesis", "literature", "synopsis"].includes(i.kind));
+  const chatConvs = useMemo(() => activeProject ? buildConversations(reviewsQ.data ?? [], activeProject.id).filter(c => c.turns.some(t => CHAT_KINDS.has(t.revisions[0].kind)) && !c.turns.some(t => ["journal", "thesis", "literature", "synopsis", REVIEW_KIND].includes(t.revisions[0].kind))) : [], [reviewsQ.data, activeProject]);
   const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
   const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
@@ -223,7 +235,8 @@ function AskInner() {
       // Explicit "my idea / my references" request: generate from the active project, never silently fall back to public research.
       // Quota is decided by the backend for the inferred kind (reviews vs answers); only warn locally from the matching allowance.
       if (problem || generate.isPending || saveContext.isPending || createProject.isPending) return;
-      if (!activeProject && (!intent.document || intent.evidenceMode === "project")) {
+      if (ideaAsk?.needsTopic) { toast({ title: "Which topic?", description: "Say what the ideas should be about, for example: suggest five research ideas on rooftop solar in small towns." }); return; }
+      if (!activeProject && needsOwnProject) {
         toast({ title: "Choose a project first", description: intent.figure ? "Figures are built from a project's own data and sources. Pick or create a project in the sidebar, then send again." : "You asked to use your own material. Pick or create a project in the sidebar, then send again.", variant: "destructive" });
         return;
       }
@@ -232,19 +245,20 @@ function AskInner() {
       try {
         let project = activeProject;
         if (!project) {
-          project = await createProject.mutateAsync({ data: { name: `${intent.kind === "journal" ? "Journal" : intent.kind} research`, description: "Research document started from AI Chat." } });
+          project = await createProject.mutateAsync({ data: { name: ideaAsk ? `Ideas: ${(ideaAsk.topic ?? "research").slice(0, 80)}` : `${intent.kind === "journal" ? "Journal" : intent.kind} research`, description: "Research document started from AI Chat." } });
           await qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
           selectProject(project.id, { skipGuard: true });
         }
         // Carry the selected conversation into the new document, not a random recent project item.
         const savedContext = parent ? await saveContext.mutateAsync({ data: { projectId: project.id, kind: "answer", title: parent.question.slice(0, 300), content: parent.content, analysisId: parent.id } }) : null;
-        const item = await generate.mutateAsync({ data: { projectId: project.id, kind: intent.kind, parentId: savedContext?.id, prompt: (intent.document ? chatDocumentPrompt(question, chatContext) : intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: intent.evidenceMode ?? "project", includePatents: true, ...(intent.document && intent.kind === "journal" && /\bieee\s+access\b/i.test(question) ? { templateId: "ieee-access" } : {}) } });
+        const item = await generate.mutateAsync({ data: { projectId: project.id, kind: intent.kind, parentId: savedContext?.id, prompt: (ideaAsk ? ideaAsk.prompt : intent.document ? chatDocumentPrompt(question, chatContext) : intent.figure ? question.trim().slice(0, 4700) + FIGURE_GUARD : question.trim().slice(0, 5000)), evidenceMode: intent.evidenceMode ?? "project", includePatents: true, ...(intent.document && intent.kind === "journal" && /\bieee\s+access\b/i.test(question) ? { templateId: "ieee-access" } : {}) } });
         qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
         void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
         setQuestion(current => current === question ? "" : current);
         const route = ROUTE_FOR_KIND[item.kind] ?? intent.route;
         setLocation(`${route}${route.includes("?") ? "&" : "?"}item=${encodeURIComponent(item.id)}`);
+        setPendingId(null);
       } catch (error) {
         toast({ title: "Couldn't start the document", description: friendlyError(error), variant: "destructive" });
         void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
@@ -381,12 +395,15 @@ function AskInner() {
   return <div className="es-root">
     <main className="es-main">
       <header className="es-topbar es-topbar-compact"><div className="es-top-title">
-        <button className="es-button es-primary es-new-chat" onClick={reviewId ? () => { if (mayLeave()) setLocation("/ask"); } : newChat} disabled={!reviewId && !!ownActive} data-testid="button-new-chat"><Plus /><span>New chat</span></button>
-        <h1 title={reviewId ? "Document review" : title}>{reviewId ? "Document review" : title}</h1></div>
+        <button className="es-button es-primary es-new-chat" onClick={reviewId || itemId ? () => { if (mayLeave()) setLocation("/ask"); } : newChat} disabled={!reviewId && !itemId && !!ownActive} data-testid="button-new-chat"><Plus /><span>New chat</span></button>
+        <h1 title={reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}>{reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}</h1></div>
         <div className="es-top-actions">{!reviewId && sourceAnalysis && panel !== "sources" && <button className="es-button" onClick={() => setPanel("sources")}><BookOpen />Sources</button>}{!reviewId && activeDraftId && panel !== "draft" && <button className="es-button" onClick={() => setPanel("draft")}><FileText />Draft</button>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
       </header>
       {allUsageLimitMessages(usageData).length > 0 && <div className="es-limit-notice" role="status">{allUsageLimitMessages(usageData).map(message => <p key={message}>{message} <Link href="/plans" onClick={guardNavigation}>Plans &amp; usage</Link></p>)}</div>}
       {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} chatMode onClose={() => setLocation("/ask")} /></div> :
+      itemId ? <div className="es-workspace"><section className="es-conversation" aria-label="Research ideas conversation"><div className="es-thread"><div className="es-thread-inner">
+        <IdeasChat itemId={itemId} onNavigate={url => setLocation(url)} onNewTopic={() => setLocation("/ask")} onOpen={(id, opts) => { if (opts?.guard && !mayLeave()) return; setLocation(`/ask?item=${encodeURIComponent(id)}`); }} />
+      </div></div></section></div> :
       <div className={`es-workspace ${panel === "draft" ? "es-written" : ""}`}>
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">
@@ -415,12 +432,12 @@ function AskInner() {
             </div>)}
           </div></div>
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
-          <div className="es-composer-wrap">{!attached && intent && <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
+          <div className="es-composer-wrap">{!attached && intent && (ideaAsk && !activeProject && !ideaAsk.own ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas in a new project, keeping this conversation above them.</p> : ideaAsk && activeProject ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas{ideaAsk.own ? <> from project <b>{activeProject.name}</b></> : <> in project <b>{activeProject.name}</b></>}, keeping this conversation above them.</p> : <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
             ? intent.figure
               ? <>Sending will build this figure from project <b>{activeProject.name}</b> and open the result. To add it to an existing draft, name that draft (or say &ldquo;my latest draft&rdquo;); Evidora writes a new revision and asks you to choose if more than one draft matches. Otherwise it opens as a new {intent.kind === "answer" ? "project answer" : `${intent.kind} draft`}. Include table data with a header row, or an equation; Evidora will ask for missing data rather than invent values. You can also open a draft and use <i>Add or revise a figure</i>.</>
               : <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>
             : intent.figure ? <>Figures are generated from a project&rsquo;s own data, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project-figure">Choose a project</Link> first.</>
-            : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>}
+            : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>)}
           {pickOpen && !attached && <div className="dr-attach"><label className="dr-attach-row">Choose a ready PDF or Word file
             <select aria-label="Choose an uploaded document" defaultValue="" onChange={e => { const d = readyDocs.find(x => x.id === e.target.value); if (d) { setAttached(d); setPickOpen(false); } }} data-testid="select-review-document">
               <option value="" disabled>{docs.isLoading ? "Loading..." : readyDocs.length ? "Select a file" : "No ready PDF or Word files"}</option>
@@ -468,8 +485,11 @@ function AskInner() {
       <HistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} title="History and reviews" description="Reopen saved conversations, research drafts and document reviews.">
         <div className="es-recent es-drawer-list" aria-label="Saved conversations"><span className="es-eyebrow">Your conversations</span>
           {threads.map(item => <button key={item.id} aria-current={thread?.id === item.id ? "page" : undefined} onClick={() => openThread(item.id)} data-testid={`button-open-thread-${item.id}`}>{item.turns[0]?.question}<small>{item.turns.length} {item.turns.length === 1 ? "turn" : "turns"}</small></button>)}
-          {!threads.length && !projectDrafts.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
+          {!threads.length && !projectDrafts.length && !chatConvs.length && <p className="es-small">{list.isLoading ? "Loading conversations…" : "Your saved conversations will appear here."}</p>}
         </div>
+        {activeProject && chatConvs.length > 0 && <div className="es-recent es-drawer-list" aria-label="Ideas and project chats"><span className="es-eyebrow">Ideas and project chats in {activeProject.name}</span>
+          {chatConvs.slice(0, 30).map(c => { const last = c.turns.at(-1)!.latest; const hasSet = c.turns.some(t => t.latest.kind === "ideas"); return <button key={c.rootId} aria-current={c.turns.some(t => t.revisions.some(r => r.id === itemId)) ? "page" : undefined} onClick={() => { if (!mayLeave()) return; setHistoryOpen(false); setLocation(`/ask?item=${encodeURIComponent(last.id)}`); }} data-testid={`button-open-idea-chat-${c.rootId}`}>{c.title}<small>{hasSet ? "Five ideas" : c.turns[0].latest.kind === "idea" ? "Chosen idea" : "Project chat"} · {c.turns.length} {c.turns.length === 1 ? "turn" : "turns"}{isWorking(last.status) ? " · Writing…" : ""}</small></button>; })}
+        </div>}
         {activeProject && projectDrafts.length > 0 && <div className="es-recent es-drawer-list" aria-label="Saved research drafts"><span className="es-eyebrow">Research drafts in {activeProject.name}</span>
           {projectDrafts.slice(0, 20).map(item => <button key={item.id} onClick={() => { if (!mayLeave()) return; setHistoryOpen(false); setLocation(`${ROUTE_FOR_KIND[item.kind]}?item=${encodeURIComponent(item.id)}`); }} data-testid={`button-open-chat-draft-${item.id}`}>{item.title}<small>{item.kind === "journal" ? "Journal manuscript" : item.kind} · {isWorking(item.status) ? "Writing…" : item.status === "failed" ? "Needs retry" : "Saved draft"}</small></button>)}
         </div>}

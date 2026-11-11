@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetUsage, getGetUsageQueryKey, useGetAccount, getGetAccountQueryKey } from "@workspace/api-client-react";
 import {
-  BellRing, BookMarked, BookOpenText, Compass, FlaskConical, FolderKanban, GraduationCap, Leaf, Library, Lightbulb, LineChart, LogOut, Menu,
+  BellRing, BookMarked, BookOpenText, Compass, FlaskConical, FolderKanban, GraduationCap, Leaf, Library, LineChart, LogOut, Menu,
   MessageSquareText, Newspaper, Plug, Receipt, ScanSearch, ScrollText, Stamp, X,
   ClipboardCheck,
 } from "lucide-react";
@@ -17,7 +17,6 @@ import "@/components/studio/studio-ui.css";
 
 const GROUPS = [
   { label: "Write", items: [
-    { href: "/ideas", label: "Ideas", icon: Lightbulb },
     { href: "/ask", label: "AI Chat", icon: MessageSquareText },
     { href: "/literature", label: "Literature review", icon: BookOpenText },
     { href: "/synopsis", label: "Synopsis", icon: ScrollText },

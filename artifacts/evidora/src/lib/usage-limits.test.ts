@@ -122,3 +122,4 @@ test("A reached answer limit remains actionable while other blocked sends stay d
   assert.equal(askSendDisabled({limitReached:false,blocked:true,pending:false,loading:false}),true);
   assert.equal(askSendDisabled({limitReached:false,blocked:false,pending:true,loading:false}),true);
 });
+import "./ideas-chat.test";

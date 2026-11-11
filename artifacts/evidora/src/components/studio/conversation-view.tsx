@@ -59,9 +59,11 @@ type Props = {
   /** Turn id to scroll to once (after sending). Cleared via onScrolled. */
   scrollTo: string | null;
   onScrolled: () => void;
+  /** Custom body for a turn (e.g. inline idea sets in AI Chat). Return undefined for the default, null to hide the turn (shown elsewhere). */
+  renderItem?: (shown: StudioItem, turn: Turn<StudioItem>) => ReactNode | undefined;
 };
 
-export function ConversationView({ conv, selectedId, allItems, onOpen, onOpenSet, onRetry, scrollTo, onScrolled }: Props) {
+export function ConversationView({ conv, selectedId, allItems, onOpen, onOpenSet, onRetry, scrollTo, onScrolled, renderItem }: Props) {
   const refs = useRef(new Map<string, HTMLElement>());
   const onScrolledRef = useRef(onScrolled); onScrolledRef.current = onScrolled;
   useEffect(() => {
@@ -75,9 +77,12 @@ export function ConversationView({ conv, selectedId, allItems, onOpen, onOpenSet
       {conv.turns.map((turn, i) => {
         const shown = turn.revisions.find(r => r.id === selectedId) ?? turn.latest;
         const isLast = i === last;
+        const custom = renderItem?.(shown, turn);
         return (
           <li key={turn.id} ref={el => { if (el) refs.current.set(turn.id, el); else refs.current.delete(turn.id); }} className="scroll-mt-20 space-y-3" data-testid={`turn-${turn.id}`}>
-            {turn.seed && shown.kind === "ideas" ? (
+            {custom === null ? null : custom !== undefined ? (
+              <>{turn.prompt && !turn.seed && <YouSaid text={turn.prompt} turnId={turn.id} />}{custom}</>
+            ) : turn.seed && shown.kind === "ideas" ? (
               <button onClick={() => onOpenSet(shown.id)} className="sx-card lift ev-focus flex w-full items-center gap-3 p-4 text-left" data-testid={`button-seed-set-${shown.id}`}>
                 <Lightbulb className="h-4 w-4 shrink-0 text-[hsl(var(--turmeric))]" />
                 <span className="min-w-0 flex-1"><span className="sx-eyebrow block">Started from five ideas</span><span className="sx-title block truncate text-lg">{shown.title}</span></span>

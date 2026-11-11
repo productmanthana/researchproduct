@@ -85,15 +85,15 @@ export function projectIntent(text: string, history: ChatContext[] = []): Projec
     if (/\bsynopsis\b/.test(t)) return { kind: "synopsis", route: "/synopsis", figure: true };
     if (/\bjournal\b|\bmanuscript\b|\b(research )?(paper|article)\b/.test(t)) return { kind: "journal", route: "/journals", figure: true };
     if (/\bliterature review\b|\blit review\b/.test(t)) return { kind: "literature", route: "/literature", figure: true };
-    return { kind: "answer", route: "/ideas?mode=answer", figure: true };
+    return { kind: "answer", route: "/ask", figure: true };
   }
   if (!/\b(my|our) (own )?(idea|ideas|reference|references|papers|project|notes|documents|uploads|sources|draft)\b/.test(t)) return null;
   if (/\bliterature review\b|\blit(erature)? review\b|\breview of (the )?literature\b/.test(t)) return { kind: "literature", route: "/literature" };
   if (/\bsynopsis\b/.test(t)) return { kind: "synopsis", route: "/synopsis" };
   if (/\bthesis\b|\bdissertation\b/.test(t)) return { kind: "thesis", route: "/thesis" };
   if (/\bjournal\b|\bmanuscript\b|\bresearch (paper|article)\b/.test(t)) return { kind: "journal", route: "/journals" };
-  if (/\b(five|5|some|new|research) ideas\b|\bsuggest (some )?ideas\b|\bgenerate ideas\b/.test(t)) return { kind: "ideas", route: "/ideas" };
-  return { kind: "answer", route: "/ideas?mode=answer" };
+  if (/\b(five|5|some|new|research) ideas\b|\bsuggest (some )?ideas\b|\bgenerate ideas\b/.test(t)) return { kind: "ideas", route: "/ask" };
+  return { kind: "answer", route: "/ask" };
 }
 
 /* ---------- Document details (title-page metadata) ---------- */

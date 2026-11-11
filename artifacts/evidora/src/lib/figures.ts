@@ -52,5 +52,5 @@ export const isolateMarkers = (content: string) =>
   content.split("\n").map(l => (FIGURE_MARKER.test(l) ? `\n${l.trim()}\n` : l)).join("\n");
 
 export const ROUTE_FOR_KIND: Record<string, string> = {
-  ideas: "/ideas", literature: "/literature", synopsis: "/synopsis", journal: "/journals", thesis: "/thesis", answer: "/ideas?mode=answer",
+  ideas: "/ask", idea: "/ask", literature: "/literature", synopsis: "/synopsis", journal: "/journals", thesis: "/thesis", answer: "/ask",
 };

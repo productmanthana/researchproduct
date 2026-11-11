@@ -195,3 +195,9 @@ Evidence recovery must select excerpts from original source text, not retrieval 
 **Why:** Live reports repeatedly lost most of their content: labelled context failed literal quote matching, and one unsupported sentence discarded a whole otherwise supported paragraph.
 
 **How to apply:** Keep original text separate from retrieval annotations, resolve selected excerpt IDs server-side, and retain only independently approved sentences. Preserve evidence checks; do not relax them to meet a length target. Confirm actual PDF pagination, not only word counts or synthetic layout fixtures.
+
+Ideas belong inside AI Chat, not in a separate primary navigation item. Users should generate, compare, select and refine research ideas within the conversation; existing saved ideas and old links must stay accessible.
+
+**Why:** The user approved combining Ideas and AI Chat to simplify the research experience.
+
+**How to apply:** Reuse structured idea generation rather than replacing it with generic suggestions. Preserve the earlier dialogue and the selected idea's source-set connection after reloads. Keep dedicated journal, thesis and review tools available.

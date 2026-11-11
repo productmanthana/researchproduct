@@ -7,6 +7,7 @@ import "./web-evidence.test";
 import "./live-generation.test";
 import "./studio.test";
 import "./idea-generation.test";
+import "./selected-idea.test";
 import "./studio-conversation.test";
 import "./manuscript-policy.test";
 import "./export-references.test";

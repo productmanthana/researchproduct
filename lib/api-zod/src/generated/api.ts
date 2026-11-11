@@ -836,6 +836,7 @@ export const SaveStudioItemBody = zod.object({
   "title": zod.string().min(1).max(saveStudioItemBodyTitleMax),
   "content": zod.string().max(saveStudioItemBodyContentMax),
   "parentId": zod.string().optional(),
+  "ideaSetId": zod.string().optional().describe('Completed idea set in this project from which this selected idea was confirmed. Links conversation context without creating a document revision.'),
   "documentId": zod.string().optional(),
   "analysisId": zod.string().optional(),
   "templateId": zod.string().nullish(),
