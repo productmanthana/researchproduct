@@ -9,7 +9,7 @@ export type IdeasIntent = { own: boolean; topic: string | null; prompt: string; 
 
 const GENERATE = /\b(suggest|generate|provide|recommend|share|give( me)?|propose|brainstorm|list|come up with|need|want|find|draft|create|more|other|new|another)\b[^.?!]{0,40}\b(research |project |thesis |study )?ideas?\b/;
 const COUNTED = /\b(five|5|some|few|several|new|more|fresh|research|project|thesis) (research )?(ideas|directions|topics)\b/;
-const LEAD = /^\s*(research |project |thesis )?(ideas|topics) (for|on|about|in|around)\b/;
+const LEAD = /^\s*(research |project |thesis )?(ideas|topics) (for|on|of|about|in|around|related to|regarding)\b/;
 const NOT_GENERATE = /\b(compare|which (of|one)|rank|evaluate|explain|pros and cons|difference|selected|choose|pick|select|refine|develop|expand)\b/;
 const OWN = /\b(my|our) (own )?(project|references|papers|notes|documents|uploads|sources|library|material|data|idea|ideas|draft)\b|\bfrom my\b/;
 /** Explicit evidence restrictions: never silently search the web/literature. */
@@ -18,13 +18,26 @@ const RESTRICT = /\b(do not|don't|dont|without|no|never|avoid)\s+(any\s+)?(searc
 /** True when the user restricted evidence to their own material. */
 export const ownOnly = (text: string) => OWN.test(text.toLowerCase()) || RESTRICT.test(text.toLowerCase());
 
-/** Extracts the topic after "on / about / for ..." with trailing politeness removed. */
+/** Accept ordinary wording, including "ideas of X", "ideas X", and "X ideas". */
 export function ideaTopic(text: string): string | null {
-  const m = /\b(?:on|about|for|around|regarding|in the area of|related to|in)\s+(.{3,})$/i.exec(text.trim());
-  if (!m) return null;
-  const t = m[1].replace(/\b(please|thanks?|thank you)\b/gi, "").replace(/[\s.?!]+$/, "").trim();
-  if (!t || /^(my|our) (own )?(project|references|papers|notes|documents|sources)$/i.test(t) || /^(this|that|it|these|them)$/i.test(t)) return null;
-  return t;
+  const value = text.trim();
+  const idea = /\b(?:ideas?|topics?|directions?)\b/i.exec(value);
+  let candidate = idea ? value.slice(idea.index + idea[0].length).trim() : "";
+  candidate = candidate.replace(/^(?:(?:in the area of|related to|regarding|on|of|about|for|around|in)\s+|[:—–-]\s*)/i, "");
+  if (!candidate && idea) {
+    // The topic can precede the noun: "generate power system ideas".
+    candidate = value.slice(0, idea.index).trim();
+    const filler = /^(?:please|can|could|would|you|suggest|generate|provide|recommend|share|give|me|propose|brainstorm|list|create|find|need|want|i|some|a|few|five|5|top|best|new|more|research|project|study|interesting|innovative)\b[\s,]*/i;
+    while (filler.test(candidate)) candidate = candidate.replace(filler, "").trim();
+  }
+  if (!idea) {
+    const scope = /\b(?:on|of|about|for|around|regarding|in the area of|related to|in)\s+(.{3,})$/i.exec(value);
+    candidate = scope?.[1] ?? "";
+  }
+  const topic = candidate.replace(/\b(please|thanks?|thank you)\b/gi, "").replace(/[\s.?!]+$/, "").trim();
+  if (topic.length < 3 || /^(?:(?:from|using|based on|only)\s+)?(?:my|our) (?:own )?(?:project|references|papers|notes|documents|uploads|sources|material|data|idea|ideas|draft)$/i.test(topic)
+      || /^(?:this|that|it|these|them|me|us|now|again|only|some|more)$/i.test(topic)) return null;
+  return topic;
 }
 
 /**

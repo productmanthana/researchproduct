@@ -47,6 +47,30 @@ test("terse idea requests resolve topic from earlier turns", () => {
   assert.equal(ideasIntent("more ideas", h)?.needsTopic, false);
 });
 
+test("an explicit topic is accepted regardless of its common position or preposition", () => {
+  for (const question of [
+    "generate top ideas of power system",
+    "generate top ideas on power system",
+    "generate top ideas about power system",
+    "generate top ideas for power system",
+    "generate top ideas related to power system",
+    "generate top ideas power system",
+    "generate power system ideas",
+    "ideas of power system",
+    "provide ideas: power system",
+  ]) {
+    const intent = ideasIntent(question);
+    assert.ok(intent, question);
+    assert.equal(intent.topic, "power system", question);
+    assert.equal(intent.needsTopic, false, question);
+    assert.match(intent.prompt, /Suggest five structured research ideas on: power system/);
+  }
+  assert.equal(ideasIntent("generate ideas")?.needsTopic, true);
+  assert.equal(ideasIntent("give me ideas please")?.needsTopic, true);
+  assert.equal(ideasIntent("ideas for this")?.needsTopic, true);
+  assert.equal(ideasIntent("provide ideas from my project")?.needsTopic, false);
+});
+
 test("selection followups map to an idea index", () => {
   assert.equal(ideaSelection("select idea 2"), 1);
   assert.equal(ideaSelection("I will go with the third one"), 2);
