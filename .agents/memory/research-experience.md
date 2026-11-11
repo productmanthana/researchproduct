@@ -202,3 +202,9 @@ Idea requests should show selectable cards with Previous, Next and Confirm contr
 **Why:** The user approved combining Ideas and AI Chat to simplify the research experience.
 
 **How to apply:** Reuse structured idea generation rather than replacing it with generic suggestions. Preserve the earlier dialogue and the selected idea's source-set connection after reloads. Keep dedicated journal, thesis and review tools available.
+
+Live responses should read like a progressively written conversation, with formatted headings, lists and tables—not raw Markdown in a separate scrolling warning box.
+
+**Why:** The user explicitly requested a ChatGPT-like live reading experience after seeing Markdown pipes and headings in the draft preview.
+
+**How to apply:** Keep an unobtrusive, truthful writing/checking status and provisional-evidence note. Respect readers scrolling back, preserve the visible draft through reconnects and checking, and enable final-result actions only after completion.

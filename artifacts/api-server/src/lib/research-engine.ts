@@ -47,18 +47,18 @@ export async function renderPdf(bytes:Buffer,pageNumbers:number[]) {
     return images;
   } finally {await task.destroy();}
 }
-export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSource[]> {
+export async function sourcesFor(job:any,notices:string[]=[],publicReader={getPaper,cachedFullText,selectEvidencePages}):Promise<EvidenceSource[]> {
   const sources:EvidenceSource[]=[];
   const retrievalQuestion=evidenceQuestion(job.question,job.kind);
   let visualPagesRemaining=job.kind==="image"?9:job.input.inspectFigures?3:0;
   const retrievalDeadline=Date.now()+90000;
   for(const id of job.input.paperIds??[]) {
-    const p=await getPaper(id);
-    if(job.kind!=="image") {
-      const full=Date.now()<retrievalDeadline?await cachedFullText(p):{notice:"Automatic retrieval time budget reached for this batch. Using abstract if available; analyse this paper separately to retry full text.",pages:undefined};
+    const p=await publicReader.getPaper(id);
+    if(job.kind!=="image"&&!job.input.abstractOnly) {
+      const full=Date.now()<retrievalDeadline?await publicReader.cachedFullText(p):{notice:"Automatic retrieval time budget reached for this batch. Using abstract if available; analyse this paper separately to retry full text.",pages:undefined};
       notices.push(`${p.title}: ${full.notice}`);
       if(full.pages) {
-        const selected=await selectEvidencePages("public",p.id,full.pages,retrievalQuestion,8);
+        const selected=await publicReader.selectEvidencePages("public",p.id,full.pages,retrievalQuestion,8);
         const visual=visualPagesRemaining>0 && full.bytes?await renderPdf(full.bytes,selected.slice(0,Math.min(1,visualPagesRemaining)).map(p=>p.page)):[];
         for(const image of visual) {image.image=await retainPageImage(`${p.id}:${digest(full.bytes!.toString("base64"))}:${image.page}`,image.image);visualPagesRemaining--;}
         for(const page of selected) if(page.text.trim()) sources.push({
@@ -70,7 +70,9 @@ export async function sourcesFor(job:any,notices:string[]=[]):Promise<EvidenceSo
       }
     }
     if(p.abstract) {
-      await selectEvidencePages("public",`${p.id}:abstract`,[{page:1,text:p.abstract.slice(0,6500)}],retrievalQuestion,1);
+      // An initial idea card uses this complete bounded abstract directly; embedding it
+      // to select the same single page adds latency without changing the evidence.
+      if(!job.input.abstractOnly)await publicReader.selectEvidencePages("public",`${p.id}:abstract`,[{page:1,text:p.abstract.slice(0,6500)}],retrievalQuestion,1);
       sources.push({id:p.id,paperId:p.id,title:p.title,url:p.url,evidenceLevel:"Abstract only",text:p.abstract.slice(0,6500),page:null});
     }
   }

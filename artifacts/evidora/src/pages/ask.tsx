@@ -189,7 +189,9 @@ function AskInner() {
   }, [hasDirtyDraft]);
   useEffect(() => {
     const element = threadScroll.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    // The live reader follows new snapshots only while near the bottom. Do not
+    // override that choice when polling changes a stage or loads the final answer.
+    if (element && element.scrollHeight-element.scrollTop-element.clientHeight<160) element.scrollTop = element.scrollHeight;
   }, [currentThread.length, currentThread.at(-1)?.status, currentThread.at(-1)?.content]);
 
   const mayLeave = () => !hasDirtyDraft || window.confirm("You have unsaved draft changes. Leave anyway? Save first if you want to keep them after leaving Ask.");

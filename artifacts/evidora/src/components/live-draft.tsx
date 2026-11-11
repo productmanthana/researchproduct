@@ -1,20 +1,34 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useAgentProgressContext } from "@/components/agent-progress/provider";
 import type { QueryKey } from "@tanstack/react-query";
 import { useLiveGeneration, type LiveKind, type LiveConnection } from "@/hooks/use-live-generation";
 import "./live-draft.css";
 import { AcademicAnswer } from "@/components/academic-answer";
+import { liveStage, liveStatusLabel, stabilizeLiveMarkdown } from "@/lib/live-markdown";
 
 const CONN_LABEL: Record<LiveConnection, string> = {
   idle: "", connecting: "Connecting to live draft", live: "Live", reconnecting: "Reconnecting; progress still refreshes",
   unavailable: "Live draft unavailable; progress still refreshes", done: "Finishing; loading the checked version",
 };
 
+const plain = (value: string) => value;
+
+function scrollParent(el: HTMLElement | null): HTMLElement | Window {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    const o = getComputedStyle(n).overflowY;
+    if (o === "auto" || o === "scroll") return n;
+  }
+  return window;
+}
+const metrics = (s: HTMLElement | Window) => s instanceof Window
+  ? { gap: document.documentElement.scrollHeight - window.scrollY - window.innerHeight }
+  : { gap: s.scrollHeight - s.scrollTop - s.clientHeight };
+
 /**
- * Shows the server's partial draft for a running job as plain text. Before any text arrives, `fallback`
- * (the existing progress label) is rendered unchanged. No actions are offered on partial text.
+ * Renders the server's partial draft inline, formatted progressively from real SSE snapshots.
+ * Before text arrives, `fallback` (honest progress) is shown. No actions are offered on partial text.
  */
-export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation="panel" }: {
+export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation = "panel" }: {
   kind: LiveKind; id: string; working: boolean; fallback: ReactNode; invalidate?: QueryKey[]; testId?: string;
   presentation?: "panel" | "chat";
   /** Shared progress popup job key; the streamed text is mirrored there as an optional preview. */
@@ -25,35 +39,48 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const setPreview = progress?.setPreview;
   const registered = !!(progressKey && progress?.jobs[progressKey]);
   useEffect(() => { if (progressKey && registered && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, registered, setPreview, working, draft, connection]);
-  const textBox=useRef<HTMLDivElement>(null);
-  const follow=useRef(true);
-  useLayoutEffect(()=>{follow.current=true;},[id]);
-  useLayoutEffect(()=>{if(follow.current&&textBox.current)textBox.current.scrollTop=textBox.current.scrollHeight;},[draft]);
+
+  const root = useRef<HTMLElement>(null);
+  const follow = useRef(true);
+  const [behind, setBehind] = useState(false);
+  const text = stabilizeLiveMarkdown(draft);
+  const hasText = !!text;
+
+  useLayoutEffect(() => { follow.current = true; setBehind(false); }, [id]);
+  useEffect(() => {
+    if (!working || !root.current) return;
+    const s = scrollParent(root.current);
+    const on = () => { const near = metrics(s).gap < 120; follow.current = near; setBehind(!near); };
+    on();
+    s.addEventListener("scroll", on, { passive: true });
+    return () => s.removeEventListener("scroll", on);
+  }, [working, id]);
+  useLayoutEffect(() => {
+    if (!hasText || !follow.current || !root.current) return;
+    const s = scrollParent(root.current);
+    if (s instanceof Window) window.scrollTo({ top: document.documentElement.scrollHeight });
+    else s.scrollTop = s.scrollHeight;
+  }, [text, hasText]);
+  const jump = () => {
+    follow.current = true; setBehind(false);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    root.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
+  };
+
   if (!working) return null;
-  const text = draft.trim();
-  const status = CONN_LABEL[connection];
-  if(presentation==="chat"){
-    const stage=snapshot?.stage??"";
-    const research=kind==="studio"||!["","queued","running","planning"].includes(stage);
-    const labels:Record<string,string>={discovering:"Finding relevant papers…",searching:"Searching scholarly sources…",reading:"Reading the evidence…",writing:"Writing your answer…",checking:"Checking the citations…",planning:"Thinking…",queued:"Waiting to start…"};
-    const reconnecting=connection==="reconnecting"||connection==="unavailable";
-    return <section className="ld-chat" aria-label="Live response" data-testid={testId??`panel-live-draft-${id}`}>
-      <p className="ld-chat-status" role="status"><i aria-hidden />{reconnecting?status:text?(research?"Writing · evidence checks in progress":"Writing…"):(labels[stage]??(research?"Reviewing your sources…":"Thinking…"))}</p>
-      {text&&<><AcademicAnswer content={text} inline={value=>value.split(/(\*\*[^*]+\*\*)/g).map((part,i)=>part.startsWith("**")&&part.endsWith("**")?<strong key={i}>{part.slice(2,-2)}</strong>:part)}/><span className="ld-caret" aria-hidden />{research&&<p className="ld-conn">Live draft; claims may change when evidence checks finish.</p>}</>}
-    </section>;
-  }
-  if (!text) return <>
-    {fallback}
-    {(connection === "reconnecting" || connection === "unavailable") && <p className="ld-conn" role="status" data-testid={`status-live-${id}`}>{status}</p>}
-  </>;
-  const stage = snapshot?.stage ? snapshot.stage.replace(/[_-]+/g, " ") : "";
-  return <section className="ld-panel" aria-label="Unverified live draft" data-testid={testId ?? `panel-live-draft-${id}`}>
-    <header className="ld-head">
-      <span className="ld-badge">Unverified draft</span>
-      {stage && <span className="ld-stage">{stage}</span>}
-      <span className={`ld-conn-inline is-${connection}`} role="status" data-testid={`status-live-${id}`}><i aria-hidden />{status}</span>
-    </header>
-    <p className="ld-warn">Being written now. Not yet checked against sources; wording and claims may change or be removed when checks finish.</p>
-    <div ref={textBox} onScroll={e=>{const el=e.currentTarget;follow.current=el.scrollHeight-el.scrollTop-el.clientHeight<60;}} className="ld-text" aria-live="off" data-testid={`text-live-draft-${id}`}>{text}<span className="ld-caret" aria-hidden /></div>
+  const stage = snapshot?.stage ?? "";
+  const phase = liveStage(stage, connection, hasText);
+  const label = liveStatusLabel(phase, stage, connection);
+  const research = kind === "studio" || !["", "queued", "running", "planning"].includes(stage);
+  const statusLine = <p className={`ld-status is-${phase}`} role="status" aria-live="polite" data-testid={`status-live-${id}`}><i aria-hidden />{label}</p>;
+
+  return <section ref={root} className={`ld-live ld-${presentation}`} aria-label="Live draft, not yet checked" aria-busy="true" data-testid={testId ?? `panel-live-draft-${id}`}>
+    {!hasText ? <>{fallback}{(presentation==="chat"||connection==="reconnecting"||connection==="unavailable")&&statusLine}</> : <>{statusLine}
+    <div className="ld-body" aria-live="off" data-testid={`text-live-draft-${id}`}>
+      <AcademicAnswer content={text} inline={plain} />
+      {phase === "writing" && <span className="ld-caret" aria-hidden />}
+    </div>
+    {research && <p className="ld-note" data-testid={`text-live-note-${id}`}>Provisional. Claims and citations may change once checked against your sources.</p>}
+    {behind && <button type="button" className="ld-jump" onClick={jump} data-testid={`button-live-jump-${id}`}>Jump to latest</button>}</>}
   </section>;
 }

@@ -25,15 +25,19 @@ export function GenerationStatus({ item, onRetry }: { item: StudioItem; onRetry?
     );
   const queued = item.status === "queued";
   return (
-    <div className="sx-card p-6" data-testid="status-generation-running">
-      <p className="sx-eyebrow">{queued ? "Waiting in queue" : "Working"} · {job?.workflow}</p>
-      <p className="sx-title mt-1 text-xl">{item.title}</p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {queued ? "Your request is saved and waiting for a writer slot." : "The server is drafting from your evidence. This usually takes under a minute or two."}
-        {" "}You can leave this page; the result is saved to your project automatically.
-      </p>
-      {job && <div className="mt-4"><AgentProgressChip jobKey={job.key} /></div>}
-      <div className="mt-4"><LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id), getListStudioItemsQueryKey()]} fallback={null} progressKey={job?.key} /></div>
+    <div className="sx-card p-5" data-testid="status-generation-running">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <p className="sx-eyebrow">{queued ? "Waiting in queue" : "Working"} · {job?.workflow}</p>
+          <p className="sx-title mt-1 text-lg">{item.title}</p>
+        </div>
+        {job && <AgentProgressChip jobKey={job.key} />}
+      </div>
+      <div className="mt-4"><LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id), getListStudioItemsQueryKey()]} progressKey={job?.key} fallback={
+        <p className="text-sm text-muted-foreground">
+          {queued ? "Your request is saved and waiting for a writer slot." : "The server is drafting from your evidence. Text appears here as soon as it is written."}
+          {" "}You can leave this page; the result is saved to your project automatically.
+        </p>} /></div>
     </div>
   );
 }

@@ -123,3 +123,19 @@ test("A reached answer limit remains actionable while other blocked sends stay d
   assert.equal(askSendDisabled({limitReached:false,blocked:false,pending:true,loading:false}),true);
 });
 import "./ideas-chat.test";
+
+import { stabilizeLiveMarkdown, liveStage } from "./live-markdown";
+test("Live drafts hide partial Markdown syntax without inventing content", () => {
+  assert.equal(stabilizeLiveMarkdown("## Findings\nText"), "## Findings\n\nText");
+  assert.equal(stabilizeLiveMarkdown("Intro\n\n| A | B |"), "Intro");
+  assert.equal(stabilizeLiveMarkdown("| A | B |\n|--"), "| A | B |\n|---|---|");
+  assert.equal(stabilizeLiveMarkdown("| A | B |\n|---|---|\n| 1 | par"), "| A | B |\n|---|---|");
+  assert.equal(stabilizeLiveMarkdown("This is **bold"), "This is bold");
+  assert.equal(stabilizeLiveMarkdown("Para\n\n##"), "Para");
+  assert.equal(liveStage("checking", "live", true), "checking");
+  assert.equal(liveStage("writing", "reconnecting", true), "reconnecting");
+  assert.equal(liveStage("Evidence Reader · reviewing abstracts and project text", "live", false), "researching");
+  assert.equal(liveStage("Evidence Review Agent · checking claims and references", "live", true), "checking");
+  assert.equal(stabilizeLiveMarkdown("Use C#"), "Use C#");
+  assert.equal(stabilizeLiveMarkdown("###### Methods\nUse C#"), "### Methods\n\nUse C#");
+});

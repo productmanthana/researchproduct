@@ -1,4 +1,9 @@
 /** New ideation topics must not silently inherit the most recently saved idea. */
+export function initialIdeaEvidence(request:{kind:string;prompt:string}) {
+  // Do not turn an explicit close-reading/visual request into abstract-only work.
+  return request.kind==="ideas"&&!/\b(?:full[- ]?text|full papers?|entire papers?|read (?:the |these |my )?(?:pdfs?|papers?)|inspect|figures?|diagrams?|images?|page[- ]by[- ]page)\b/i.test(request.prompt);
+}
+
 export function isFreshIdeaTopic(request:{kind:string;prompt:string;parentId?:string},hasSelectedIdea:boolean) {
   return request.kind==="ideas"&&!request.parentId&&!hasSelectedIdea&&
     !/\b(?:my|our|this|the|selected|saved|current|above)\s+(?:research\s+)?(?:ideas?|topic|project|references?|draft|documents?|uploads?)\b/i.test(request.prompt);

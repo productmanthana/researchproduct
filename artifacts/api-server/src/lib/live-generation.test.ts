@@ -8,6 +8,19 @@ test("partial generation JSON reveals only user-facing strings, not evidence IDs
   assert.equal(visibleDraft('{"content":"\\u03'),"");
   assert.equal(visibleDraft('{"content":"A \\"quoted\\" word"}'),'A "quoted" word');
 });
+test("live idea cards show their developing fields rather than disconnected titles",()=>{
+  const partial='{"title":"Solar ideas","content":"## Comparing directions\\n\\nChoose a proposed study.","ideas":[{"title":"Battery control","problem":"Storage losses need investigation.","question":"Which control is most efficient?","method":"Compare matched simulations.","feasibility":"Use an open simulator."},{"title":"Demand response","problem":"Peak demand';
+  const text=visibleDraft(partial);
+  assert.match(text,/### Idea 1: Battery control/);
+  assert.match(text,/\*\*Research problem\*\*\n\nStorage losses/);
+  assert.match(text,/\*\*Research question\*\*\n\nWhich control/);
+  assert.match(text,/\*\*Proposed method\*\*\n\nCompare matched/);
+  assert.match(text,/\*\*Feasibility\*\*\n\nUse an open simulator/);
+  assert.match(text,/### Idea 2: Demand response/);
+  assert.ok(text.endsWith("Peak demand"));
+  assert.doesNotMatch(text,/"ideas"|"problem"|undefined/);
+  assert.equal(visibleDraft('{"reasoning":"private","question":"internal planner question","content":"Public answer"}'),"Public answer");
+});
 const streamResponse=(s:string)=>new Response(new ReadableStream({start(controller){
   const data=new TextEncoder().encode(s);for(let i=0;i<data.length;i+=3)controller.enqueue(data.slice(i,i+3));controller.close();
 }}));

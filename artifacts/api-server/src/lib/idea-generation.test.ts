@@ -1,6 +1,44 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {IDEA_INSTRUCTIONS,IDEA_REVIEW_INSTRUCTIONS,isFreshIdeaTopic,studioSearchQuestion,invalidIdeaCitations} from "./idea-generation";
+import {IDEA_INSTRUCTIONS,IDEA_REVIEW_INSTRUCTIONS,isFreshIdeaTopic,studioSearchQuestion,invalidIdeaCitations,initialIdeaEvidence} from "./idea-generation";
+import {sourcesFor} from "./research-engine";
+import {makePaper} from "./catalogue";
+
+test("initial idea evidence never downloads PDFs, renders images or embeds an already complete abstract",async()=>{
+  const paper=makePaper({title:"Synthetic retrieval fixture",abstract:"Available abstract text for an initial proposal.",url:"https://example.org/paper",sources:["OpenAlex"]});
+  let downloads=0,embeddings=0;
+  const reader={
+    getPaper:async()=>paper,
+    cachedFullText:async()=>{downloads++;throw new Error("Unexpected full-text retrieval");},
+    selectEvidencePages:async()=>{embeddings++;throw new Error("Unexpected page embedding");},
+  };
+  const sources=await sourcesFor({kind:"answer",question:"Suggest research ideas",input:{paperIds:[paper.id],abstractOnly:true,inspectFigures:false}},[],reader);
+  assert.equal(downloads,0);assert.equal(embeddings,0);
+  assert.equal(sources.length,1);assert.equal(sources[0].text,paper.abstract);
+  assert.equal(sources[0].evidenceLevel,"Abstract only");
+  assert.equal(sources[0].page,null);assert.equal(sources[0].image,undefined);
+});
+
+test("ordinary research still attempts full-text reading and abstract ranking when needed",async()=>{
+  const paper=makePaper({title:"Synthetic full-reading fixture",abstract:"Abstract when a full PDF is unavailable.",url:"https://example.org/paper",sources:["OpenAlex"]});
+  let downloads=0,embeddings=0;
+  const sources=await sourcesFor({kind:"answer",question:"Analyse methods",input:{paperIds:[paper.id],inspectFigures:false}},[],{
+    getPaper:async()=>paper,
+    cachedFullText:async()=>{downloads++;return {notice:"No readable PDF",pages:undefined};},
+    selectEvidencePages:async()=>{embeddings++;return [{page:1,text:paper.abstract}];},
+  });
+  assert.equal(downloads,1);assert.equal(embeddings,1);
+  assert.equal(sources[0].evidenceLevel,"Abstract only");
+});
+
+test("initial idea cards use bounded abstracts but explicit full-text and visual requests keep deep reading",()=>{
+  assert.equal(initialIdeaEvidence({kind:"ideas",prompt:"Suggest five ideas about power system generation"}),true);
+  assert.equal(initialIdeaEvidence({kind:"ideas",prompt:"provide ideas on ai llm model"}),true);
+  for(const prompt of ["Generate ideas from full-text papers","Read my PDFs and suggest ideas","Generate ideas using figures in this paper","Use page-by-page analysis to generate ideas"])
+    assert.equal(initialIdeaEvidence({kind:"ideas",prompt}),false,prompt);
+  for(const kind of ["journal","thesis","literature","answer"])
+    assert.equal(initialIdeaEvidence({kind,prompt:"Power system generation"}),false,kind);
+});
 
 test("a new research topic never silently inherits a previous project idea",()=>{
   const fresh=isFreshIdeaTopic({kind:"ideas",prompt:"power system generation"},false);

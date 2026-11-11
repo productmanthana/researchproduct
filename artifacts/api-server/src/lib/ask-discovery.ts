@@ -93,7 +93,10 @@ Use at most two focused queries. Preserve the user's research intent, including 
     job.input={...job.input,discoveredPapers:discoverySnapshot(found,[]),discoveryWarnings:[...new Set(notices)]};
     await researchProgress(job,found.length?"indexing":"selecting");
     let indexedRanking:Paper[]=[];
-    if(found.length){
+    if(found.length&&job.input.discoveryProfile==="ideation"){
+      indexedRanking=indexedResult.papers.filter(matches);
+      notices.push("Initial idea discovery used live catalogue abstracts and the existing public metadata index. New catalogue results were not embedded during this request; no full-text or exhaustive novelty search is claimed.");
+    }else if(found.length){
       try{
         const indexed=await indexPublicPapers(found);
         notices.push(`Weaviate retained ${indexed.inserted} new or updated title-and-abstract vectors and reused ${indexed.cached} unchanged records. Only public catalogue metadata is indexed; PDFs are analysed separately on demand.`);

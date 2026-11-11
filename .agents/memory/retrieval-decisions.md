@@ -20,6 +20,12 @@ The user approved finding papers from title-and-abstract vectors first, then ret
 
 **How to apply:** Grow the public metadata index alongside live provider search. Keep abstracts distinct from verified full-text evidence, preserve source IDs, and never describe incremental indexing as complete coverage of hundreds of millions of papers.
 
+Initial research-idea selection should use bounded abstracts and project text rather than automatically downloading and visually inspecting full papers or embedding every discovered catalogue result. Keep deeper reading for explicit full-text/figure requests and research-document development; retain citation validation and independent review.
+
+**Why:** The user identified waiting for initial idea cards as a problem. Deep paper reading before choosing a direction adds delay, while abstract-backed proposals can be clearly labelled without claiming verified novelty.
+
+**How to apply:** State the initial evidence boundary honestly, preserve source identities and evidence restrictions, and do not apply this shortcut to journal papers, theses or literature reviews.
+
 Keep failed-run allowance refunds separate from AI spending. Ambiguous timeouts may already have been billed, so retain conservative cost reservations instead of silently refunding money estimates.
 
 **Why:** Otherwise retries and interrupted analyses can bypass the service budget despite apparently correct per-user quotas.

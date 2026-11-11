@@ -13,8 +13,10 @@ export function visibleDraft(json:string){
   if(/^\s*\{\s*"intent"\s*:/.test(json)){
     if(!/^\s*\{\s*"intent"\s*:\s*"guidance"/.test(json))return "";
   }
-  const pattern=/"(content|text|reply|title|caption|description|explanation|proposedText)"\s*:\s*"/g;
-  const parts:string[]=[];let m:RegExpExecArray|null;
+  const pattern=/"(content|text|reply|title|caption|description|explanation|proposedText|problem|question|method|feasibility)"\s*:\s*"/g;
+  const ideaStart=/"ideas"\s*:\s*\[/.exec(json)?.index;
+  const ideaLabels:Record<string,string>={problem:"Research problem",question:"Research question",method:"Proposed method",feasibility:"Feasibility"};
+  const parts:string[]=[];let m:RegExpExecArray|null,ideaNumber=0;
   while((m=pattern.exec(json))){
     let at=pattern.lastIndex,raw="",escape=false;
     for(;at<json.length;at++){
@@ -25,7 +27,15 @@ export function visibleDraft(json:string){
     }
     // Ignore incomplete escapes until their next delta arrives.
     raw=raw.replace(/\\(?:u[0-9a-f]{0,3})?$/i,"");
-    try{const text=JSON.parse('"'+raw+'"');if(text.trim())parts.push(text);}catch{/* partial JSON codepoint */}
+    try{
+      const text=JSON.parse('"'+raw+'"');
+      const inIdeas=ideaStart!==undefined&&m.index>ideaStart;
+      if(text.trim()){
+        if(inIdeas&&m[1]==="title")parts.push(`### Idea ${++ideaNumber}: ${text}`);
+        else if(inIdeas&&ideaLabels[m[1]])parts.push(`**${ideaLabels[m[1]]}**\n\n${text}`);
+        else if(!ideaLabels[m[1]])parts.push(text);
+      }
+    }catch{/* partial JSON codepoint */}
     pattern.lastIndex=at+1;
   }
   return parts.join("\n\n").slice(0,100000);

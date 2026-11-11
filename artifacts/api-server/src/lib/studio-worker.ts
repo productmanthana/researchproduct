@@ -22,7 +22,7 @@ import { figureRequested, planStudioFigures, persistStudioFigures } from "./stud
 import { referencedFigures, type FigureSource, type ScientificFigure } from "./scientific-figures";
 import { generateDocumentReview } from "./document-review";
 import { generatePaperReview } from "./paper-review";
-import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations } from "./idea-generation";
+import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
 import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS } from "./manuscript-policy";
 
@@ -39,6 +39,7 @@ const instructions:Record<string,string>={
 
 async function generate(row:any) {
   const request=row.metadata.request,owner=row.owner_id;
+  const initialIdeas=initialIdeaEvidence(request);
   const project=await ownedStudioProject(row.project_id,owner);
   const {rows:items}=await pool.query(`SELECT s.* FROM research_studio_items s WHERE s.project_id=$1 AND s.owner_id=$2 AND s.status='completed' AND s.id<>$3
     AND NOT EXISTS(SELECT 1 FROM research_studio_items c WHERE c.parent_id=s.id)
@@ -68,19 +69,20 @@ async function generate(row:any) {
   const referencedPapers=request.evidenceMode==="discover"?[]:items.flatMap(i=>(i.metadata?.sources??[]).map((s:any)=>s.paperId).filter(Boolean));
   const savedPapers=request.evidenceMode==="discover"?[]:[...new Set([...(await pool.query("SELECT paper_id FROM research_library WHERE project_id=$1 AND owner_id=$2 ORDER BY created_at DESC LIMIT 20",[project.id,owner])).rows.map(p=>p.paper_id),...referencedPapers])];
   const documentIds=request.evidenceMode==="discover"?[]:[...new Set(items.map(i=>i.metadata?.documentId).filter(Boolean))].slice(0,5);
-  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:true}};
+  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard"}};
   if(request.evidenceMode!=="project"){
     await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Literature Survey Agent · finding relevant evidence"})]);
     try{await discoverForQuestion(job);warnings.push(...((job.input as any).discoveryWarnings??[]));}
     catch(e){warnings.push(e instanceof HttpError?e.message:"Scholarly discovery is unavailable for this request.");}
   }
-  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,12);
+  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:12);
   const papers=await Promise.all(job.input.paperIds.map(id=>getPaper(id)));
   const verification=await verifyCitations(papers);
-  job.input.paperIds=job.input.paperIds.filter(id=>!verification.get(id)?.includes("excluded"));
+  job.input.paperIds=job.input.paperIds.filter(id=>!verification.get(id)?.includes("excluded")&&(!initialIdeas||papers.some(p=>p.id===id&&p.abstract?.trim())));
+  if(initialIdeas)warnings.push("Initial idea proposals use available paper abstracts and project text, not newly downloaded full PDFs or inspected page images. Candidate gaps are not verified novelty claims; full-text evaluation remains necessary before developing or submitting research.");
   let sources:EvidenceSource[]=[];
   if(job.input.paperIds.length||documentIds.length){
-    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Evidence Reader · reviewing papers and project documents"})]);
+    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:initialIdeas?"Evidence Reader · reviewing abstracts and project text":"Evidence Reader · reviewing papers and project documents"})]);
     sources=await sourcesFor(job,notices);
   }
   if(request.evidenceMode!=="discover")for(const item of items){
