@@ -12,6 +12,7 @@ import { reviewDocument } from "../lib/studio-checks";
 import { studioTemplates } from "../lib/studio-templates";
 import { formatIssues } from "../lib/studio-formatting";
 import { invalidateRequirementsCheck } from "../lib/submission-requirements";
+import { savedCustomFormat,customFormatWarnings } from "../lib/custom-format";
 import { searchPatents } from "../lib/studio-patents";
 import { storage } from "../lib/documents";
 import { figureRequested } from "../lib/studio-figures";
@@ -48,6 +49,9 @@ router.post("/studio/items",async(req,res)=>{
   if(b.documentDetails)metadata.documentDetails=b.documentDetails;
   if(b.templateId===null)delete metadata.templateId;
   if(parent)invalidateRequirementsCheck(metadata,metadata.templateId!==parent.metadata?.templateId);
+  if(parent&&metadata.templateId!==parent.metadata?.templateId){
+    delete metadata.customFormat;delete metadata.customFormatWarnings;delete metadata.customFormatStatus;
+  }
   if(!b.title.trim())throw new HttpError(400,"Enter a document title.");
   if(b.documentId){
     const document=await ownedDocument(b.documentId,owner);
@@ -71,6 +75,8 @@ router.post("/studio/items",async(req,res)=>{
     if(sources.length&&!/^#{1,3}\s+References/im.test(content))content+=`\n\n## References\n\n${sources.map((s:any,i:number)=>`[${i+1}] ${s.title}. ${s.url??""}`).join("\n\n")}`;
     metadata={...metadata,analysisId:b.analysisId,sources,figures:result.figures??[],warnings:result.warnings??[]};
   }
+  const personalFormat=savedCustomFormat({metadata});
+  if(personalFormat)metadata.customFormatWarnings=customFormatWarnings({content,metadata},personalFormat);
   try{referencedFigures(content,metadata.figures??[]);}catch{throw new HttpError(400,"A figure marker has no saved figure. Remove that marker or restore its original ID.");}
   try{
     const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)

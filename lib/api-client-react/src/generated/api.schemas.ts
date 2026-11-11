@@ -4,6 +4,172 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export type CustomFormatSize = typeof CustomFormatSize[keyof typeof CustomFormatSize];
+
+
+export const CustomFormatSize = {
+  A4: 'A4',
+  LETTER: 'LETTER',
+} as const;
+
+export type CustomFormatFontFamily = typeof CustomFormatFontFamily[keyof typeof CustomFormatFontFamily];
+
+
+export const CustomFormatFontFamily = {
+  serif: 'serif',
+  sans: 'sans',
+} as const;
+
+export type CustomFormatColumns = typeof CustomFormatColumns[keyof typeof CustomFormatColumns];
+
+
+export const CustomFormatColumns = {
+  NUMBER_1: 1,
+  NUMBER_2: 2,
+} as const;
+
+export type CustomFormatMargins = {
+  /**
+     * @minimum 18
+     * @maximum 144
+     */
+  top: number;
+  /**
+     * @minimum 18
+     * @maximum 144
+     */
+  right: number;
+  /**
+     * @minimum 18
+     * @maximum 144
+     */
+  bottom: number;
+  /**
+     * @minimum 18
+     * @maximum 144
+     */
+  left: number;
+};
+
+export type CustomFormatCitationStyle = typeof CustomFormatCitationStyle[keyof typeof CustomFormatCitationStyle];
+
+
+export const CustomFormatCitationStyle = {
+  numbered: 'numbered',
+  'author-year': 'author-year',
+} as const;
+
+export type CustomFormatCaptionPosition = typeof CustomFormatCaptionPosition[keyof typeof CustomFormatCaptionPosition];
+
+
+export const CustomFormatCaptionPosition = {
+  above: 'above',
+  below: 'below',
+} as const;
+
+export type CustomFormatFigurePlacement = typeof CustomFormatFigurePlacement[keyof typeof CustomFormatFigurePlacement];
+
+
+export const CustomFormatFigurePlacement = {
+  inline: 'inline',
+  end: 'end',
+} as const;
+
+export interface HeadingRename {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  from: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  to: string;
+}
+
+export interface CustomFormat {
+  size: CustomFormatSize;
+  fontFamily: CustomFormatFontFamily;
+  /**
+     * @minimum 8
+     * @maximum 16
+     */
+  fontSize: number;
+  /**
+     * @minimum 1
+     * @maximum 2.5
+     */
+  lineSpacing: number;
+  columns: CustomFormatColumns;
+  margins: CustomFormatMargins;
+  citationStyle: CustomFormatCitationStyle;
+  /**
+     * @minimum 40
+     * @maximum 100
+     */
+  figureWidth: number;
+  captionPosition: CustomFormatCaptionPosition;
+  figurePlacement: CustomFormatFigurePlacement;
+  /**
+     * @maxItems 30
+     * @items.maxLength 100
+     */
+  sectionOrder: string[];
+  /** @maxItems 30 */
+  headingRenames: HeadingRename[];
+  /**
+     * @minimum 100
+     * @maximum 100000
+     */
+  maxWords?: number;
+  /**
+     * @minimum 50
+     * @maximum 2000
+     */
+  maxAbstractWords?: number;
+  /** @maxLength 16000 */
+  instructions: string;
+  instructionsDocumentId?: string;
+}
+
+export interface CustomFormatInput {
+  format: CustomFormat;
+}
+
+export type PersonalFormatInputKind = typeof PersonalFormatInputKind[keyof typeof PersonalFormatInputKind];
+
+
+export const PersonalFormatInputKind = {
+  journal: 'journal',
+  thesis: 'thesis',
+} as const;
+
+export interface PersonalFormatInput {
+  id?: string;
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  name: string;
+  kind?: PersonalFormatInputKind;
+  format: CustomFormat;
+}
+
+export type PersonalFormat = PersonalFormatInput & {
+  id: string;
+  updatedAt: string;
+};
+
+export interface FormatImportInput {
+  documentId: string;
+}
+
+export interface FormatImportResult {
+  format: CustomFormat;
+  warnings: string[];
+}
+
 export interface DocumentReviewInput {
   projectId: string;
   documentId: string;

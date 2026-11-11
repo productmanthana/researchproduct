@@ -7,6 +7,483 @@
 import * as zod from 'zod';
 
 
+export const listCustomFormatsResponseOneNameMax = 100;
+
+export const listCustomFormatsResponseOneFormatFontSizeMin = 8;
+export const listCustomFormatsResponseOneFormatFontSizeMax = 16;
+
+export const listCustomFormatsResponseOneFormatLineSpacingMax = 2.5;
+
+export const listCustomFormatsResponseOneFormatMarginsTopMin = 18;
+export const listCustomFormatsResponseOneFormatMarginsTopMax = 144;
+
+export const listCustomFormatsResponseOneFormatMarginsRightMin = 18;
+export const listCustomFormatsResponseOneFormatMarginsRightMax = 144;
+
+export const listCustomFormatsResponseOneFormatMarginsBottomMin = 18;
+export const listCustomFormatsResponseOneFormatMarginsBottomMax = 144;
+
+export const listCustomFormatsResponseOneFormatMarginsLeftMin = 18;
+export const listCustomFormatsResponseOneFormatMarginsLeftMax = 144;
+
+export const listCustomFormatsResponseOneFormatFigureWidthMin = 40;
+export const listCustomFormatsResponseOneFormatFigureWidthMax = 100;
+
+export const listCustomFormatsResponseOneFormatSectionOrderItemMax = 100;
+
+export const listCustomFormatsResponseOneFormatSectionOrderMax = 30;
+
+export const listCustomFormatsResponseOneFormatHeadingRenamesItemFromMax = 100;
+
+export const listCustomFormatsResponseOneFormatHeadingRenamesItemToMax = 100;
+
+export const listCustomFormatsResponseOneFormatHeadingRenamesMax = 30;
+
+export const listCustomFormatsResponseOneFormatMaxWordsMin = 100;
+export const listCustomFormatsResponseOneFormatMaxWordsMax = 100000;
+
+export const listCustomFormatsResponseOneFormatMaxAbstractWordsMin = 50;
+export const listCustomFormatsResponseOneFormatMaxAbstractWordsMax = 2000;
+
+export const listCustomFormatsResponseOneFormatInstructionsMax = 16000;
+
+
+
+export const ListCustomFormatsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string().min(1).max(listCustomFormatsResponseOneNameMax),
+  "kind": zod.enum(['journal', 'thesis']).optional(),
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(listCustomFormatsResponseOneFormatFontSizeMin).max(listCustomFormatsResponseOneFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(listCustomFormatsResponseOneFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(listCustomFormatsResponseOneFormatMarginsTopMin).max(listCustomFormatsResponseOneFormatMarginsTopMax),
+  "right": zod.number().min(listCustomFormatsResponseOneFormatMarginsRightMin).max(listCustomFormatsResponseOneFormatMarginsRightMax),
+  "bottom": zod.number().min(listCustomFormatsResponseOneFormatMarginsBottomMin).max(listCustomFormatsResponseOneFormatMarginsBottomMax),
+  "left": zod.number().min(listCustomFormatsResponseOneFormatMarginsLeftMin).max(listCustomFormatsResponseOneFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(listCustomFormatsResponseOneFormatFigureWidthMin).max(listCustomFormatsResponseOneFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(listCustomFormatsResponseOneFormatSectionOrderItemMax)).max(listCustomFormatsResponseOneFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(listCustomFormatsResponseOneFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(listCustomFormatsResponseOneFormatHeadingRenamesItemToMax)
+})).max(listCustomFormatsResponseOneFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(listCustomFormatsResponseOneFormatMaxWordsMin).max(listCustomFormatsResponseOneFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(listCustomFormatsResponseOneFormatMaxAbstractWordsMin).max(listCustomFormatsResponseOneFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(listCustomFormatsResponseOneFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+})
+}).and(zod.object({
+  "id": zod.string(),
+  "updatedAt": zod.coerce.date()
+}))
+export const ListCustomFormatsResponse = zod.array(ListCustomFormatsResponseItem)
+
+
+export const saveCustomFormatBodyNameMax = 100;
+
+export const saveCustomFormatBodyFormatFontSizeMin = 8;
+export const saveCustomFormatBodyFormatFontSizeMax = 16;
+
+export const saveCustomFormatBodyFormatLineSpacingMax = 2.5;
+
+export const saveCustomFormatBodyFormatMarginsTopMin = 18;
+export const saveCustomFormatBodyFormatMarginsTopMax = 144;
+
+export const saveCustomFormatBodyFormatMarginsRightMin = 18;
+export const saveCustomFormatBodyFormatMarginsRightMax = 144;
+
+export const saveCustomFormatBodyFormatMarginsBottomMin = 18;
+export const saveCustomFormatBodyFormatMarginsBottomMax = 144;
+
+export const saveCustomFormatBodyFormatMarginsLeftMin = 18;
+export const saveCustomFormatBodyFormatMarginsLeftMax = 144;
+
+export const saveCustomFormatBodyFormatFigureWidthMin = 40;
+export const saveCustomFormatBodyFormatFigureWidthMax = 100;
+
+export const saveCustomFormatBodyFormatSectionOrderItemMax = 100;
+
+export const saveCustomFormatBodyFormatSectionOrderMax = 30;
+
+export const saveCustomFormatBodyFormatHeadingRenamesItemFromMax = 100;
+
+export const saveCustomFormatBodyFormatHeadingRenamesItemToMax = 100;
+
+export const saveCustomFormatBodyFormatHeadingRenamesMax = 30;
+
+export const saveCustomFormatBodyFormatMaxWordsMin = 100;
+export const saveCustomFormatBodyFormatMaxWordsMax = 100000;
+
+export const saveCustomFormatBodyFormatMaxAbstractWordsMin = 50;
+export const saveCustomFormatBodyFormatMaxAbstractWordsMax = 2000;
+
+export const saveCustomFormatBodyFormatInstructionsMax = 16000;
+
+
+
+export const SaveCustomFormatBody = zod.object({
+  "id": zod.string().optional(),
+  "name": zod.string().min(1).max(saveCustomFormatBodyNameMax),
+  "kind": zod.enum(['journal', 'thesis']).optional(),
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(saveCustomFormatBodyFormatFontSizeMin).max(saveCustomFormatBodyFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(saveCustomFormatBodyFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(saveCustomFormatBodyFormatMarginsTopMin).max(saveCustomFormatBodyFormatMarginsTopMax),
+  "right": zod.number().min(saveCustomFormatBodyFormatMarginsRightMin).max(saveCustomFormatBodyFormatMarginsRightMax),
+  "bottom": zod.number().min(saveCustomFormatBodyFormatMarginsBottomMin).max(saveCustomFormatBodyFormatMarginsBottomMax),
+  "left": zod.number().min(saveCustomFormatBodyFormatMarginsLeftMin).max(saveCustomFormatBodyFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(saveCustomFormatBodyFormatFigureWidthMin).max(saveCustomFormatBodyFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(saveCustomFormatBodyFormatSectionOrderItemMax)).max(saveCustomFormatBodyFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(saveCustomFormatBodyFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(saveCustomFormatBodyFormatHeadingRenamesItemToMax)
+})).max(saveCustomFormatBodyFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(saveCustomFormatBodyFormatMaxWordsMin).max(saveCustomFormatBodyFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(saveCustomFormatBodyFormatMaxAbstractWordsMin).max(saveCustomFormatBodyFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(saveCustomFormatBodyFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+})
+})
+
+export const saveCustomFormatResponseOneNameMax = 100;
+
+export const saveCustomFormatResponseOneFormatFontSizeMin = 8;
+export const saveCustomFormatResponseOneFormatFontSizeMax = 16;
+
+export const saveCustomFormatResponseOneFormatLineSpacingMax = 2.5;
+
+export const saveCustomFormatResponseOneFormatMarginsTopMin = 18;
+export const saveCustomFormatResponseOneFormatMarginsTopMax = 144;
+
+export const saveCustomFormatResponseOneFormatMarginsRightMin = 18;
+export const saveCustomFormatResponseOneFormatMarginsRightMax = 144;
+
+export const saveCustomFormatResponseOneFormatMarginsBottomMin = 18;
+export const saveCustomFormatResponseOneFormatMarginsBottomMax = 144;
+
+export const saveCustomFormatResponseOneFormatMarginsLeftMin = 18;
+export const saveCustomFormatResponseOneFormatMarginsLeftMax = 144;
+
+export const saveCustomFormatResponseOneFormatFigureWidthMin = 40;
+export const saveCustomFormatResponseOneFormatFigureWidthMax = 100;
+
+export const saveCustomFormatResponseOneFormatSectionOrderItemMax = 100;
+
+export const saveCustomFormatResponseOneFormatSectionOrderMax = 30;
+
+export const saveCustomFormatResponseOneFormatHeadingRenamesItemFromMax = 100;
+
+export const saveCustomFormatResponseOneFormatHeadingRenamesItemToMax = 100;
+
+export const saveCustomFormatResponseOneFormatHeadingRenamesMax = 30;
+
+export const saveCustomFormatResponseOneFormatMaxWordsMin = 100;
+export const saveCustomFormatResponseOneFormatMaxWordsMax = 100000;
+
+export const saveCustomFormatResponseOneFormatMaxAbstractWordsMin = 50;
+export const saveCustomFormatResponseOneFormatMaxAbstractWordsMax = 2000;
+
+export const saveCustomFormatResponseOneFormatInstructionsMax = 16000;
+
+
+
+export const SaveCustomFormatResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string().min(1).max(saveCustomFormatResponseOneNameMax),
+  "kind": zod.enum(['journal', 'thesis']).optional(),
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(saveCustomFormatResponseOneFormatFontSizeMin).max(saveCustomFormatResponseOneFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(saveCustomFormatResponseOneFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(saveCustomFormatResponseOneFormatMarginsTopMin).max(saveCustomFormatResponseOneFormatMarginsTopMax),
+  "right": zod.number().min(saveCustomFormatResponseOneFormatMarginsRightMin).max(saveCustomFormatResponseOneFormatMarginsRightMax),
+  "bottom": zod.number().min(saveCustomFormatResponseOneFormatMarginsBottomMin).max(saveCustomFormatResponseOneFormatMarginsBottomMax),
+  "left": zod.number().min(saveCustomFormatResponseOneFormatMarginsLeftMin).max(saveCustomFormatResponseOneFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(saveCustomFormatResponseOneFormatFigureWidthMin).max(saveCustomFormatResponseOneFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(saveCustomFormatResponseOneFormatSectionOrderItemMax)).max(saveCustomFormatResponseOneFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(saveCustomFormatResponseOneFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(saveCustomFormatResponseOneFormatHeadingRenamesItemToMax)
+})).max(saveCustomFormatResponseOneFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(saveCustomFormatResponseOneFormatMaxWordsMin).max(saveCustomFormatResponseOneFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(saveCustomFormatResponseOneFormatMaxAbstractWordsMin).max(saveCustomFormatResponseOneFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(saveCustomFormatResponseOneFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+})
+}).and(zod.object({
+  "id": zod.string(),
+  "updatedAt": zod.coerce.date()
+}))
+
+
+export const DeleteCustomFormatParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCustomFormatResponse = zod.void()
+
+
+export const ImportCustomFormatBody = zod.object({
+  "documentId": zod.string()
+})
+
+export const importCustomFormatResponseFormatFontSizeMin = 8;
+export const importCustomFormatResponseFormatFontSizeMax = 16;
+
+export const importCustomFormatResponseFormatLineSpacingMax = 2.5;
+
+export const importCustomFormatResponseFormatMarginsTopMin = 18;
+export const importCustomFormatResponseFormatMarginsTopMax = 144;
+
+export const importCustomFormatResponseFormatMarginsRightMin = 18;
+export const importCustomFormatResponseFormatMarginsRightMax = 144;
+
+export const importCustomFormatResponseFormatMarginsBottomMin = 18;
+export const importCustomFormatResponseFormatMarginsBottomMax = 144;
+
+export const importCustomFormatResponseFormatMarginsLeftMin = 18;
+export const importCustomFormatResponseFormatMarginsLeftMax = 144;
+
+export const importCustomFormatResponseFormatFigureWidthMin = 40;
+export const importCustomFormatResponseFormatFigureWidthMax = 100;
+
+export const importCustomFormatResponseFormatSectionOrderItemMax = 100;
+
+export const importCustomFormatResponseFormatSectionOrderMax = 30;
+
+export const importCustomFormatResponseFormatHeadingRenamesItemFromMax = 100;
+
+export const importCustomFormatResponseFormatHeadingRenamesItemToMax = 100;
+
+export const importCustomFormatResponseFormatHeadingRenamesMax = 30;
+
+export const importCustomFormatResponseFormatMaxWordsMin = 100;
+export const importCustomFormatResponseFormatMaxWordsMax = 100000;
+
+export const importCustomFormatResponseFormatMaxAbstractWordsMin = 50;
+export const importCustomFormatResponseFormatMaxAbstractWordsMax = 2000;
+
+export const importCustomFormatResponseFormatInstructionsMax = 16000;
+
+
+
+export const ImportCustomFormatResponse = zod.object({
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(importCustomFormatResponseFormatFontSizeMin).max(importCustomFormatResponseFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(importCustomFormatResponseFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(importCustomFormatResponseFormatMarginsTopMin).max(importCustomFormatResponseFormatMarginsTopMax),
+  "right": zod.number().min(importCustomFormatResponseFormatMarginsRightMin).max(importCustomFormatResponseFormatMarginsRightMax),
+  "bottom": zod.number().min(importCustomFormatResponseFormatMarginsBottomMin).max(importCustomFormatResponseFormatMarginsBottomMax),
+  "left": zod.number().min(importCustomFormatResponseFormatMarginsLeftMin).max(importCustomFormatResponseFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(importCustomFormatResponseFormatFigureWidthMin).max(importCustomFormatResponseFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(importCustomFormatResponseFormatSectionOrderItemMax)).max(importCustomFormatResponseFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(importCustomFormatResponseFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(importCustomFormatResponseFormatHeadingRenamesItemToMax)
+})).max(importCustomFormatResponseFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(importCustomFormatResponseFormatMaxWordsMin).max(importCustomFormatResponseFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(importCustomFormatResponseFormatMaxAbstractWordsMin).max(importCustomFormatResponseFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(importCustomFormatResponseFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+}),
+  "warnings": zod.array(zod.string())
+})
+
+
+export const GetCustomFormatParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const getCustomFormatResponseFormatFontSizeMin = 8;
+export const getCustomFormatResponseFormatFontSizeMax = 16;
+
+export const getCustomFormatResponseFormatLineSpacingMax = 2.5;
+
+export const getCustomFormatResponseFormatMarginsTopMin = 18;
+export const getCustomFormatResponseFormatMarginsTopMax = 144;
+
+export const getCustomFormatResponseFormatMarginsRightMin = 18;
+export const getCustomFormatResponseFormatMarginsRightMax = 144;
+
+export const getCustomFormatResponseFormatMarginsBottomMin = 18;
+export const getCustomFormatResponseFormatMarginsBottomMax = 144;
+
+export const getCustomFormatResponseFormatMarginsLeftMin = 18;
+export const getCustomFormatResponseFormatMarginsLeftMax = 144;
+
+export const getCustomFormatResponseFormatFigureWidthMin = 40;
+export const getCustomFormatResponseFormatFigureWidthMax = 100;
+
+export const getCustomFormatResponseFormatSectionOrderItemMax = 100;
+
+export const getCustomFormatResponseFormatSectionOrderMax = 30;
+
+export const getCustomFormatResponseFormatHeadingRenamesItemFromMax = 100;
+
+export const getCustomFormatResponseFormatHeadingRenamesItemToMax = 100;
+
+export const getCustomFormatResponseFormatHeadingRenamesMax = 30;
+
+export const getCustomFormatResponseFormatMaxWordsMin = 100;
+export const getCustomFormatResponseFormatMaxWordsMax = 100000;
+
+export const getCustomFormatResponseFormatMaxAbstractWordsMin = 50;
+export const getCustomFormatResponseFormatMaxAbstractWordsMax = 2000;
+
+export const getCustomFormatResponseFormatInstructionsMax = 16000;
+
+
+
+export const GetCustomFormatResponse = zod.object({
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(getCustomFormatResponseFormatFontSizeMin).max(getCustomFormatResponseFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(getCustomFormatResponseFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(getCustomFormatResponseFormatMarginsTopMin).max(getCustomFormatResponseFormatMarginsTopMax),
+  "right": zod.number().min(getCustomFormatResponseFormatMarginsRightMin).max(getCustomFormatResponseFormatMarginsRightMax),
+  "bottom": zod.number().min(getCustomFormatResponseFormatMarginsBottomMin).max(getCustomFormatResponseFormatMarginsBottomMax),
+  "left": zod.number().min(getCustomFormatResponseFormatMarginsLeftMin).max(getCustomFormatResponseFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(getCustomFormatResponseFormatFigureWidthMin).max(getCustomFormatResponseFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(getCustomFormatResponseFormatSectionOrderItemMax)).max(getCustomFormatResponseFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(getCustomFormatResponseFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(getCustomFormatResponseFormatHeadingRenamesItemToMax)
+})).max(getCustomFormatResponseFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(getCustomFormatResponseFormatMaxWordsMin).max(getCustomFormatResponseFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(getCustomFormatResponseFormatMaxAbstractWordsMin).max(getCustomFormatResponseFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(getCustomFormatResponseFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+}),
+  "warnings": zod.array(zod.string())
+})
+
+
+export const ApplyCustomFormatParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const applyCustomFormatBodyFormatFontSizeMin = 8;
+export const applyCustomFormatBodyFormatFontSizeMax = 16;
+
+export const applyCustomFormatBodyFormatLineSpacingMax = 2.5;
+
+export const applyCustomFormatBodyFormatMarginsTopMin = 18;
+export const applyCustomFormatBodyFormatMarginsTopMax = 144;
+
+export const applyCustomFormatBodyFormatMarginsRightMin = 18;
+export const applyCustomFormatBodyFormatMarginsRightMax = 144;
+
+export const applyCustomFormatBodyFormatMarginsBottomMin = 18;
+export const applyCustomFormatBodyFormatMarginsBottomMax = 144;
+
+export const applyCustomFormatBodyFormatMarginsLeftMin = 18;
+export const applyCustomFormatBodyFormatMarginsLeftMax = 144;
+
+export const applyCustomFormatBodyFormatFigureWidthMin = 40;
+export const applyCustomFormatBodyFormatFigureWidthMax = 100;
+
+export const applyCustomFormatBodyFormatSectionOrderItemMax = 100;
+
+export const applyCustomFormatBodyFormatSectionOrderMax = 30;
+
+export const applyCustomFormatBodyFormatHeadingRenamesItemFromMax = 100;
+
+export const applyCustomFormatBodyFormatHeadingRenamesItemToMax = 100;
+
+export const applyCustomFormatBodyFormatHeadingRenamesMax = 30;
+
+export const applyCustomFormatBodyFormatMaxWordsMin = 100;
+export const applyCustomFormatBodyFormatMaxWordsMax = 100000;
+
+export const applyCustomFormatBodyFormatMaxAbstractWordsMin = 50;
+export const applyCustomFormatBodyFormatMaxAbstractWordsMax = 2000;
+
+export const applyCustomFormatBodyFormatInstructionsMax = 16000;
+
+
+
+export const ApplyCustomFormatBody = zod.object({
+  "format": zod.object({
+  "size": zod.enum(['A4', 'LETTER']),
+  "fontFamily": zod.enum(['serif', 'sans']),
+  "fontSize": zod.number().min(applyCustomFormatBodyFormatFontSizeMin).max(applyCustomFormatBodyFormatFontSizeMax),
+  "lineSpacing": zod.number().min(1).max(applyCustomFormatBodyFormatLineSpacingMax),
+  "columns": zod.union([zod.literal(1),zod.literal(2)]),
+  "margins": zod.object({
+  "top": zod.number().min(applyCustomFormatBodyFormatMarginsTopMin).max(applyCustomFormatBodyFormatMarginsTopMax),
+  "right": zod.number().min(applyCustomFormatBodyFormatMarginsRightMin).max(applyCustomFormatBodyFormatMarginsRightMax),
+  "bottom": zod.number().min(applyCustomFormatBodyFormatMarginsBottomMin).max(applyCustomFormatBodyFormatMarginsBottomMax),
+  "left": zod.number().min(applyCustomFormatBodyFormatMarginsLeftMin).max(applyCustomFormatBodyFormatMarginsLeftMax)
+}),
+  "citationStyle": zod.enum(['numbered', 'author-year']),
+  "figureWidth": zod.number().min(applyCustomFormatBodyFormatFigureWidthMin).max(applyCustomFormatBodyFormatFigureWidthMax),
+  "captionPosition": zod.enum(['above', 'below']),
+  "figurePlacement": zod.enum(['inline', 'end']),
+  "sectionOrder": zod.array(zod.string().max(applyCustomFormatBodyFormatSectionOrderItemMax)).max(applyCustomFormatBodyFormatSectionOrderMax),
+  "headingRenames": zod.array(zod.object({
+  "from": zod.string().min(1).max(applyCustomFormatBodyFormatHeadingRenamesItemFromMax),
+  "to": zod.string().min(1).max(applyCustomFormatBodyFormatHeadingRenamesItemToMax)
+})).max(applyCustomFormatBodyFormatHeadingRenamesMax),
+  "maxWords": zod.number().int().min(applyCustomFormatBodyFormatMaxWordsMin).max(applyCustomFormatBodyFormatMaxWordsMax).optional(),
+  "maxAbstractWords": zod.number().int().min(applyCustomFormatBodyFormatMaxAbstractWordsMin).max(applyCustomFormatBodyFormatMaxAbstractWordsMax).optional(),
+  "instructions": zod.string().max(applyCustomFormatBodyFormatInstructionsMax),
+  "instructionsDocumentId": zod.string().optional()
+})
+})
+
+export const ApplyCustomFormatResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
 export const createPaperReviewBodyTargetMax = 2000;
 
 

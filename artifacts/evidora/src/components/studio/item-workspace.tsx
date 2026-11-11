@@ -7,7 +7,7 @@ import {
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, ClipboardCheck, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, SlidersHorizontal, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FigureView, MissingFigure } from "./figure-view";
 import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
@@ -27,6 +27,7 @@ import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
+import { CustomFormatBanner, CustomFormatDialog } from "./custom-format-dialog";
 
 const GENERATABLE = new Set<string>(Object.values(StudioGenerationInputKind));
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
@@ -128,6 +129,8 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
   const genKind = GENERATABLE.has(item.kind) ? item.kind as StudioGenerationInputKind : null;
   const figLimit = usageLimitMessage(usage.data, genKind === "literature" ? "review" : "answer");
   const [figOpen, setFigOpen] = useState(false);
+  const [fmtOpen, setFmtOpen] = useState(false);
+  const canCustomFormat = (item.kind === "journal" || item.kind === "thesis") && item.status === "completed" && canSave;
   const [figPrompt, setFigPrompt] = useState("");
   const canFigure = !!genKind && canSave && item.status === "completed" && !isProjectInfo;
   const doFigure = async (prompt = figPrompt) => {
@@ -210,10 +213,13 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
             {canSave && dirty && <button className="sx-btn sx-primary" disabled={save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-toolbar"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>}
             {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Check requirements &amp; research</Link>}
+            {canCustomFormat && <button className="sx-btn" disabled={dirty} title={dirty ? "Save your edits first, then customise the format" : "Choose your own layout for a new revision"} onClick={() => setFmtOpen(true)} aria-haspopup="dialog" data-testid="button-open-custom-format"><SlidersHorizontal />Custom format</button>}
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>
         <div className={reading ? "mx-auto max-w-[760px] px-5 py-6 md:px-10 md:py-10" : "px-5 py-5 md:px-9 md:py-8"}>
+          {(item.kind === "journal" || item.kind === "thesis") && <CustomFormatBanner item={item} />}
+          {dirty && canCustomFormat && <p className="mb-1 text-xs text-vermilion" data-testid="text-custom-format-blocked">Save your edits first to use Custom format.</p>}
           {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save your changes before downloading. PDF and Word files use the last saved version{detailsDirty || profileDirty ? ", including your name, institution and chosen format" : ""}.</p>}
           {!dirty && missing.length > 0 && <p className="mb-3 text-xs text-[hsl(var(--turmeric))]" role="status" data-testid="text-export-missing">Before export: {missing.join("; ")}. You can still export.</p>}
           {mode === "edit" && canSave
@@ -310,6 +316,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             </Sheet>
           : <aside>{tools}</aside>; })()}
 
+      {canCustomFormat && <CustomFormatDialog item={item} open={fmtOpen && !dirty} onOpenChange={setFmtOpen} onOpen={onOpen} />}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>

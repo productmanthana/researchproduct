@@ -51,7 +51,8 @@ router.post("/studio/items/:id/apply-format",async(req,res)=>{
     const metadata={...parent.metadata,templateId:template.id,requirementsCheck:check,
       documentDetails:review.metadata.documentDetails??parent.metadata.documentDetails??{},
       ...(uploaded?{figures:review.metadata.figures??[]}:{}),formatReviewId:id};
-    for(const key of ["pdfExport","docxExport","review","reviewedAt","request","scorecard","paperReview","similarity"])delete metadata[key];
+    for(const key of ["pdfExport","docxExport","review","reviewedAt","request","scorecard","paperReview","similarity","customFormat","customFormatWarnings","customFormatStatus"])delete metadata[key];
+    if(parent.metadata?.customFormat)metadata.requirementsCheck={...check,checks:[{label:"Official layout applied to a new copy",status:"manual",detail:"The personal layout was replaced by the supported official settings. Inspect the exported file and rerun content checks before submitting."}],coverage:"Earlier checks described the custom source. This new copy needs confirmation after its format change."};
     const nextId=randomUUID(),kind=template.kind==="thesis"?"thesis":template.kind==="synopsis"?"synopsis":"journal";
     created=(await client.query("INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,status,parent_id,revision,metadata) VALUES($1,$2,$3,$4,$5,$6,'completed',$7,$8,$9) RETURNING *",
       [nextId,owner,parent.project_id,kind,`Formatted draft: ${review.metadata.originalName??parent.title}`.slice(0,300),content,parent.id,parent.revision+1,JSON.stringify(metadata)])).rows[0];

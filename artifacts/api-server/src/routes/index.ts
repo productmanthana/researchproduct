@@ -10,10 +10,12 @@ import documentReviewsRouter from "./document-reviews";
 import webEvidenceRouter from "./web-evidence";
 import liveGenerationRouter from "./live-generation";
 import paperReviewsRouter from "./paper-reviews";
+import customFormatsRouter from "./custom-formats";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(customFormatsRouter);
 router.use(catalogueRouter);
 router.use(workspaceRouter);
 router.use(documentsRouter);

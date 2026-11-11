@@ -10,6 +10,13 @@
     }
   ],
   "paths": {
+    "/studio/custom-formats": {
+      "get":{"operationId":"listCustomFormats","responses":{"200":{"description":"Personal formats","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/PersonalFormat"}}}}}}},
+      "post":{"operationId":"saveCustomFormat","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/PersonalFormatInput"}}}},"responses":{"200":{"description":"Saved personal format","content":{"application/json":{"schema":{"$ref":"#/components/schemas/PersonalFormat"}}}}}}
+    },
+    "/studio/custom-formats/{id}":{"delete":{"operationId":"deleteCustomFormat","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"204":{"description":"Deleted personal format"}}}},
+    "/studio/custom-formats/import":{"post":{"operationId":"importCustomFormat","requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/FormatImportInput"}}}},"responses":{"200":{"description":"Imported settings and limitations","content":{"application/json":{"schema":{"$ref":"#/components/schemas/FormatImportResult"}}}}}}},
+    "/studio/items/{id}/custom-format":{"get":{"operationId":"getCustomFormat","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Effective current settings","content":{"application/json":{"schema":{"$ref":"#/components/schemas/FormatImportResult"}}}}}},"post":{"operationId":"applyCustomFormat","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/CustomFormatInput"}}}},"responses":{"200":{"description":"Separate customised revision","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}},
     "/studio/paper-reviews": {
       "post": {
         "operationId": "createPaperReview",
@@ -1278,6 +1285,18 @@
   },
   "components": {
     "schemas": {
+      "CustomFormat":{"type":"object","required":["size","fontFamily","fontSize","lineSpacing","columns","margins","citationStyle","figureWidth","captionPosition","figurePlacement","sectionOrder","headingRenames","instructions"],"properties":{
+        "size":{"type":"string","enum":["A4","LETTER"]},"fontFamily":{"type":"string","enum":["serif","sans"]},"fontSize":{"type":"number","minimum":8,"maximum":16},"lineSpacing":{"type":"number","minimum":1,"maximum":2.5},"columns":{"type":"integer","enum":[1,2]},
+        "margins":{"type":"object","required":["top","right","bottom","left"],"properties":{"top":{"type":"number","minimum":18,"maximum":144},"right":{"type":"number","minimum":18,"maximum":144},"bottom":{"type":"number","minimum":18,"maximum":144},"left":{"type":"number","minimum":18,"maximum":144}}},
+        "citationStyle":{"type":"string","enum":["numbered","author-year"]},"figureWidth":{"type":"number","minimum":40,"maximum":100},"captionPosition":{"type":"string","enum":["above","below"]},"figurePlacement":{"type":"string","enum":["inline","end"]},
+        "sectionOrder":{"type":"array","maxItems":30,"items":{"type":"string","maxLength":100}},"headingRenames":{"type":"array","maxItems":30,"items":{"$ref":"#/components/schemas/HeadingRename"}},
+        "maxWords":{"type":"integer","minimum":100,"maximum":100000},"maxAbstractWords":{"type":"integer","minimum":50,"maximum":2000},"instructions":{"type":"string","maxLength":16000},"instructionsDocumentId":{"type":"string"}}},
+      "HeadingRename":{"type":"object","required":["from","to"],"properties":{"from":{"type":"string","minLength":1,"maxLength":100},"to":{"type":"string","minLength":1,"maxLength":100}}},
+      "CustomFormatInput":{"type":"object","required":["format"],"properties":{"format":{"$ref":"#/components/schemas/CustomFormat"}}},
+      "PersonalFormatInput":{"type":"object","required":["name","format"],"properties":{"id":{"type":"string"},"name":{"type":"string","minLength":1,"maxLength":100},"kind":{"type":"string","enum":["journal","thesis"]},"format":{"$ref":"#/components/schemas/CustomFormat"}}},
+      "PersonalFormat":{"allOf":[{"$ref":"#/components/schemas/PersonalFormatInput"},{"type":"object","required":["id","updatedAt"],"properties":{"id":{"type":"string"},"updatedAt":{"type":"string","format":"date-time"}}}]},
+      "FormatImportInput":{"type":"object","required":["documentId"],"properties":{"documentId":{"type":"string"}}},
+      "FormatImportResult":{"type":"object","required":["format","warnings"],"properties":{"format":{"$ref":"#/components/schemas/CustomFormat"},"warnings":{"type":"array","items":{"type":"string"}}}},
       "DocumentReviewInput":{"type":"object","required":["projectId","documentId","prompt"],"properties":{"projectId":{"type":"string"},"documentId":{"type":"string"},"prompt":{"type":"string","minLength":5,"maxLength":5000},"includePatents":{"type":"boolean","default":true},"pageNumbers":{"type":"array","maxItems":12,"items":{"type":"integer","minimum":1,"maximum":50}}}},
       "ReviewDecisionInput":{"type":"object","required":["suggestionId","action","expectedDraftId"],"properties":{"suggestionId":{"type":"string"},"action":{"type":"string","enum":["approve","dismiss"]},"expectedDraftId":{"type":["string","null"]}}},
       "ResearchWatchInput":{"type":"object","required":["topic","enabled","patents"],"properties":{"topic":{"type":"string","minLength":5,"maxLength":2000},"enabled":{"type":"boolean"},"patents":{"type":"boolean"}}},

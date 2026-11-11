@@ -4,6 +4,7 @@ import { SCIENTIFIC_MODEL } from "./ai-budget";
 import { loadOfficialGuidelines, type OfficialGuidelines } from "./official-guidelines";
 import { sectionText } from "./studio-formatting";
 import { logger } from "./logger";
+import { savedCustomFormat } from "./custom-format";
 
 const LayoutField = z.enum(["pageSize","fontSize","lineSpacing","columns","marginTop","marginRight","marginBottom","marginLeft"]);
 const LayoutRule = z.object({field:LayoutField,value:z.preprocess(v=>typeof v==="string"&&/^\d+(?:\.\d+)?$/.test(v.trim())?Number(v):v,z.union([z.number(),z.enum(["A4","LETTER"])])),quote:z.string().min(8).max(1200)});
@@ -53,8 +54,14 @@ export function evaluateRequirements(row:any,plan:RequirementPlan) {
   const appliedLayout=requirementLayout(plan);
   const checks:{label:string;status:"met"|"missing"|"manual";detail:string;quote?:string;action?:string}[]=[];
   const fieldLabels:Record<string,string>={pageSize:"Page size",fontSize:"Text size",lineSpacing:"Line spacing",columns:"Number of columns",marginTop:"Top margin",marginRight:"Right margin",marginBottom:"Bottom margin",marginLeft:"Left margin"};
-  for(const r of plan.layout)checks.push({label:fieldLabels[r.field],status:plan.source.status==="retrieved"?"met":"manual",quote:r.quote,
-    detail:plan.source.status==="retrieved"?`Export setting configured: ${r.value}${r.field.startsWith("margin")?" pt":""}.`:"Author-supplied layout instruction; confirm against official rules.",action:plan.source.status==="retrieved"?"":"Confirm the current official instruction."});
+  const custom=savedCustomFormat(row);
+  for(const r of plan.layout){
+    const actual=custom?(r.field==="pageSize"?custom.size:r.field.startsWith("margin")?custom.margins[r.field.slice(6).toLowerCase() as keyof typeof custom.margins]:custom[r.field as "fontSize"|"lineSpacing"|"columns"]):r.value;
+    const conflict=custom&&actual!==r.value;
+    checks.push({label:fieldLabels[r.field],status:plan.source.status!=="retrieved"?"manual":conflict?"missing":"met",quote:r.quote,
+      detail:conflict?`Custom setting ${actual} differs from the official setting ${r.value}.`:plan.source.status==="retrieved"?`Export setting configured: ${r.value}${r.field.startsWith("margin")?" pt":""}.`:"Author-supplied layout instruction; confirm against official rules.",
+      action:conflict?"Keep your custom choice or create a copy using the supported official settings.":plan.source.status==="retrieved"?"":"Confirm the current official instruction."});
+  }
   for(const r of plan.rules) {
     let actual:string|number|boolean="",met:boolean|undefined;
     const expected=Number(r.expected),content=String(row.content??"");

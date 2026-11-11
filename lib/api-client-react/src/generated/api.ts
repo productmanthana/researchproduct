@@ -30,6 +30,7 @@ import type {
   AnalysisInput,
   AnalysisUpdate,
   CreatePaperReviewBody,
+  CustomFormatInput,
   DeleteStudioItem200,
   Document,
   DocumentLink,
@@ -38,6 +39,8 @@ import type {
   DownloadStudioFigureParams,
   ExportAnalysisParams,
   ExportStudioDocumentParams,
+  FormatImportInput,
+  FormatImportResult,
   GetLandscapeParams,
   GetRelatedPapersParams,
   GetWebEvidence200,
@@ -51,6 +54,8 @@ import type {
   ListResearchAlertsParams,
   ListStudioItemsParams,
   Paper,
+  PersonalFormat,
+  PersonalFormatInput,
   Plan,
   Project,
   ProjectInput,
@@ -102,6 +107,511 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getListCustomFormatsUrl = () => {
+
+
+
+
+  return `/api/studio/custom-formats`
+}
+
+export const listCustomFormats = async ( options?: Parameters<typeof customFetch>[1]): Promise<PersonalFormat[]> => {
+
+  return customFetch<PersonalFormat[]>(getListCustomFormatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustomFormatsQueryKey = () => {
+    return [
+    `/api/studio/custom-formats`
+    ] as const;
+    }
+
+
+export const getListCustomFormatsQueryOptions = <TData = Awaited<ReturnType<typeof listCustomFormats>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustomFormatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomFormats>>> = ({ signal }) => listCustomFormats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCustomFormatsQueryResult = NonNullable<Awaited<ReturnType<typeof listCustomFormats>>>
+export type ListCustomFormatsQueryError = ErrorType<unknown>
+
+
+export function useListCustomFormats<TData = Awaited<ReturnType<typeof listCustomFormats>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomFormats>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomFormats>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomFormats<TData = Awaited<ReturnType<typeof listCustomFormats>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomFormats>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomFormats>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCustomFormats<TData = Awaited<ReturnType<typeof listCustomFormats>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useListCustomFormats<TData = Awaited<ReturnType<typeof listCustomFormats>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCustomFormats>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCustomFormatsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveCustomFormatUrl = () => {
+
+
+
+
+  return `/api/studio/custom-formats`
+}
+
+export const saveCustomFormat = async (personalFormatInput: PersonalFormatInput, options?: Parameters<typeof customFetch>[1]): Promise<PersonalFormat> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PersonalFormat>(getSaveCustomFormatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalFormatInput)
+  }
+);}
+
+
+
+
+
+export const getSaveCustomFormatMutationKey = () => ['saveCustomFormat'] as const;
+
+export const getSaveCustomFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCustomFormat>>, TError,SaveCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveCustomFormat>>, TError,SaveCustomFormatMutationVariables, TContext> => {
+
+const mutationKey = getSaveCustomFormatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveCustomFormat>>, SaveCustomFormatMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveCustomFormat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveCustomFormatMutationResult = NonNullable<Awaited<ReturnType<typeof saveCustomFormat>>>
+    export type SaveCustomFormatMutationBody = BodyType<PersonalFormatInput>
+    export type SaveCustomFormatMutationError = ErrorType<unknown>
+    export type SaveCustomFormatMutationVariables = {data: BodyType<PersonalFormatInput>}
+
+    export const useSaveCustomFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveCustomFormat>>, TError,SaveCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof saveCustomFormat>>,
+        TError,
+        SaveCustomFormatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveCustomFormatMutationOptions(options), queryClient);
+    }
+
+export const getDeleteCustomFormatUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/custom-formats/${id}`
+}
+
+export const deleteCustomFormat = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCustomFormatUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCustomFormatMutationKey = () => ['deleteCustomFormat'] as const;
+
+export const getDeleteCustomFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustomFormat>>, TError,DeleteCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCustomFormat>>, TError,DeleteCustomFormatMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCustomFormatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCustomFormat>>, DeleteCustomFormatMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCustomFormat(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCustomFormatMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCustomFormat>>>
+
+    export type DeleteCustomFormatMutationError = ErrorType<unknown>
+    export type DeleteCustomFormatMutationVariables = {id: string}
+
+    export const useDeleteCustomFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustomFormat>>, TError,DeleteCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCustomFormat>>,
+        TError,
+        DeleteCustomFormatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCustomFormatMutationOptions(options), queryClient);
+    }
+
+export const getImportCustomFormatUrl = () => {
+
+
+
+
+  return `/api/studio/custom-formats/import`
+}
+
+export const importCustomFormat = async (formatImportInput: FormatImportInput, options?: Parameters<typeof customFetch>[1]): Promise<FormatImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FormatImportResult>(getImportCustomFormatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(formatImportInput)
+  }
+);}
+
+
+
+
+
+export const getImportCustomFormatMutationKey = () => ['importCustomFormat'] as const;
+
+export const getImportCustomFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importCustomFormat>>, TError,ImportCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof importCustomFormat>>, TError,ImportCustomFormatMutationVariables, TContext> => {
+
+const mutationKey = getImportCustomFormatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof importCustomFormat>>, ImportCustomFormatMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  importCustomFormat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImportCustomFormatMutationResult = NonNullable<Awaited<ReturnType<typeof importCustomFormat>>>
+    export type ImportCustomFormatMutationBody = BodyType<FormatImportInput>
+    export type ImportCustomFormatMutationError = ErrorType<unknown>
+    export type ImportCustomFormatMutationVariables = {data: BodyType<FormatImportInput>}
+
+    export const useImportCustomFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof importCustomFormat>>, TError,ImportCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof importCustomFormat>>,
+        TError,
+        ImportCustomFormatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImportCustomFormatMutationOptions(options), queryClient);
+    }
+
+export const getGetCustomFormatUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/custom-format`
+}
+
+export const getCustomFormat = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<FormatImportResult> => {
+
+  return customFetch<FormatImportResult>(getGetCustomFormatUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustomFormatQueryKey = (id: string,) => {
+    return [
+    `/api/studio/items/${id}/custom-format`
+    ] as const;
+    }
+
+
+export const getGetCustomFormatQueryOptions = <TData = Awaited<ReturnType<typeof getCustomFormat>>, TError = ErrorType<unknown>>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustomFormatQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomFormat>>> = ({ signal }) => getCustomFormat(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCustomFormatQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomFormat>>>
+export type GetCustomFormatQueryError = ErrorType<unknown>
+
+
+export function useGetCustomFormat<TData = Awaited<ReturnType<typeof getCustomFormat>>, TError = ErrorType<unknown>>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomFormat>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomFormat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomFormat<TData = Awaited<ReturnType<typeof getCustomFormat>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomFormat>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomFormat>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCustomFormat<TData = Awaited<ReturnType<typeof getCustomFormat>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetCustomFormat<TData = Awaited<ReturnType<typeof getCustomFormat>>, TError = ErrorType<unknown>>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomFormat>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCustomFormatQueryOptions(id,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getApplyCustomFormatUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/custom-format`
+}
+
+export const applyCustomFormat = async (id: string,
+    customFormatInput: CustomFormatInput, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<StudioItem>(getApplyCustomFormatUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(customFormatInput)
+  }
+);}
+
+
+
+
+
+export const getApplyCustomFormatMutationKey = () => ['applyCustomFormat'] as const;
+
+export const getApplyCustomFormatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyCustomFormat>>, TError,ApplyCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof applyCustomFormat>>, TError,ApplyCustomFormatMutationVariables, TContext> => {
+
+const mutationKey = getApplyCustomFormatMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof applyCustomFormat>>, ApplyCustomFormatMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  applyCustomFormat(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApplyCustomFormatMutationResult = NonNullable<Awaited<ReturnType<typeof applyCustomFormat>>>
+    export type ApplyCustomFormatMutationBody = BodyType<CustomFormatInput>
+    export type ApplyCustomFormatMutationError = ErrorType<unknown>
+    export type ApplyCustomFormatMutationVariables = {id: string;data: BodyType<CustomFormatInput>}
+
+    export const useApplyCustomFormat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof applyCustomFormat>>, TError,ApplyCustomFormatMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof applyCustomFormat>>,
+        TError,
+        ApplyCustomFormatMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApplyCustomFormatMutationOptions(options), queryClient);
+    }
 
 export const getCreatePaperReviewUrl = () => {
 

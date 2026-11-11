@@ -54,7 +54,7 @@ export async function generatePaperReview(row:any){
   const m:any=generated.metadata;
   m.templateId=template?.id??null;
   m.documentDetails=original?.metadata?.documentDetails??{};
-  m.requirementsCheck=evaluateRequirements({content:generated.content,metadata:m},requirementPlan);
+  m.requirementsCheck=evaluateRequirements({content:generated.content,metadata:{...m,customFormat:original?.metadata?.customFormat}},requirementPlan);
   const sources=m.reviewSources??[],sourceIds=new Set<string>(sources.map((s:any)=>s.id));
   const reviewers=[];
   for(const role of ["Subject reviewer","Methods reviewer","Editorial reviewer"]){

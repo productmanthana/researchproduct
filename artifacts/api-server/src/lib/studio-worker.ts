@@ -2,6 +2,7 @@ import { pool } from "@workspace/db";
 import { z } from "zod";
 import { aiContext, SCIENTIFIC_MODEL } from "./ai-budget";
 import { jsonCall, liveJsonCall } from "./ai-json";
+import { savedCustomFormat,customFormatContent,customFormatWarnings } from "./custom-format";
 import { withLiveGeneration, clearLive } from "./live-generation";
 import { retrievalContext } from "./semantic-retrieval";
 import { discoverForQuestion } from "./ask-discovery";
@@ -122,6 +123,8 @@ Scientific figures are created in a separate evidence-checked step. Do not inven
 Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never promise human authorship or detector evasion.`;
   await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Academic Writing Agent · developing your draft"})]);
   const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,conversation:conversation.turns,project:{name:project.name,description:project.description},context:projectMaterial,...(parentRow?.kind==="ideas"?{selectedIdeaSet:parentRow.metadata?.ideas??[]}:{}),passages,template,officialRequirements:requirementPlan?{status:requirementPlan.source.status,sourceUrl:requirementPlan.source.sourceUrl,rules:requirementPlan.rules,layout:requirementPlan.layout}:undefined,documentDetails:request.documentDetails,evidence,date:new Date().toISOString().slice(0,10)})}];
+  const personalFormat=parentRow&&selectedTemplateId!==parentRow.metadata?.templateId?undefined:savedCustomFormat(parentRow??row);
+  if(personalFormat)body.push({type:"text",text:JSON.stringify({personalFormattingPreferences:personalFormat,note:"These are the author's preferences/instructions, not verified scholarly evidence or official approval. Follow their headings/order and length limits without fabricating research, results or declarations."})});
   for(const source of sources.filter(s=>s.image).slice(0,3))body.push({type:"text",text:`Original page image for reference [${sources.indexOf(source)+1}]`},{type:"image_url",image_url:{url:source.image,detail:"high"}});
   if(!figureOnly)await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Writing Agent · drafting with retrieved evidence"})]);
   const output=figureOnly?{value:{title:parentRow.title,content:parentRow.content}}:await liveJsonCall(prompt,body,SCIENTIFIC_MODEL);
@@ -165,11 +168,14 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const final=figureOnly?content:`${content}${references?`\n\n## References\n\n${references}`:""}\n\n## Author review\n\nAI-assisted working draft. Verify sources, actual research inputs and target submission requirements before use.`;
   const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:sources.map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode};
   delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
+  const formattedFinal=personalFormat?customFormatContent(final,personalFormat,draft.title):final;
+  if(personalFormat)Object.assign(metadata,{customFormat:personalFormat,customFormatWarnings:customFormatWarnings({content:formattedFinal,metadata},personalFormat),customFormatStatus:"Customised — not verified"});
   if(requirementPlan){
     metadata.templateId=selectedTemplateId??null;
-    metadata.requirementsCheck=evaluateRequirements({content:final,metadata},requirementPlan);
+    metadata.requirementsCheck=evaluateRequirements({content:formattedFinal,metadata},requirementPlan);
+    if(personalFormat)metadata.requirementsCheck={...metadata.requirementsCheck,officialLayout:metadata.requirementsCheck.appliedLayout,appliedLayout:{}};
   }
-  return {title:draft.title,content:final,metadata:{...metadata,webEvidence}};
+  return {title:draft.title,content:formattedFinal,metadata:{...metadata,webEvidence}};
 }
 let busy=false;
 export async function processStudioJob() {

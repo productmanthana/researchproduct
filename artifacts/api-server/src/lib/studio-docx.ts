@@ -3,13 +3,15 @@ import { documentBlocks,documentLayoutFor,sectionText } from "./studio-formattin
 import { referencedFigures } from "./scientific-figures";
 import { figurePng,figureAspect } from "./figure-renderer";
 import { parseExportReference, prepareExportReferences } from "./export-references";
+import { customCitationExport,savedCustomFormat } from "./custom-format";
 export async function renderStudioWord(row:any):Promise<Buffer>{
-  row=prepareExportReferences(row);
+  row=customCitationExport(prepareExportReferences(row));
+  const custom=savedCustomFormat(row);
   const id=row.metadata?.templateId,l=documentLayoutFor(row),d=row.metadata?.documentDetails??{};
   const figures=referencedFigures(row.content,row.metadata?.figures??[]);
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   const title=row.title,body=row.content.replace(new RegExp("^# "+title.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\n"),"");
-  const paragraph=(text:string,center=false)=>new Paragraph({children:[new TextRun(text)],alignment:center?AlignmentType.CENTER:undefined,spacing:{after:160,line:Math.round(l.lineSpacing*240)},widowControl:true});
+  const paragraph=(text:string,center=false,keepNext=false)=>new Paragraph({children:[new TextRun(text)],keepNext,alignment:center?AlignmentType.CENTER:undefined,spacing:{after:160,line:Math.round(l.lineSpacing*240)},widowControl:true});
   const blocks=(text:string,columns=l.columns)=>{
     const result:(Paragraph|Table)[]=[];
     let references=false;
@@ -18,17 +20,19 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
       else if(b.kind==="table")result.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:b.rows.map((r,i)=>new TableRow({tableHeader:i===0,children:r.map(text=>new TableCell({children:[new Paragraph({text,spacing:{line:240}})]}))}))}));
       else if(b.kind==="figure"){
         const f=figures.find(f=>f.id===b.id)!;
-        const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(columns===2?18:0))/columns*96/72);
+        const width=Math.floor(((l.size==="A4"?595.28:612)-l.margins.left-l.margins.right-(columns===2?18:0))/columns*96/72*(custom?.figureWidth??100)/100);
         const height=Math.min(id==="academic-report"?340:650,Math.round(width*figureAspect(f))),imageWidth=Math.round(height/figureAspect(f));
-        result.push(new Paragraph({keepNext:true,children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
-        result.push(paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`));
+        const caption=paragraph(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,false,custom?.captionPosition==="above");
+        if(custom?.captionPosition==="above")result.push(caption);
+        result.push(new Paragraph({keepNext:custom?.captionPosition!=="above",children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
+        if(custom?.captionPosition!=="above")result.push(caption);
         if(f.explanation&&id!=="academic-report")result.push(paragraph(f.explanation));
         result.push(paragraph(f.provenance));
       }else{
         const reference=references?parseExportReference(b.text):undefined;
         result.push(reference?new Paragraph({
           indent:{left:540,hanging:540},tabStops:[{type:TabStopType.LEFT,position:540}],spacing:{after:160,line:276},widowControl:true,
-          children:[new TextRun(`[${reference.number}]\t${reference.citation}`),
+          children:[new TextRun(`${custom?.citationStyle==="author-year"?"":`[${reference.number}]\t`}${reference.citation}`),
             ...(reference.href?[new TextRun({break:1}),new ExternalHyperlink({link:reference.href,children:[new TextRun({text:reference.linkLabel,style:"Hyperlink"})]})]:[])],
         }):paragraph(b.text));
       }
@@ -50,7 +54,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
     const contentWithoutAbstract=abstract?body.replace(/^#{1,3}\s+Abstract\s*\n[\s\S]*?(?=^#{1,3}\s|(?![\s\S]))/im,""):body;
     sections.push({properties:{page:{...page,pageNumbers:{start:id==="stanford"?4:id==="harvard"?3:2,formatType:NumberFormat.LOWER_ROMAN}},type:SectionType.NEXT_PAGE},footers:{default:footer},children:[new Paragraph({text:"Abstract",heading:HeadingLevel.HEADING_1}),paragraph(abstract||"[Abstract required — add your research abstract before submission.]")]});
     sections.push({properties:{page:{...page,pageNumbers:{formatType:NumberFormat.LOWER_ROMAN}},type:SectionType.NEXT_PAGE},footers:{default:footer},children:[new Paragraph({text:"Contents",heading:HeadingLevel.TITLE}),new TableOfContents("Contents",{hyperlink:true,headingStyleRange:"1-3"})]});
-    sections.push({properties:{page:{...page,pageNumbers:{start:1,formatType:NumberFormat.DECIMAL}},type:SectionType.NEXT_PAGE},footers:{default:footer},children:blocks(contentWithoutAbstract)});
+    sections.push({properties:{page:{...page,pageNumbers:{start:1,formatType:NumberFormat.DECIMAL}},column:{count:l.columns,space:360,equalWidth:true},type:SectionType.NEXT_PAGE},footers:{default:footer},children:blocks(contentWithoutAbstract)});
   }else{
     sections.push({properties:{page},children:titleParagraphs});
     // Wide scientific figures span journal columns instead of shrinking labels
@@ -62,6 +66,6 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
     }
   }
   return Packer.toBuffer(new Document({title,creator:d.author||"Evidora",features:{updateFields:true},
-    styles:{default:{document:{run:{font:"Times New Roman",size:l.fontSize*2,color:"000000"},paragraph:{spacing:{line:Math.round(l.lineSpacing*240)}}}}},
+    styles:{default:{...(custom?{title:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading1:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading2:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading3:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}}}:{}),document:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman",size:l.fontSize*2,color:"000000"},paragraph:{spacing:{line:Math.round(l.lineSpacing*240)}}}}},
     sections}));
 }

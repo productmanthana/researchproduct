@@ -1,7 +1,8 @@
 /** Layout values are export settings, not a claim of publisher certification. */
+import { savedCustomFormat } from "./custom-format";
 export type Layout = {
   size:"LETTER"|"A4"; fontSize:number; lineSpacing:number; columns:number;
-  margins:{top:number;bottom:number;left:number;right:number}; thesis:boolean;
+  margins:{top:number;bottom:number;left:number;right:number}; thesis:boolean;fontFamily?:"serif"|"sans";
 };
 const inch=72,mm=72/25.4;
 export function documentLayout(id?:string):Layout {
@@ -18,6 +19,9 @@ export function documentLayout(id?:string):Layout {
 /** Apply only bounded settings extracted from this exact selected official source. */
 export function documentLayoutFor(row:any):Layout {
   const base=documentLayout(row.metadata?.templateId),check=row.metadata?.requirementsCheck;
+  const custom=savedCustomFormat(row);
+  if(custom)return {...base,size:custom.size,fontFamily:custom.fontFamily,fontSize:custom.fontSize,lineSpacing:custom.lineSpacing,
+    columns:custom.columns,margins:{...custom.margins},thesis:row.kind==="thesis"};
   if(check?.status!=="retrieved"||check.templateId!==row.metadata?.templateId)return base;
   const supplied=check.appliedLayout??{},layout={...base,margins:{...base.margins}};
   if(["A4","LETTER"].includes(supplied.size))layout.size=supplied.size;
@@ -42,6 +46,7 @@ export function sectionText(content:string,name:string){
 }
 export function formatIssues(row:any):string[]{
   const id=row.metadata?.templateId,d=row.metadata?.documentDetails??{},issues:string[]=[];
+  if(row.metadata?.customFormat)return row.metadata?.customFormatWarnings??["Custom format selected. Confirm requirements before submission."];
   if(!id)return ["No journal or institution profile is selected; a general academic layout will be exported."];
   if(!d.author?.trim())issues.push("Author name is missing from document details.");
   if(!d.affiliation?.trim())issues.push("Author affiliation is missing from document details.");

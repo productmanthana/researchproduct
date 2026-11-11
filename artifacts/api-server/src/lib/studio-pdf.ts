@@ -3,10 +3,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { documentBlocks,documentLayoutFor,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
+import { customCitationExport,savedCustomFormat } from "./custom-format";
 import { figurePng,figureAspect } from "./figure-renderer";
 import { parseExportReference, prepareExportReferences } from "./export-references";
 export async function renderStudioPdf(row:any):Promise<Buffer>{
-  row=prepareExportReferences(row);
+  row=customCitationExport(prepareExportReferences(row));
+  const custom=savedCustomFormat(row);
   const figures=referencedFigures(row.content,row.metadata?.figures??[]);
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   return new Promise((resolve,reject)=>{
@@ -17,8 +19,8 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
       // Works in the production bundle and the package-root test bundle.
       const here=path.dirname(fileURLToPath(import.meta.url));
       const fontDir=path.resolve(here,here.endsWith("/dist")?"../assets/fonts":"assets/fonts");
-      pdf.registerFont("Academic",path.join(fontDir,"DejaVuSerif.ttf"));
-      pdf.registerFont("AcademicBold",path.join(fontDir,"DejaVuSerif-Bold.ttf"));
+      pdf.registerFont("Academic",path.join(fontDir,l.fontFamily==="sans"?"DejaVuSans.ttf":"DejaVuSerif.ttf"));
+      pdf.registerFont("AcademicBold",path.join(fontDir,l.fontFamily==="sans"?"DejaVuSans-Bold.ttf":"DejaVuSerif-Bold.ttf"));
       pdf.font("Academic").fillColor("#000000");
       const fullWidth=pdf.page.width-l.margins.left-l.margins.right;
       let columns=1,column=0,y=l.margins.top;
@@ -65,7 +67,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         const headings=documentBlocks(body).filter(b=>b.kind==="heading"&&b.level<=2);
         const pages=Math.max(1,Math.ceil(headings.length/22));
         for(let i=0;i<pages;i++){addPage();contentsPages.push(pageIndex);}
-        addPage();bodyStart=pageIndex;
+        addPage();bodyStart=pageIndex;columns=l.columns;
       }else{y+=14;columns=l.columns;}
       let references=false,disclosure=false;
       for(const block of documentBlocks(body)){
@@ -80,7 +82,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         }else if(block.kind==="paragraph"){
           const reference=references?parseExportReference(block.text):undefined;
           if(reference){
-            const size=Math.min(l.fontSize,10.5),indent=27,lineHeight=size*1.2+2;
+            const size=Math.min(l.fontSize,10.5),indent=custom?.citationStyle==="author-year"?0:27,lineHeight=size*1.2+2;
             pdf.font("Academic").fontSize(size);
             const lines=wrap(reference.citation,width()-indent);
             const linkLines=reference.linkLabel?wrap(reference.linkLabel,width()-indent):[];
@@ -89,7 +91,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
             lines.forEach((line,i)=>{
               ensure(lineHeight);
               pdf.fillColor("#000000");
-              if(!i)pdf.text(`[${reference.number}]`,x(),y,{width:indent-3,lineBreak:false});
+              if(!i&&custom?.citationStyle!=="author-year")pdf.text(`[${reference.number}]`,x(),y,{width:indent-3,lineBreak:false});
               pdf.text(line,x()+indent,y,{width:width()-indent,lineBreak:false});
               y+=lineHeight;
             });
@@ -105,11 +107,12 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
           const f=figures.find(f=>f.id===block.id)!;
           const previousColumns=columns;
           if(columns===2){columns=1;addPage();}
-          const imageHeight=Math.min(width()*figureAspect(f),id==="academic-report"?255:pdf.page.height-l.margins.top-l.margins.bottom-100);
+          const imageHeight=Math.min(width()*(custom?.figureWidth??100)/100*figureAspect(f),id==="academic-report"?255:pdf.page.height-l.margins.top-l.margins.bottom-100);
           ensure(imageHeight+50);
+          if(custom?.captionPosition==="above")text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
           pdf.image(images.get(f.id)!,x(),y,{width:imageHeight/figureAspect(f),height:imageHeight});
           y+=imageHeight+8;
-          text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
+          if(custom?.captionPosition!=="above")text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
           if(f.explanation&&id!=="academic-report")text(f.explanation,10,false,false,1.3);
           text(f.provenance,9,false,false,1.15);
           if(previousColumns===2){columns=previousColumns;addPage();}

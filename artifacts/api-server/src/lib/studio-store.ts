@@ -12,6 +12,10 @@ export async function initialiseStudio() {
     created_at timestamptz NOT NULL DEFAULT now(),started_at timestamptz);
     CREATE INDEX IF NOT EXISTS studio_owner_project ON research_studio_items(owner_id,project_id);
     CREATE UNIQUE INDEX IF NOT EXISTS studio_revision_child ON research_studio_items(parent_id) WHERE parent_id IS NOT NULL;`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS research_custom_formats(
+    id text PRIMARY KEY,owner_id text NOT NULL REFERENCES research_accounts(id),
+    name text NOT NULL,kind text,format jsonb NOT NULL,updated_at timestamptz NOT NULL DEFAULT now());
+    CREATE INDEX IF NOT EXISTS custom_formats_owner ON research_custom_formats(owner_id);`);
 }
 export function studioView(row:any) {
   return GetStudioItemResponse.parse({id:row.id,projectId:row.project_id,kind:row.kind,title:row.title,content:row.content,
