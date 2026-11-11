@@ -228,6 +228,40 @@ function AskInner() {
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
     }
   };
+  // Recover earlier plain chat answers through the real structured generator, keeping the original dialogue.
+  const generateCardsForAnswer = async (analysis: Analysis) => {
+    if (ownActive || generate.isPending || saveContext.isPending || createProject.isPending) return;
+    if (question.trim()) {
+      toast({ title: "Keep your current message", description: "Send or clear the message in the composer before generating idea cards." });
+      return;
+    }
+    const request = ideasIntent(analysis.question, [{ question: analysis.question, answer: analysis.content }]);
+    if (!request || !mayLeave()) return;
+    const limit = usageLimitMessage(usageData, "answer");
+    if (limit) { toast({ title: "Limit reached", description: limit, variant: "destructive" }); return; }
+    if (request.own && !activeProject) {
+      toast({ title: "Choose a project first", description: "Choose the project containing your material in My Library.", variant: "destructive" });
+      return;
+    }
+    try {
+      let project = activeProject;
+      if (!project) {
+        project = await createProject.mutateAsync({ data: { name: `Ideas: ${(request.topic ?? analysis.question).slice(0, 80)}`, description: "Research ideas continued from AI Chat." } });
+        await qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        selectProject(project.id, { skipGuard: true });
+      }
+      const contextAnswer = parent ?? analysis;
+      const bridge = await saveContext.mutateAsync({ data: { projectId: project.id, kind: "answer", title: contextAnswer.question.slice(0, 300), content: contextAnswer.content, analysisId: contextAnswer.id } });
+      const item = await generate.mutateAsync({ data: { projectId: project.id, kind: "ideas", parentId: bridge.id, prompt: request.prompt, evidenceMode: request.own ? "project" : "combined", includePatents: true } });
+      qc.setQueryData(getGetStudioItemQueryKey(item.id), item);
+      void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+      setLocation(`/ask?item=${encodeURIComponent(item.id)}`);
+    } catch (error) {
+      toast({ title: "Couldn't generate idea cards", description: friendlyError(error), variant: "destructive" });
+      void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
+    }
+  };
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     if (attached) { await submitReview(); return; }
@@ -416,6 +450,7 @@ function AskInner() {
               <ol className="es-turn-list"><StudioTurn initial={analysis} retryDisabled={!!ownActive} onRetry={text => { setQuestion(text); composer.current?.focus(); }} chatMode onSourceSelect={handleEvidenceSelect} /></ol>
               {analysis.status === "completed" && analysis.responseMode !== "guidance" && <InternetSourcesNote sources={analysis.sources} warnings={analysis.warnings ?? []} />}
               {analysis.status === "completed" && <div className="es-chat-actions">
+                {analysis.content && ideasIntent(analysis.question) && <button className="es-button es-primary" disabled={!!ownActive || generate.isPending || saveContext.isPending || createProject.isPending} onClick={() => void generateCardsForAnswer(analysis)} data-testid={`button-idea-cards-${analysis.id}`}><BookOpen />{generate.isPending || saveContext.isPending ? "Preparing idea cards…" : "Generate selectable idea cards"}</button>}
                 {analysis.responseMode !== "guidance" && analysis.sources.length > 0 && <button className="es-button es-primary" onClick={() => startDraft(analysis)}><FileText />{analysis.draftContent != null || draftBuffers[analysis.id] ? "Continue draft" : "Start a draft"}</button>}
                 {analysis.responseMode !== "guidance" && analysis.content && <SaveAnalysisToProject analysis={analysis} />}
                 {analysis.content && <>

@@ -7,7 +7,7 @@ const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null
 
 export type IdeasIntent = { own: boolean; topic: string | null; prompt: string; needsTopic: boolean };
 
-const GENERATE = /\b(suggest|generate|give( me)?|propose|brainstorm|list|come up with|need|want|find|draft|create|more|other|new|another)\b[^.?!]{0,40}\b(research |project |thesis |study )?ideas?\b/;
+const GENERATE = /\b(suggest|generate|provide|recommend|share|give( me)?|propose|brainstorm|list|come up with|need|want|find|draft|create|more|other|new|another)\b[^.?!]{0,40}\b(research |project |thesis |study )?ideas?\b/;
 const COUNTED = /\b(five|5|some|few|several|new|more|fresh|research|project|thesis) (research )?(ideas|directions|topics)\b/;
 const LEAD = /^\s*(research |project |thesis )?(ideas|topics) (for|on|about|in|around)\b/;
 const NOT_GENERATE = /\b(compare|which (of|one)|rank|evaluate|explain|pros and cons|difference|selected|choose|pick|select|refine|develop|expand)\b/;
@@ -36,7 +36,7 @@ export function ideasIntent(text: string, history: ChatContext[] = []): IdeasInt
   if (!t) return null;
   const asks = GENERATE.test(t) || COUNTED.test(t) || LEAD.test(t);
   if (!asks) return null;
-  if (NOT_GENERATE.test(t) && !/\b(suggest|generate|brainstorm|propose)\b/.test(t)) return null;
+  if (NOT_GENERATE.test(t) && !/\b(suggest|generate|provide|recommend|share|brainstorm|propose)\b/.test(t)) return null;
   if (/\b(journal|thesis|dissertation|synopsis|literature review|manuscript)\b/.test(t) && !/\bideas?\b/.test(t)) return null;
   const own = ownOnly(t);
   let topic = ideaTopic(text);

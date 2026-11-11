@@ -21,6 +21,24 @@ test("non-generation questions stay ordinary chat", () => {
   assert.equal(ideasIntent("write a journal paper on solar"), null);
 });
 
+test("provide and recommend requests use selectable ideas, including the reported power-system request", () => {
+  for (const request of [
+    "provide ideas on power system generation",
+    "please provide research ideas about power system generation",
+    "recommend ideas for renewable energy",
+    "share some ideas on smart grids",
+  ]) {
+    const intent = ideasIntent(request);
+    assert.ok(intent, request);
+    assert.equal(intent.needsTopic, false, request);
+    assert.match(intent.prompt, /Suggest five structured research ideas/);
+  }
+  assert.equal(ideasIntent("provide ideas on power system generation")?.topic, "power system generation");
+  assert.equal(ideasIntent("provide ideas from my project")?.own, true);
+  assert.equal(ideasIntent("compare the provided ideas"), null);
+  assert.equal(ideasIntent("explain why these ideas are useful"), null);
+});
+
 test("terse idea requests resolve topic from earlier turns", () => {
   const h = [{ question: "How does dust affect solar panel output in Rajasthan?", answer: "..." }];
   const r = ideasIntent("give me some ideas", h);
