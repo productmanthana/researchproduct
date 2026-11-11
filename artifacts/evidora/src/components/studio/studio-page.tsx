@@ -16,6 +16,13 @@ import { useProjectItems, useStudioItem } from "./use-studio";
 import { useItemParam } from "./use-item-param";
 import { ProjectAttachMenu } from "./project-attach";
 import { HistoryDrawer, WorkspaceBar, WorkspaceIntro } from "./workspace-shell";
+import { ItemWorkspace } from "./item-workspace";
+import { ResearchWorkbench, SourcesList } from "@/components/workbench/research-workbench";
+import { buildConversations, conversationFor } from "@/lib/conversation";
+import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
+import { isWorking, KIND_LABEL } from "@/lib/studio";
+
+const DOC_KINDS = new Set(["literature", "synopsis", "journal", "thesis"]);
 
 export type StudioPageConfig = {
   kind: Exclude<StudioGenerationInputKind, "ideas" | "answer">;
@@ -111,14 +118,35 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
     );
   }
 
+  // The document turn lives in the right Document tab; follow-ups stay in the conversation on the left.
+  const merged = item ? [...all.filter(i => i.projectId === item.projectId && i.id !== item.id), item] : all;
+  const conv = item ? conversationFor(buildConversations(merged, project.id), item.id) : undefined;
+  const docKinds = new Set([...DOC_KINDS, cfg.kind as string, cfg.saveKind as string]);
+  const docTurn = item ? (conv?.turns.find(t => t.revisions.some(r => r.id === item.id) && docKinds.has(item.kind)) ?? [...(conv?.turns ?? [])].reverse().find(t => docKinds.has(t.latest.kind))) : undefined;
+  const docItem = item ? (docTurn ? docTurn.revisions.find(r => r.id === item.id) ?? docTurn.latest : docKinds.has(item.kind) ? item : undefined) : undefined;
+  const shownItems = item ? (conv ? conv.turns.map(t => t.revisions.find(r => r.id === item.id) ?? t.latest) : [item]) : [];
+  const sources = studioItemSources(shownItems, k => KIND_LABEL[k] ?? k);
+  const writing = shownItems.some(i => isWorking(i.status));
+  const retrieved = shownItems.some(sourcesRetrievedOnly);
+
   return (
-    <div className="mx-auto max-w-[960px] pb-6">
+    <div className="mx-auto max-w-[1520px] pb-6">
       <WorkspaceBar newLabel="New draft" onNew={() => setId(null, { guard: true })} label={cfg.kicker} onHistory={() => setDrawer(true)} projectName={project.name} />
       <section className="min-w-0 space-y-5" aria-label="Working draft" aria-live="polite">
         {open.isLoading && <div className="space-y-3" data-testid="status-item-loading"><div className="h-10 w-2/3 animate-pulse rounded-md bg-[hsl(90_14%_88%)]" /><div className="sx-card h-80 animate-pulse" /></div>}
         {open.isError && <ErrorState variant={item ? "warning" : "error"} error={loadFailure.message ? { message: `${loadFailure.message} Reconnecting automatically.` } : open.error} onRetry={() => void open.refetch()} title={loadFailure.title} />}
         {open.data && open.data.projectId !== project.id && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it, or start a new draft.</p>}
-        {item && <StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} />}
+        {item && <ResearchWorkbench idBase="studio" label={`${cfg.kicker} workspace`} sourceCount={sources.length}
+          conversation={<div className="flex min-h-full flex-col gap-4 pb-3">
+            {docTurn?.prompt && <div className="flex justify-end" data-testid="text-document-request"><div className="max-w-[90%] rounded-2xl rounded-br-md border border-[hsl(var(--teal)/0.25)] bg-[hsl(var(--teal)/0.07)] px-4 py-3"><p className="mb-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[hsl(var(--teal))]">You</p><p className="whitespace-pre-wrap text-[14.5px] leading-relaxed">{docTurn.prompt.length > 600 ? `${docTurn.prompt.slice(0, 600)}…` : docTurn.prompt}</p></div></div>}
+            {docItem && <p className="sx-card px-4 py-3 text-[13.5px] text-muted-foreground" data-testid="text-document-pointer"><span className="font-medium text-foreground">{docItem.title}</span> {isWorking(docItem.status) ? "is being written in the Document tab." : `opens in the Document tab (revision ${docItem.revision}). Edit, save versions, check and export it there.`}</p>}
+            <div className="flex-1"><StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} hideTurnIds={docTurn ? [docTurn.id] : undefined}
+              emptySlot={<p className="text-[13px] text-muted-foreground" data-testid="status-no-followups">No follow-ups yet. Ask below to refine sections, compare evidence or request a figure; each answer appears here and your document stays on the right.</p>} /></div>
+          </div>}
+          document={docItem
+            ? <ItemWorkspace key={docItem.id} item={docItem} allItems={merged} onOpen={x => setId(x)} presentation="reading" inlineProgress />
+            : <div className="wb-doc-pad"><div className="wb-empty"><b>No document in this conversation</b>This thread holds answers only. Ask for a {cfg.kicker.toLowerCase()} to write one; it opens here.</div></div>}
+          sources={<SourcesList sources={sources} pending={writing} retrieved={retrieved} />} />}
       </section>
       {drawerEl}
     </div>

@@ -17,6 +17,9 @@ import { NeedsProject } from "@/components/studio/project-switcher";
 import { CheckResult, savedReviewOf } from "@/components/studio/check-panel";
 import { useProjectItems } from "@/components/studio/use-studio";
 import { useActiveProject } from "@/lib/active-project";
+import { ItemWorkspace } from "@/components/studio/item-workspace";
+import { ResearchWorkbench, SourcesList } from "@/components/workbench/research-workbench";
+import { mergeSources, studioItemSources } from "@/lib/source-provenance";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { originalityWorkflow } from "@/lib/agent-workflow";
 import { detailsOf, friendlyError, KIND_LABEL, latestItems, missingRequirements } from "@/lib/studio";
@@ -45,11 +48,7 @@ function Inner() {
     if (!id || check.isPending || attachmentBusy) return;
     check.mutate({ id }, { onSuccess: () => void qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() }) });
   };
-  return (
-    <div className="mx-auto max-w-[900px] pb-6">
-      {chosen
-        ? <WorkspaceBar newLabel="Check another draft" onNew={() => pick("")} label={`Originality · ${chosen.title}`} onHistory={() => setDrawer(true)} projectName={project.name} />
-        : <WorkspaceIntro kicker="Originality" title="Check a draft against your own project." sub={intro} projectName={project.name} onHistory={() => setDrawer(true)} />}
+  const leftBody = <>
       <section className="sx-card sx-composer-wide overflow-hidden" aria-label="Draft to check" data-testid="composer-originality">
         <div className="p-4">
           <label htmlFor="select-check-item" className="sx-eyebrow">Draft to check</label>
@@ -71,6 +70,21 @@ function Inner() {
           : !check.isError && <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-originality-empty"><ScanSearch className="h-6 w-6 shrink-0 text-[hsl(var(--teal))]" strokeWidth={1.4} /><div className="min-w-0 flex-1"><p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">{check.isPending ? "Reading your project..." : chosen ? "Ready to check." : "Pick a draft to begin."}</span> Results open here; you can then discuss them in follow-ups.</p>{job && <div className="mt-3"><AgentProgressChip jobKey={job.key} /></div>}</div></div>}
         {chosen && chosen.status === "completed" && <StudioDiscussion item={all.find(i => i.id === discussionId) ?? chosen} allItems={all} onOpen={setDiscussionId} hideDocument />}
       </div>
+  </>;
+  return (
+    <div className={`mx-auto ${chosen ? "max-w-[1520px]" : "max-w-[900px]"} pb-6`}>
+      {chosen
+        ? <WorkspaceBar newLabel="Check another draft" onNew={() => pick("")} label={`Originality · ${chosen.title}`} onHistory={() => setDrawer(true)} projectName={project.name} />
+        : <WorkspaceIntro kicker="Originality" title="Check a draft against your own project." sub={intro} projectName={project.name} onHistory={() => setDrawer(true)} />}
+      {chosen ? (() => { const srcs = [...studioItemSources([chosen], k => KIND_LABEL[k] ?? k), ...mergeSources([{ origin: "Originality check matches", sources: (result?.matches ?? []).filter(x => x.url).map(x => ({ title: x.title, url: x.url, text: x.sourceExcerpt || x.excerpt, evidenceLevel: x.matchType })) }])]; return <ResearchWorkbench idBase="originality" label="Originality workspace" sourceCount={srcs.length}
+        conversation={<div className="space-y-0 pb-3">
+        {leftBody}
+        </div>}
+        document={<ItemWorkspace key={chosen.id} item={chosen} allItems={all} presentation="reading" inlineProgress onOpen={x => { if (x) { setId(x); setDiscussionId(null); check.reset(); } else pick(""); }} />}
+        sources={<SourcesList sources={srcs} note="Sources saved with this draft, plus any linked project material the originality check matched. The check compares only within this project." />} />; })()
+      : <>
+        {leftBody}
+      </>}
       <HistoryDrawer open={drawer} onOpenChange={setDrawer} description={`Saved drafts in ${project.name}. Opening one selects it for checking.`}>
         <ItemList items={choices} kinds={Object.keys(KIND_LABEL)} activeId={id || null} loading={items.isLoading} onOpen={x => { setDrawer(false); pick(x); }} emptyText="No saved drafts yet." />
         <AttachDocuments projectId={project.id} items={all} variant="compact" />

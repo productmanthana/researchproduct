@@ -24,6 +24,7 @@ import { conversationContext } from "./ask-discovery";
 import { routeAskIntent } from "./ask-intent";
 import { usageStatusForResult } from "./analysis-draft";
 import { addWebEvidence } from "./web-evidence";
+import { parallelEvidence } from "./parallel-evidence";
 import { withLiveGeneration, clearLive } from "./live-generation";
 
 // All plans use the same agreed model and evidence checks.
@@ -119,8 +120,18 @@ async function runAnalysis(job:any) {
   const verification=await verifyCitations(papers);
   const retrievalNotices:string[]=[];
   const verifiedJob={...job,input:{...job.input,paperIds:(job.input.paperIds??[]).filter((id:string)=>!verification.get(id)?.includes("excluded"))}};
-  const sources=(await sourcesFor(verifiedJob,retrievalNotices)).filter(s=>!verification.get(s.paperId??s.id)?.includes("excluded")).map(s=>({...s,verification:s.paperId?verification.get(s.paperId):"Private uploaded evidence"}));
-  await addWebEvidence(job,sources,retrievalNotices);
+  const gathered=await parallelEvidence({
+    read:()=>sourcesFor(verifiedJob,retrievalNotices),
+    patents:async()=>null,
+    web:async()=>{
+      const sources:EvidenceSource[]=[],notices:string[]=[];
+      await addWebEvidence(job,sources,notices);
+      return {sources,notices};
+    },
+  });
+  const sources:EvidenceSource[]=gathered.read.filter(s=>!verification.get(s.paperId??s.id)?.includes("excluded")).map(s=>({...s,verification:s.paperId?verification.get(s.paperId):"Private uploaded evidence"}));
+  sources.push(...gathered.web.sources);
+  retrievalNotices.push(...gathered.web.notices);
   if(!sources.length) throw new HttpError(400,"No usable evidence remained after citation verification.");
   const comparison=job.kind==="review"?await buildComparison(papers,sources):{rows:[],inputTokens:0,outputTokens:0};
   // Large reviews first extract and verify the comparison from each paper in

@@ -7,6 +7,10 @@ import { AcademicAnswer } from "@/components/academic-answer";
 import { AcademicReferences } from "@/components/academic-references";
 import { analysisReferenceEntries, referenceSections } from "@/lib/references";
 import { LiveDraft } from "@/components/live-draft";
+import { ResearchWorkbench } from "@/components/workbench/research-workbench";
+import { EvidencePanel } from "@/components/research-studio/evidence-panel";
+import "@/components/research-studio/studio.css";
+import "./ask-workspace.css";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { researchWorkflow } from "@/lib/agent-workflow";
 import {
@@ -308,6 +312,7 @@ function ComparisonTable({ rows, srcById, onEdit, dirty, saving, onSave, onReset
 }
 
 function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) {
+  const [selectedPaper, setSelectedPaper] = useState<string | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
   const a = useGetAnalysis(id, {
@@ -388,35 +393,10 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
       })
       .join("\n\n");
 
-  return (
-    <article className="rise rounded-lg border bg-card" data-testid={`panel-analysis-${id}`}>
-      <header className="border-b p-5">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-widest">
-          <span className="text-vermilion">{d.kind}</span>
-          <span className="text-muted-foreground">&middot; {ago(d.createdAt)}</span>
-          <span className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 normal-case tracking-normal ${d.status === "failed" ? "border-vermilion text-vermilion" : d.status === "completed" ? "border-[hsl(var(--leaf)/0.5)] text-leaf" : ""}`} data-testid="status-analysis">
-            <span className={`h-1.5 w-1.5 rounded-full ${d.status === "failed" ? "bg-vermilion" : d.status === "completed" ? "bg-leaf" : "bg-turmeric pulse-dot"}`} />
-            {d.status}
-          </span>
-        </div>
-        <h2 className="mt-2 text-2xl font-semibold leading-snug">{d.question}</h2>
-      </header>
-
-      {d.warnings.length > 0 && (
-        <details className="border-b px-5 py-4" data-testid="section-warnings">
-          <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">Search, retrieval &amp; verification details</summary>
-          <ul className="mt-2 space-y-1 text-sm">
-            {d.warnings.map((w) => <li key={w} className="flex gap-2"><span className="text-vermilion">&ndash;</span>{w}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {!isDone(d.status) ? (
-        <div className="space-y-4 p-5">{job && <AgentProgressChip jobKey={job.key} />}<LiveDraft kind="analysis" id={id} working invalidate={[getGetAnalysisQueryKey(id)]} fallback={<p className="text-sm text-muted-foreground">Reading sources and checking quotes. This page refreshes every 2 seconds.</p>} progressKey={job?.key} /></div>
-      ) : d.status === "failed" ? (
-        <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
-      ) : (
-        <div className="p-5">
+  const documentPane = !isDone(d.status)
+    ? <div className="p-5"><LiveDraft kind="analysis" id={id} working invalidate={[getGetAnalysisQueryKey(id)]} fallback={<p className="text-sm text-muted-foreground">Reading sources and checking quotes. Text appears here as soon as it is written.</p>} /></div>
+    : d.status === "failed" ? <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
+    : <div className="mx-auto w-full max-w-[760px] px-5 py-6 md:px-8">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Draft (editable)</p>
             {!editing ? (
@@ -444,6 +424,42 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
             })} referenceSources={d.sources}/>{!referenceSections(d.content??"").some(section=>section.kind==="references")&&<AcademicReferences entries={analysisReferenceEntries(d.sources,d.discoveredPapers)}/>}<p className="mt-5 text-xs text-muted-foreground">{d.sources.some(s=>s.evidenceLevel==="Abstract only")?"Includes abstract-only evidence. ":""}AI-assisted synthesis; verify original sources before academic use.</p></div>
           )}
 
+    </div>;
+  const hasPapers = d.sources.length > 0 || (d.discoveredPapers?.length ?? 0) > 0;
+  return <ResearchWorkbench idBase="analysis" label="Analysis workspace" sourceCount={d.discoveredPapers?.length || d.sources.length}
+    document={documentPane}
+    sources={hasPapers ? <div className="es-root es-source-panel" style={{ height: "auto", display: "block", overflow: "visible", background: "transparent" }}><EvidencePanel analysis={d} selected={selectedPaper} onSelect={setSelectedPaper} /></div>
+      : <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-analysis-no-sources"><b>{isDone(d.status) ? "No sources saved" : "Searching"}</b>{isDone(d.status) ? "This analysis returned no papers or web sources." : "Papers and web sources are listed when the analysis finishes."}</div></div>}
+    conversation={
+    <article className="rise rounded-lg border bg-card mb-4" data-testid={`panel-analysis-${id}`}>
+      <header className="border-b p-5">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-widest">
+          <span className="text-vermilion">{d.kind}</span>
+          <span className="text-muted-foreground">&middot; {ago(d.createdAt)}</span>
+          <span className={`ml-auto inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 normal-case tracking-normal ${d.status === "failed" ? "border-vermilion text-vermilion" : d.status === "completed" ? "border-[hsl(var(--leaf)/0.5)] text-leaf" : ""}`} data-testid="status-analysis">
+            <span className={`h-1.5 w-1.5 rounded-full ${d.status === "failed" ? "bg-vermilion" : d.status === "completed" ? "bg-leaf" : "bg-turmeric pulse-dot"}`} />
+            {d.status}
+          </span>
+        </div>
+        <h2 className="mt-2 text-2xl font-semibold leading-snug">{d.question}</h2>
+      </header>
+
+      {d.warnings.length > 0 && (
+        <details className="border-b px-5 py-4" data-testid="section-warnings">
+          <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">Search, retrieval &amp; verification details</summary>
+          <ul className="mt-2 space-y-1 text-sm">
+            {d.warnings.map((w) => <li key={w} className="flex gap-2"><span className="text-vermilion">&ndash;</span>{w}</li>)}
+          </ul>
+        </details>
+      )}
+
+      {!isDone(d.status) ? (
+        <div className="space-y-4 p-5">{job && <AgentProgressChip jobKey={job.key} />}<p className="text-sm text-muted-foreground">The answer is written live in the Document tab. Papers appear in Sources when the analysis finishes.</p></div>
+      ) : d.status === "failed" ? (
+        <div className="p-5"><ErrorState error={{ message: d.error || "The analysis failed." }} title="Analysis failed" /></div>
+      ) : (
+        <div className="p-5">
+          <p className="mb-4 text-sm text-muted-foreground" data-testid="text-draft-pointer">The editable draft is in the Document tab; every paper found is in Sources. Claims and comparisons stay here.</p>
           {(d.claims.length > 0 || (rows?.length ?? 0) > 0) && (
             <section className="mt-8">
               <div className="mb-3 flex items-center gap-1 border-b">
@@ -556,8 +572,7 @@ function AnalysisView({ id, onDeleted }: { id: string; onDeleted: () => void }) 
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </button>
       </footer>
-    </article>
-  );
+    </article>} />;
 }
 
 function ResearchInner() {
@@ -574,7 +589,7 @@ function ResearchInner() {
   const [drawer, setDrawer] = useState(false);
   const activeQ = list.data?.find((a) => a.id === activeId)?.question;
   return (
-    <div className="mx-auto max-w-[1180px] pb-6">
+    <div className={`mx-auto ${activeId ? "max-w-[1520px]" : "max-w-[1180px]"} pb-6`}>
       {activeId
         ? <WorkspaceBar newLabel="New analysis" onNew={() => open(null)} label={activeQ ? `Research · ${activeQ}` : "Research"} onHistory={() => setDrawer(true)} />
         : <WorkspaceIntro kicker="Evidence workbench" title="Research with selected evidence." sub="Pick papers, ask a precise question, and get claims tied to quotes. Comparison tables stay editable; everything here is saved to your history." onHistory={() => setDrawer(true)} />}

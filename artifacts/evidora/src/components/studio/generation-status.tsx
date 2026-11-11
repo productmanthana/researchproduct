@@ -6,10 +6,11 @@ import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/prov
 import { studioWorkflow } from "@/lib/agent-workflow";
 
 /** Honest progress: reflects only the server-reported status, no simulated steps. Stage detail lives in the shared popup. */
-export function GenerationStatus({ item, onRetry }: { item: StudioItem; onRetry?: () => void }) {
+/** `inline`: stream inside the page (Document tab) without registering the shared progress popup. */
+export function GenerationStatus({ item, onRetry, inline = false }: { item: StudioItem; onRetry?: () => void; inline?: boolean }) {
   const working = item.status === "queued" || item.status === "running";
   const job = working ? studioWorkflow(item) : null;
-  useAgentJob(job);
+  useAgentJob(inline ? null : job);
   if (item.status === "failed")
     return (
       <div className="sx-card border-[hsl(var(--vermilion)/0.35)] p-5" data-testid="status-generation-failed">
@@ -31,9 +32,9 @@ export function GenerationStatus({ item, onRetry }: { item: StudioItem; onRetry?
           <p className="sx-eyebrow">{queued ? "Waiting in queue" : "Working"} · {job?.workflow}</p>
           <p className="sx-title mt-1 text-lg">{item.title}</p>
         </div>
-        {job && <AgentProgressChip jobKey={job.key} />}
+        {job && !inline && <AgentProgressChip jobKey={job.key} />}
       </div>
-      <div className="mt-4"><LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id), getListStudioItemsQueryKey()]} progressKey={job?.key} fallback={
+      <div className="mt-4"><LiveDraft kind="studio" id={item.id} working invalidate={[getGetStudioItemQueryKey(item.id), getListStudioItemsQueryKey()]} progressKey={inline ? undefined : job?.key} fallback={
         <p className="text-sm text-muted-foreground">
           {queued ? "Your request is saved and waiting for a writer slot." : "The server is drafting from your evidence. Text appears here as soon as it is written."}
           {" "}You can leave this page; the result is saved to your project automatically.

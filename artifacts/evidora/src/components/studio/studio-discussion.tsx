@@ -9,8 +9,10 @@ import { ConversationView } from "./conversation-view";
 import { ItemWorkspace } from "./item-workspace";
 
 /** One persisted document/chat ancestry, shared by every project workspace. */
-export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false, attachSlot }: {
+export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false, hideTurnIds, attachSlot, emptySlot }: {
   item: StudioItem; allItems: StudioItem[]; onOpen: (id: string | null) => void; hideDocument?: boolean; attachSlot?: ReactNode;
+  /** Turns shown elsewhere (e.g. the document in the right-hand Document tab). */
+  hideTurnIds?: string[]; emptySlot?: ReactNode;
 }) {
   const [scrollTo, setScrollTo] = useState<string | null>(null);
   const retry = useGenerateStudioDocument();
@@ -20,7 +22,9 @@ export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false,
   const conv = useMemo(() => conversationFor(buildConversations(merged, item.projectId), item.id), [merged, item]);
   const parent = conv ? followUpParent(conv) : item.status === "completed" ? item.id : null;
   const busy = conv ? conversationBusy(conv) : item.status === "queued" || item.status === "running";
-  const visible = conv && hideDocument ? { ...conv, turns: conv.turns.slice(1) } : conv;
+  const hidden = new Set(hideTurnIds ?? []);
+  const suppress = hideDocument || hidden.size > 0;
+  const visible = conv && suppress ? { ...conv, turns: conv.turns.filter((t, i) => !(hideDocument && i === 0) && !hidden.has(t.id)) } : conv;
   const retryTurn = async (turn: Turn<StudioItem>) => {
     if (busy || retry.isPending) return;
     const first = turn.revisions[0], prompt = requestPrompt(first);
@@ -41,11 +45,11 @@ export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false,
   };
   return (
     <div className="min-w-0 space-y-5" data-testid="studio-discussion">
-      {visible && visible.turns.length > (hideDocument ? 0 : 1)
+      {visible && visible.turns.length > (suppress ? 0 : 1)
         ? <ConversationView conv={visible} selectedId={item.id} allItems={merged}
             onOpen={onOpen} onOpenSet={onOpen} onRetry={turn => void retryTurn(turn)}
             scrollTo={scrollTo} onScrolled={() => setScrollTo(null)} />
-        : !hideDocument && <ItemWorkspace item={item} allItems={merged} onOpen={onOpen} presentation="reading" />}
+        : suppress ? emptySlot ?? null : <ItemWorkspace item={item} allItems={merged} onOpen={onOpen} presentation="reading" />}
       {(parent || busy) && <section className="sticky bottom-3 z-10 pt-2" aria-label="Follow up about this work">
         <Composer key={`discussion-${conv?.rootId ?? item.id}`} compact
           parentId={parent ?? undefined} projectId={item.projectId} kind="answer" defaultMode="project"

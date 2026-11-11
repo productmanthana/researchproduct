@@ -4,6 +4,7 @@ import { aiContext, SCIENTIFIC_MODEL } from "./ai-budget";
 import { jsonCall, liveJsonCall } from "./ai-json";
 import { savedCustomFormat,customFormatContent,customFormatWarnings } from "./custom-format";
 import { withLiveGeneration, clearLive } from "./live-generation";
+import { parallelEvidence } from "./parallel-evidence";
 import { retrievalContext } from "./semantic-retrieval";
 import { discoverForQuestion } from "./ask-discovery";
 import { sourcesFor } from "./research-engine";
@@ -80,11 +81,27 @@ async function generate(row:any) {
   const verification=await verifyCitations(papers);
   job.input.paperIds=job.input.paperIds.filter(id=>!verification.get(id)?.includes("excluded")&&(!initialIdeas||papers.some(p=>p.id===id&&p.abstract?.trim())));
   if(initialIdeas)warnings.push("Initial idea proposals use available paper abstracts and project text, not newly downloaded full PDFs or inspected page images. Candidate gaps are not verified novelty claims; full-text evaluation remains necessary before developing or submitting research.");
-  let sources:EvidenceSource[]=[];
-  if(job.input.paperIds.length||documentIds.length){
-    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:initialIdeas?"Evidence Reader · reviewing abstracts and project text":"Evidence Reader · reviewing papers and project documents"})]);
-    sources=await sourcesFor(job,notices);
-  }
+  await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({
+    stage:initialIdeas?"Evidence Reader · reviewing abstracts and project text":"Evidence Reader · reviewing papers and project documents",
+    sourcesStatus:"retrieved",
+    // Selected catalogue records can be inspected while deeper reading runs.
+    // Do not label them as read PDFs, approved claims or completed references.
+    sources:papers.filter(p=>job.input.paperIds.includes(p.id)).map(p=>({
+      id:p.id,paperId:p.id,title:p.title,url:p.url,text:p.abstract??"",page:null,
+      evidenceLevel:p.abstract?"Catalogue abstract only; evidence reading pending":"Catalogue record only; evidence reading pending",
+    })),
+  })]);
+  const gathered=await parallelEvidence({
+    read:async()=>job.input.paperIds.length||documentIds.length?sourcesFor(job,notices):[] as EvidenceSource[],
+    patents:async()=>request.includePatents!==false&&request.evidenceMode!=="project"
+      ?searchPatents((freshIdeaTopic?request.prompt:`${project.name} ${request.prompt}`).slice(0,300)):null,
+    web:async()=>{
+      const sources:EvidenceSource[]=[],notices:string[]=[];
+      const evidence=await addWebEvidence(job,sources,notices);
+      return {sources,notices,evidence};
+    },
+  });
+  let sources:EvidenceSource[]=gathered.read;
   if(request.evidenceMode!=="discover")for(const item of items){
     for(const source of item.metadata?.sources??[])if(source.text&&source.id)
       sources.push({...source,text:String(source.text).slice(0,6500),image:undefined});
@@ -93,8 +110,8 @@ async function generate(row:any) {
   if(request.evidenceMode!=="discover")for(const item of items.filter(i=>i.kind==="patent")){
     sources.push({id:item.id,title:item.title,url:"",text:item.content.slice(0,6000),evidenceLevel:"User-saved patent material; not independently verified",page:null});
   }
-  if(request.includePatents!==false&&request.evidenceMode!=="project"){
-    const patents=await searchPatents((freshIdeaTopic?request.prompt:`${project.name} ${request.prompt}`).slice(0,300));
+  if(gathered.patents){
+    const patents=gathered.patents;
     if(!patents.available)warnings.push(patents.message);
     for(const p of patents.patents.slice(0,8))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
   }
@@ -102,7 +119,9 @@ async function generate(row:any) {
   sources=[...new Map(sources.map(s=>[s.id,s])).values()].slice(0,36);
   if(["literature","journal"].includes(request.kind)&&!sources.length&&!figureOnly)
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
-  const webEvidence=await addWebEvidence(job,sources,warnings);
+  const webEvidence=gathered.web.evidence;
+  sources.push(...gathered.web.sources);
+  warnings.push(...gathered.web.notices);
   warnings.push(...notices);
   if(items.length===60)warnings.push("Project context is bounded to the newest 60 current items plus retrieved passages.");
   const selectedTemplateId=request.templateId===undefined?parentRow?.metadata?.templateId:request.templateId;
@@ -123,7 +142,14 @@ For journal/thesis assignments, follow the supplied source-grounded officialRequ
 Return JSON {"title":"...","content":"markdown body WITHOUT bibliography","ideas":[five objects with title,problem,question,method,feasibility only when generating ideas]}.
 Scientific figures are created in a separate evidence-checked step. Do not invent figure markers, pretend an image has been rendered, or promise a graph without data. Preserve existing [[figure:id]] markers verbatim when revising a source draft.
 Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never promise human authorship or detector evasion.`;
-  await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Academic Writing Agent · developing your draft"})]);
+  // Make retrieved source records available to the side panel before writing
+  // completes. They are evidence inputs, not an approved answer or novelty claim.
+  await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1 AND status='running'",[row.id,JSON.stringify({
+    stage:"Academic Writing Agent · developing your draft",
+    sources:sources.map(({image,...source})=>source),
+    sourcesStatus:"retrieved",
+    webEvidence,
+  })]);
   const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,conversation:conversation.turns,project:{name:project.name,description:project.description},context:projectMaterial,...(parentRow?.kind==="ideas"?{selectedIdeaSet:parentRow.metadata?.ideas??[]}:{}),passages,template,officialRequirements:requirementPlan?{status:requirementPlan.source.status,sourceUrl:requirementPlan.source.sourceUrl,rules:requirementPlan.rules,layout:requirementPlan.layout}:undefined,documentDetails:request.documentDetails,evidence,date:new Date().toISOString().slice(0,10)})}];
   const personalFormat=parentRow&&selectedTemplateId!==parentRow.metadata?.templateId?undefined:savedCustomFormat(parentRow??row);
   if(personalFormat)body.push({type:"text",text:JSON.stringify({personalFormattingPreferences:personalFormat,note:"These are the author's preferences/instructions, not verified scholarly evidence or official approval. Follow their headings/order and length limits without fabricating research, results or declarations."})});

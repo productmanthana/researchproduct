@@ -70,9 +70,11 @@ type Props = {
   extra?: ReactNode;
   /** "default" keeps the two-column layout. "reading" gives the document full width and moves tools into a drawer. */
   presentation?: "default" | "reading";
+  /** Stream generation inline (Document tab) without the progress popup. */
+  inlineProgress?: boolean;
 };
 
-export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presentation = "default" }: Props) {
+export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presentation = "default", inlineProgress = false }: Props) {
   const reading = presentation === "reading";
   const [toolsOpen, setToolsOpen] = useState(false);
   const qc = useQueryClient();
@@ -199,7 +201,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
     onOpen(id);
   };
 
-  if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} />;
+  if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} inline={inlineProgress} />;
 
   return (
     <div className={reading ? "rise" : "rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]"} data-testid={`workspace-item-${item.id}`}>

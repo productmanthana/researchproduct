@@ -139,3 +139,37 @@ test("Live drafts hide partial Markdown syntax without inventing content", () =>
   assert.equal(stabilizeLiveMarkdown("Use C#"), "Use C#");
   assert.equal(stabilizeLiveMarkdown("###### Methods\nUse C#"), "### Methods\n\nUse C#");
 });
+
+import { classifySource, mergeSources, studioItemSources, sourcesRetrievedOnly, sourceKindCounts } from "./source-provenance";
+
+test("Sources tab classifies saved sources truthfully and keeps provenance", () => {
+  assert.equal(classifySource({ url: "https://doi.org/10.1/x" }), "scholarly");
+  assert.equal(classifySource({ url: "https://patents.google.com/patent/US1" }), "patent");
+  assert.equal(classifySource({ url: "", title: "My notes" }), "project");
+  assert.equal(classifySource({ url: "https://example.org/report" }), "web");
+  assert.equal(classifySource({ id:"web-test", url:"https://doi.org/10.1/x", evidenceLevel:"Internet search summary only; original page not read" }), "web");
+  assert.equal(classifySource({ url:"https://patents.google.com/patent/US1", evidenceLevel:"Internet page text returned by search provider; not peer-review verification" }), "web");
+  const merged = mergeSources([{ origin: "A", sources: [{ title: "P", url: "https://doi.org/1/" }] }, { origin: "B", sources: [{ title: "P", url: "https://doi.org/1", evidenceLevel: "Abstract only" }] }]);
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0].origins, ["A", "B"]);
+  assert.deepEqual(mergeSources([]), []);
+  const pages=mergeSources([{origin:"Draft",sources:[
+    {paperId:"paper-fixture",title:"One study — page 2",url:"https://example.org/study#page=2"},
+    {paperId:"paper-fixture",title:"One study — page 3",url:"https://example.org/study#page=3"},
+  ]}]);
+  assert.equal(pages.length,1);
+  assert.equal(mergeSources([{origin:"Legacy draft",sources:[
+    {title:"Study — page 2",url:"https://example.org/study#page=2"},
+    {title:"Study — page 3",url:"https://example.org/study#page=3"},
+  ]}]).length,1);
+});
+
+test("Running items expose retrieved sources and web evidence without inventing records", () => {
+  const running = { id: "1", title: "T", kind: "journal", revision: 1, status: "running", metadata: { sourcesStatus: "retrieved", sources: [{ id: "s", title: "Paper", url: "https://arxiv.org/abs/1" }], webEvidence: { results: [{ id: "w", title: "Page", url: "https://example.org/a" }] } } };
+  const list = studioItemSources([running]);
+  assert.equal(list.length, 2);
+  assert.deepEqual(sourceKindCounts(list), { scholarly: 1, patent: 0, project: 0, web: 1 });
+  assert.equal(sourcesRetrievedOnly(running), true);
+  assert.equal(sourcesRetrievedOnly({ ...running, status: "completed" }), false);
+  assert.equal(studioItemSources([{ ...running, metadata: {} }]).length, 0);
+});

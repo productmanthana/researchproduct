@@ -163,7 +163,13 @@ function ReviewView({ id, onClose }: { id: string; onClose: () => void }) {
     <div className="space-y-5">
       {job && <div className="sx-card p-4" data-testid="status-paper-review-working"><AgentProgressChip jobKey={job.key} /><p className="mt-2 text-xs text-muted-foreground">Your manuscript stays readable below while the review runs. You can leave and return; progress is saved.</p></div>}
       {item.status === "failed" && <ErrorState error={{ message: item.error || "The review did not finish." }} title="Review failed" />}
-      {!isWorking(item.status) && <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="es-root paper-review-document" data-mobile-view={mobileView}>
+        <div className="paper-review-mobile-tabs" role="tablist" aria-label="Manuscript review view">
+          <button role="tab" aria-selected={mobileView==="document"} onClick={()=>setMobileView("document")}>Reviewed file</button>
+          <button role="tab" aria-selected={mobileView==="feedback"} onClick={()=>setMobileView("feedback")}>Report and sources</button>
+        </div>
+        <div className="es-workspace dr-mode"><DocumentReviewWorkspace reviewId={id} onClose={onClose} chatMode reportSlot={<div className="space-y-5 pb-4" data-testid="panel-review-report">
+      {!isWorking(item.status) && <div className="space-y-5">
         <div>
         <RequirementsCheck formatCopy data={requirementsCheckOf(item)} emptyHint="This review has no saved requirements check. Reviews started before this feature, or without a target, show scores and comparisons only." />
           <ApplyFormatAction review={item} />
@@ -171,12 +177,7 @@ function ReviewView({ id, onClose }: { id: string; onClose: () => void }) {
         {researchCoverageOf(item) ? <ResearchCoverage data={researchCoverageOf(item)} /> : <section className="sx-card p-4 text-xs text-muted-foreground" data-testid="panel-research-coverage-empty"><p className="sx-eyebrow">What was searched</p><p className="mt-2">Search counts were not recorded for this review. The comparisons below list every source that was used.</p></section>}
       </div>}
       <ScorecardPanel item={item} />
-      <div className="es-root paper-review-document" data-mobile-view={mobileView}>
-        <div className="paper-review-mobile-tabs" role="tablist" aria-label="Manuscript review view">
-          <button role="tab" aria-selected={mobileView==="document"} onClick={()=>setMobileView("document")}>Document</button>
-          <button role="tab" aria-selected={mobileView==="feedback"} onClick={()=>setMobileView("feedback")}>Feedback</button>
-        </div>
-        <div className="es-workspace dr-mode"><DocumentReviewWorkspace reviewId={id} onClose={onClose} chatMode /></div>
+      </div>} /></div>
       </div>
     </div>
   );

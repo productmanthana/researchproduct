@@ -16,6 +16,8 @@ import "./document-review.css";
 import { LiveDraft } from "@/components/live-draft";
 import { AgentProgressChip, useAgentJob } from "@/components/agent-progress/provider";
 import { reviewWorkflow } from "@/lib/agent-workflow";
+import { PanelTabs, SourcesList } from "@/components/workbench/research-workbench";
+import { mergeSources } from "@/lib/source-provenance";
 
 const plain = (t: string): ReactNode => t;
 function proposedFigure(s: ReviewSuggestion, figures: StudioFigure[]): StudioFigure | undefined {
@@ -26,7 +28,9 @@ function proposedFigure(s: ReviewSuggestion, figures: StudioFigure[]): StudioFig
 const FIG = /^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/;
 const pct = (a: number, b: number) => (b > 0 ? Math.min(100, Math.round((a / b) * 1000) / 10) : 0);
 
-export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: { reviewId: string; onClose: () => void; chatMode?: boolean }) {
+export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false, reportSlot }: { reviewId: string; onClose: () => void; chatMode?: boolean;
+  /** Generated review report (e.g. paper-review scorecard), shown at the top of the right Document tab. */
+  reportSlot?: ReactNode }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const q = useGetStudioItem(reviewId, { query: { queryKey: getGetStudioItemQueryKey(reviewId), refetchInterval: x => (isWorking(x.state.data?.status) ? 3000 : false) } });
@@ -42,6 +46,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [origBusy, setOrigBusy] = useState(false);
+  const [side, setSide] = useState<"document" | "sources">("document");
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => { setView("original"); setOpenId(null); setConfirmId(null); setConflict(null); }, [reviewId]);
@@ -56,6 +61,7 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: {
   const counts = { approved: review.suggestions.filter(s => s.decision === "approved").length, dismissed: review.suggestions.filter(s => s.decision === "dismissed").length };
 
   const focusCard = (id: string) => {
+    setSide("document");
     setFilter(f => (review.suggestions.find(s => s.id === id)?.decision === "pending" ? f : "all"));
     setOpenId(id);
     requestAnimationFrame(() => { const el = cardRefs.current[id]; el?.scrollIntoView({ block: "nearest", behavior: "smooth" }); el?.querySelector<HTMLButtonElement>(".dr-card-head")?.focus(); });
@@ -141,9 +147,17 @@ export function DocumentReviewWorkspace({ reviewId, onClose, chatMode=false }: {
       </div>
     </section>
 
-    <aside className="es-panel dr-panel" aria-label="Review suggestions">
-      <div className="es-panel-header"><h2>Suggestions <span className="es-small">/ {pending.length} open</span></h2><button className="es-icon" aria-label={(item.metadata as Record<string,unknown>)?.paperReview ? "Close review" : "Close review and return to chat"} onClick={onClose}><X /></button></div>
-      <div className="dr-panel-scroll">
+    <aside className={`es-panel dr-panel ${reportSlot ? "dr-panel-wide" : ""}`} aria-label="Review document and sources">
+      <div className="es-panel-header"><PanelTabs idBase={`review-${item.id}`} label="Review document and sources" value={side} onChange={value => { if (value === "document" || value === "sources") setSide(value); }}
+        tabs={[{ value: "document" as const, label: "Document", count: pending.length }, { value: "sources" as const, label: "Sources", count: review.sources.length }]} /><button className="es-icon" aria-label={(item.metadata as Record<string,unknown>)?.paperReview ? "Close review" : "Close review and return to chat"} onClick={onClose}><X /></button></div>
+      {side === "sources" && <div className="dr-panel-scroll" role="tabpanel" id={`review-${item.id}-panel-sources`} aria-labelledby={`review-${item.id}-tab-sources`}>
+        <SourcesList sources={mergeSources([{ origin: "This review", sources: review.sources }])} pending={working}
+          note="Papers, patent records and web pages retrieved for this review. Suggestions compare your document only with these, not the whole literature."
+          emptyBody={working ? "Sources are listed when the review finishes." : "No sources were returned with this review."} />
+      </div>}
+      <div className="dr-panel-scroll" role="tabpanel" id={`review-${item.id}-panel-document`} aria-labelledby={`review-${item.id}-tab-document`} style={side === "document" ? undefined : { display: "none" }}>
+        {reportSlot}
+        {!reportSlot && <p className="dr-eyebrow" data-testid="text-review-report-heading">Review report</p>}
         <Coverage review={review} working={working} metadata={item.metadata} />
         {conflict && <div className="dr-alert" role="alert" data-testid="status-review-conflict"><AlertTriangle />{conflict}</div>}
         {!working && item.status === "completed" && <>

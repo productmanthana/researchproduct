@@ -34,7 +34,11 @@ import type { StudioFigure } from "@/lib/figures";
 import { chatDocumentPrompt } from "@/lib/chat-document";
 import { IdeasChat } from "@/components/studio/ideas-chat";
 import { ideasIntent, CHAT_KINDS } from "@/lib/ideas-chat";
-import { buildConversations } from "@/lib/conversation";
+import { buildConversations, conversationFor } from "@/lib/conversation";
+import { PanelTabs, SourcesList } from "@/components/workbench/research-workbench";
+import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
+import { useStudioItem } from "@/components/studio/use-studio";
+import { KIND_LABEL } from "@/lib/studio";
 import type { ProjectIntent } from "@/lib/studio";
 
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -157,6 +161,18 @@ function AskInner() {
   const reviews = (reviewsQ.data ?? []).filter(i => i.kind === REVIEW_KIND).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const projectDrafts = latestItems(reviewsQ.data ?? []).filter(i => ["journal", "thesis", "literature", "synopsis"].includes(i.kind));
   const chatConvs = useMemo(() => activeProject ? buildConversations(reviewsQ.data ?? [], activeProject.id).filter(c => c.turns.some(t => CHAT_KINDS.has(t.revisions[0].kind)) && !c.turns.some(t => ["journal", "thesis", "literature", "synopsis", REVIEW_KIND].includes(t.revisions[0].kind))) : [], [reviewsQ.data, activeProject]);
+  const itemQ = useStudioItem(itemId);
+  const [docTarget, setDocTarget] = useState<HTMLDivElement | null>(null);
+  const itemConvItems = useMemo(() => {
+    const it = itemQ.data;
+    if (!it) return [];
+    const pool = (reviewsQ.data ?? []).filter(x => x.projectId === it.projectId && x.id !== it.id);
+    const conv = conversationFor(buildConversations([...pool, it], it.projectId), it.id);
+    return conv ? conv.turns.map(t => t.revisions.find(r => r.id === it.id) ?? t.latest) : [it];
+  }, [itemQ.data, reviewsQ.data]);
+  const itemSources = useMemo(() => studioItemSources(itemConvItems, k => KIND_LABEL[k] ?? k), [itemConvItems]);
+  const itemWriting = itemConvItems.some(x => isWorking(x.status));
+  const itemRetrieved = itemConvItems.some(sourcesRetrievedOnly);
   const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
   const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
@@ -345,10 +361,11 @@ function AskInner() {
     setDraftEditing(false);
     setPanel("draft");
   };
-  const closePanel = () => {
-    if (panel === "draft" && editor?.dirty && !window.confirm("This working draft has unsaved changes. Close the panel and keep the edits here?")) return;
-    setPanel(null);
-  };
+  // The right panel is persistent; "closing" only hides it on small screens. Nothing unmounts, so edits are kept.
+  const closePanel = () => setPanel(null);
+  const rightTab: "sources" | "draft" = panel ?? (itemId || activeDraftId ? "draft" : "sources");
+  const panelTabs = (count: number) => <PanelTabs idBase="ask" label="Document and sources" value={rightTab} onChange={v => setPanel(v)}
+    tabs={[{ value: "draft", label: "Document", icon: <FileText /> }, { value: "sources", label: "Sources", count, icon: <BookOpen /> }]} />;
   const updateDraft = (content: string) => {
     if (!activeDraftId) return;
     setDraftBuffers(current => ({ ...current, [activeDraftId]: { ...(current[activeDraftId] ?? { revision: 0, status: "Not saved yet" }), content, dirty: true, status: "Unsaved changes" } }));
@@ -433,14 +450,25 @@ function AskInner() {
       <header className="es-topbar es-topbar-compact"><div className="es-top-title">
         <button className="es-button es-primary es-new-chat" onClick={reviewId || itemId ? () => { if (mayLeave()) setLocation("/ask"); } : newChat} disabled={!reviewId && !itemId && !!ownActive} data-testid="button-new-chat"><Plus /><span>New chat</span></button>
         <h1 title={reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}>{reviewId ? "Document review" : itemId ? "Research ideas and project chat" : title}</h1></div>
-        <div className="es-top-actions">{!reviewId && sourceAnalysis && panel !== "sources" && <button className="es-button" onClick={() => setPanel("sources")}><BookOpen />Sources</button>}{!reviewId && activeDraftId && panel !== "draft" && <button className="es-button" onClick={() => setPanel("draft")}><FileText />Draft</button>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
+        <div className="es-top-actions">{!reviewId && (threadId || itemId) && <><button className="es-button wb-mobile-only" onClick={() => setPanel("draft")} data-testid="button-mobile-open-document"><FileText />Document</button><button className="es-button wb-mobile-only" onClick={() => setPanel("sources")} data-testid="button-mobile-open-sources"><BookOpen />Sources</button></>}<button className="es-button" onClick={() => setHistoryOpen(true)} aria-haspopup="dialog" data-testid="button-open-history"><History /><span className="es-hide-sm">History and reviews</span><span className="es-show-sm">History</span></button>{activeProject && <Link href="/my-library" onClick={guardNavigation} className="es-button es-hide-sm" data-testid="link-project-library"><FolderOpen /><span className="es-project-name">{activeProject.name}</span></Link>}</div>
       </header>
       {allUsageLimitMessages(usageData).length > 0 && <div className="es-limit-notice" role="status">{allUsageLimitMessages(usageData).map(message => <p key={message}>{message} <Link href="/plans" onClick={guardNavigation}>Plans &amp; usage</Link></p>)}</div>}
       {reviewId ? <div className="es-workspace dr-mode"><DocumentReviewWorkspace key={reviewId} reviewId={reviewId} chatMode onClose={() => setLocation("/ask")} /></div> :
       itemId ? <div className="es-workspace"><section className="es-conversation" aria-label="Research ideas conversation"><div className="es-thread"><div className="es-thread-inner">
-        <IdeasChat itemId={itemId} onNavigate={url => setLocation(url)} onNewTopic={() => setLocation("/ask")} onOpen={(id, opts) => { if (opts?.guard && !mayLeave()) return; setLocation(`/ask?item=${encodeURIComponent(id)}`); }} />
-      </div></div></section></div> :
-      <div className={`es-workspace ${panel === "draft" ? "es-written" : ""}`}>
+        <IdeasChat itemId={itemId} documentTarget={docTarget} onShowDocument={() => setPanel("draft")} onNavigate={url => setLocation(url)} onNewTopic={() => setLocation("/ask")} onOpen={(id, opts) => { if (opts?.guard && !mayLeave()) return; setLocation(`/ask?item=${encodeURIComponent(id)}`); }} />
+      </div></div></section>
+        <aside className={`es-panel es-persist ${rightTab === "draft" ? "es-writing" : ""} ${panel ? "is-open" : ""}`} aria-label="Document and sources" data-testid="panel-ask-right">
+          <div className="es-panel-header">{panelTabs(itemSources.length)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
+          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-draft" aria-labelledby="ask-tab-draft" hidden={rightTab !== "draft"}>
+            {itemQ.isLoading && <div className="p-5"><RowSkeleton rows={3} /></div>}
+            {itemQ.isError && <div className="p-5"><ErrorState error={itemQ.error} onRetry={() => void itemQ.refetch()} title="Couldn't load this document" /></div>}
+            <div ref={setDocTarget} data-testid="slot-ask-document" />
+          </div>
+          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-sources" aria-labelledby="ask-tab-sources" hidden={rightTab !== "sources"}>
+            <SourcesList sources={itemSources} pending={itemWriting} retrieved={itemRetrieved} />
+          </div>
+        </aside></div> :
+      <div className={`es-workspace ${threadId && rightTab === "draft" ? "es-written" : ""}`}>
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">
             {!threadId && !list.isLoading && !list.isError && <div className="es-welcome"><div className="es-assistant-head"><span><Wind /></span>Evidora</div><div className="es-prose"><h2>Let’s find a question you care about.</h2><p>Start with a rough idea, a writing question, or a specific scientific question. We can clarify first—or look for scholarly evidence when the question is ready.</p><p className="es-choice-note">Guidance is conversational and separate from evidence-backed research answers.</p></div></div>}
@@ -496,9 +524,10 @@ function AskInner() {
               <span role="status">{attached ? (question.trim().length < 5 ? "Describe what to review (at least 5 characters)." : !activeProject ? "Choose a project to save this review." : pageParse.error ?? "Sends a document review, not a chat answer.") : sendLimit ?? problem ?? `Start anywhere. ${left === null ? "" : left === Infinity ? "Unlimited answers." : `${left} answers left.`}`}</span><button className={`es-icon ${sendLimit ? "es-limit-send" : ""}`} type="submit" disabled={attached ? (createReview.isPending || question.trim().length < 5 || !activeProject || !!pageParse.error) : askSendDisabled({ limitReached: !!sendLimit, blocked: !!problem, pending: create.isPending || generate.isPending, loading: list.isLoading || usage.isLoading })} aria-label={attached ? "Start document review" : sendLimit ? "Limit reached" : "Send message"} data-testid="button-ask-send">{!attached && sendLimit ? "Limit reached" : <ArrowUp />}</button></div>
           </form><p className="es-local-note">Enter to send · Shift+Enter for a new line · AI-assisted answers need original-source review.</p></div>
         </section>
-        {panel === "sources" && sourceAnalysis && <aside className="es-panel" aria-label="Sources"><div className="es-panel-header"><h2>Sources <span className="es-small">/ {sourceAnalysis.discoveredPapers?.length ?? sourceAnalysis.sources.length} papers</span></h2><button className="es-icon" aria-label="Close sources and return to chat" onClick={closePanel}><X /></button></div><div className="es-source-panel"><EvidencePanel analysis={sourceAnalysis} selected={selectedSource} onSelect={setSelectedSource} revealRequest={sourceRevealRequest} /></div></aside>}
-        {panel === "draft" && editor && activeDraftId && <aside className="es-panel es-writing" aria-label="Editable working draft"><div className="es-panel-header"><div><FileText /><h2>Working draft</h2></div><button className="es-icon" aria-label="Close draft and return to chat" onClick={closePanel}><X /></button></div>
-          <div className="es-document-toolbar"><label className="es-section-select-label">Section
+        {threadId && <aside className={`es-panel es-persist ${rightTab === "draft" ? "es-writing" : ""} ${panel ? "is-open" : ""}`} aria-label="Document and sources" data-testid="panel-ask-right">
+          <div className="es-panel-header">{panelTabs(sourceAnalysis ? (sourceAnalysis.discoveredPapers?.length || sourceAnalysis.sources.length) : 0)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
+          <div className="wb-tabpanel" role="tabpanel" id="ask-panel-draft" aria-labelledby="ask-tab-draft" hidden={rightTab !== "draft"}>
+            {editor && activeDraftId ? <><div className="es-document-toolbar"><label className="es-section-select-label">Section
             <select aria-label="Choose draft section" value={selectedDraftSection?.id ?? ""} onChange={event => setDraftSectionId(event.target.value)}>
               {draftSections.map(section => <option key={section.id} value={section.id}>{section.title}</option>)}
             </select></label><div>
@@ -517,6 +546,16 @@ function AskInner() {
             <p className="es-provenance">{draftAnalysis?.draftProvenance ?? "AI-assisted source answer retained above."} Local edits are user-authored and not evidence-checked. No study results are generated.</p>
             <div className="es-status" role="status">{editor.status}</div><button className="es-button es-primary es-save-draft" onClick={() => void saveCurrentDraft()} disabled={saveDraft.isPending || !editor.dirty}><Check />{saveDraft.isPending ? "Saving…" : "Save draft"}</button>
           </div><div className="es-document-footer"><span>{editor.content.trim() ? editor.content.trim().split(/\s+/).length : 0} words</span><span>{editor.dirty ? "Unsaved changes" : `Saved · revision ${editor.revision}`}</span></div>
+        </> : <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-ask-no-draft"><b>No working draft yet</b>{evidenceTurns.length ? "Choose Start a draft under an evidence answer to open an editable, citation-linked draft here." : active ? "An answer is being written in the conversation. When an evidence answer finishes you can start a draft from it." : "Guidance replies have no draft. Ask a research question to get an evidence answer you can turn into a draft."}</div></div>}
+          </div>
+          <div className="wb-tabpanel wb-scroll" role="tabpanel" id="ask-panel-sources" aria-labelledby="ask-tab-sources" hidden={rightTab !== "sources"}>
+            {evidenceTurns.length > 1 && <label className="es-section-select-label" style={{ padding: "12px 17px 0", display: "flex", gap: 8, alignItems: "center" }}>Answer
+              <select aria-label="Choose which answer's sources to show" value={sourceAnalysis?.id ?? ""} onChange={e => { setSourceAnalysisId(e.target.value); setSelectedSource(null); }} data-testid="select-source-answer">
+                {evidenceTurns.map((t, i) => <option key={t.id} value={t.id}>{i + 1}. {t.question.slice(0, 70)}</option>)}
+              </select></label>}
+            {sourceAnalysis ? <div className="es-source-panel"><EvidencePanel analysis={sourceAnalysis} selected={selectedSource} onSelect={setSelectedSource} revealRequest={sourceRevealRequest} /></div>
+              : <div className="wb-doc-pad"><div className="wb-empty" data-testid="status-ask-no-sources"><b>{active ? "Searching" : "No sources yet"}</b>{active ? "Papers, patents and web sources appear here when the answer finishes. You can keep reading meanwhile." : "This conversation has no evidence answer yet. Guidance replies do not cite sources."}</div></div>}
+          </div>
         </aside>}
       </div>}
       <HistoryDrawer open={historyOpen} onOpenChange={setHistoryOpen} title="History and reviews" description="Reopen saved conversations, research drafts and document reviews.">

@@ -93,3 +93,5 @@ button.dr-pill{cursor:pointer;text-transform:none;letter-spacing:0;font:500 12px
 @media(max-width:1100px){.dr-panel{width:360px}.dr-paper{padding:24px}}
 @media(max-width:767px){.dr-panel{position:static;width:100%;inset:auto;border-top:1px solid var(--line);max-height:none}.dr-doc-scroll{padding:14px 10px 30px}.dr-paper{padding:18px 16px}.dr-doc-actions{margin-left:0}}
 @media(max-width:767px){.es-workspace.dr-mode{flex-direction:column;overflow-y:auto}.es-workspace.dr-mode .dr-doc{flex:none}.es-workspace.dr-mode .dr-doc-scroll{overflow:visible}}
+
+.dr-panel-wide{width:min(52%,720px)}@media(max-width:1100px){.dr-panel-wide{width:min(55%,560px)}}@media(max-width:767px){.dr-panel-wide{width:100%}}

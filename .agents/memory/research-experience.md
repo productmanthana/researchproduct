@@ -208,3 +208,9 @@ Live responses should read like a progressively written conversation, with forma
 **Why:** The user explicitly requested a ChatGPT-like live reading experience after seeing Markdown pipes and headings in the draft preview.
 
 **How to apply:** Keep an unobtrusive, truthful writing/checking status and provisional-evidence note. Respect readers scrolling back, preserve the visible draft through reconnects and checking, and enable final-result actions only after completion.
+
+Research workspaces should keep the conversation on the left and the active work on the right, with separate **Document** and **Sources** tabs across applicable research pages.
+
+**Why:** The user requested a consistent right-side paper workspace and explicitly chose both the generated document and relevant sources in separate tabs.
+
+**How to apply:** Keep the real active editor/live stream in the document pane, not a disconnected duplicate preview. Preserve edits, selection and earlier dialogue when switching tabs; distinguish retrieved inputs from checked final results.

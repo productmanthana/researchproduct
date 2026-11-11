@@ -19,3 +19,9 @@ Citation.js CSL versions differ in their style-registration interface; installed
 **Why:** Typechecking a local module declaration did not catch a runtime initialization failure from following the older API.
 
 **How to apply:** Inspect the installed CSL configuration API and run a real formatting smoke test for each advertised style before loading the formatter at server startup.
+
+The preview's JSX instrumentation can corrupt explicit generic type arguments on JSX component tags, even when TypeScript accepts the source.
+
+**Why:** Instrumentation inserted tracking attributes before a component's generic type argument, producing invalid JSX and a blank preview that type checking missed.
+
+**How to apply:** Prefer inferred/typed props and ordinary callbacks over explicit generic JSX tags. Verify affected development modules through Vite as well as TypeScript; production compilation alone may not exercise development instrumentation.
