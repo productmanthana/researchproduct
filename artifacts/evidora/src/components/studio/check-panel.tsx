@@ -4,6 +4,7 @@ import { useCheckStudioDocument, useSaveStudioItem, getListStudioItemsQueryKey, 
 import { CheckCircle2, CircleAlert, ExternalLink, NotebookPen, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { friendlyError } from "@/lib/studio";
+import { AiDetectionPanel, type AiDetection } from "./ai-detection-panel";
 
 /** The result the backend stored on this exact revision (metadata.review), if any. */
 export function savedReviewOf(item: StudioItem): StudioCheck | null {
@@ -13,13 +14,7 @@ export function savedReviewOf(item: StudioItem): StudioCheck | null {
   return { externalAvailable: false, ...r, checkedAt: r.checkedAt ?? (typeof at === "string" ? at : undefined) } as StudioCheck;
 }
 
-export type AiDetection = { humanScore?: number; threshold?: number; verdict?: string; signals?: string[]; passes?: number; method?: string; checkedAt?: string };
-
-/** The authorship screen stored on this revision (metadata.aiDetection), if any. */
-export function aiDetectionOf(item: StudioItem): AiDetection | null {
-  const d = (item.metadata as Record<string, unknown> | null)?.aiDetection as AiDetection | undefined;
-  return d && typeof d === "object" && typeof d.humanScore === "number" ? d : null;
-}
+export { aiDetectionOf, type AiDetection } from "./ai-detection-panel";
 
 const n = (v?: number) => (typeof v === "number" ? v.toLocaleString() : "not reported");
 const pct = (v?: number) => (typeof v === "number" ? `${v.toFixed(1)}%` : null);
@@ -71,15 +66,7 @@ export function CheckResult({ result, missing = [], save, aiDetection }: { resul
 
   return (
     <div className="space-y-4 text-sm" data-testid="panel-check-result">
-      {aiDetection && typeof aiDetection.humanScore === "number" && (
-        <div className="rounded-lg border bg-[hsl(var(--turmeric)/0.07)] p-3.5" data-testid="panel-ai-detection">
-          <p className="sx-eyebrow">AI-authorship screen · estimated human writing</p>
-          <p className="sx-title mt-1 text-3xl" data-testid="text-human-score">{aiDetection.humanScore.toFixed(0)}%</p>
-          <p className="mt-1 text-xs text-muted-foreground">Target: {aiDetection.threshold ?? 99}% human. {aiDetection.verdict}</p>
-          {aiDetection.signals?.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">{aiDetection.signals.map((s, i) => <li key={i}>{s}</li>)}</ul> : null}
-          <p className="mt-2 text-[11px] text-muted-foreground">{aiDetection.method ?? "Language-model estimate, not a certified detector."}{typeof aiDetection.passes === "number" ? ` Humanising rewrites applied: ${aiDetection.passes}.` : ""}</p>
-        </div>
-      )}
+      {aiDetection && typeof aiDetection.humanScore === "number" && <AiDetectionPanel data={aiDetection} />}
       <div className="rounded-lg border bg-[hsl(var(--teal)/0.05)] p-3.5">
         <p className="sx-eyebrow">Shared wording within checked project sources</p>
         <p className="sx-title mt-1 text-3xl" data-testid="text-overlap-percent">{overlap ?? "Not reported"}</p>
@@ -137,12 +124,15 @@ export function CheckResult({ result, missing = [], save, aiDetection }: { resul
 /** Mount with key={itemId}: state never leaks between revisions. Shows the stored result for this revision until re-run. */
 export function CheckPanel({ itemId, disabled, missing, projectId, draftTitle, saved, aiDetection }: { itemId: string; disabled?: boolean; missing?: string[]; projectId?: string; draftTitle?: string; saved?: StudioCheck | null; aiDetection?: AiDetection | null }) {
   const check = useCheckStudioDocument();
+  const qc = useQueryClient();
   const shown = check.data ?? saved ?? null;
+  // The re-check also refreshes the plagiarism and AI-writing results stored on the item.
+  const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: getGetStudioItemQueryKey(itemId) }), qc.invalidateQueries({ queryKey: getListStudioItemsQueryKey() })]);
   return (
     <div className="sx-card p-4">
       <div className="flex items-center justify-between gap-2">
         <p className="sx-eyebrow">Free project screening</p>
-        <button className="sx-btn" disabled={disabled || check.isPending} onClick={() => check.mutate({ id: itemId })} data-testid="button-run-check"><ShieldCheck />{check.isPending ? "Checking..." : shown ? "Run again" : "Run check"}</button>
+        <button className="sx-btn" disabled={disabled || check.isPending} onClick={() => check.mutate({ id: itemId }, { onSuccess: () => void refresh() })} data-testid="button-run-check"><ShieldCheck />{check.isPending ? "Checking..." : shown ? "Run again" : "Run check"}</button>
       </div>
       {disabled && <p className="mt-2 text-xs text-muted-foreground">Save your edits first; the check reads the saved version.</p>}
       {check.isError && <p className="mt-3 text-sm text-vermilion">{friendlyError(check.error)}</p>}

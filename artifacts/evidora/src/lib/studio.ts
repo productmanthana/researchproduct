@@ -42,6 +42,15 @@ export function friendlyError(e: unknown): string {
   return base;
 }
 
+/** Mirrors the server export gate: these drafts need a plagiarism report with at most 1% matched text. */
+export function exportBlockReason(item: Pick<StudioItem, "kind" | "metadata">): string | null {
+  if (!["journal", "thesis", "literature", "synopsis", "report"].includes(item.kind)) return null;
+  const r = (item.metadata as Record<string, any> | null)?.plagiarism;
+  if (!r || typeof r.similarityPercent !== "number") return "Run the plagiarism check on the Originality page before exporting.";
+  const limit = 100 - (r.target ?? 99);
+  return r.similarityPercent > limit ? `Export blocked: ${r.similarityPercent}% matched text (limit ${limit}%). Rewrite or quote and cite the matched passages, then re-check.` : null;
+}
+
 export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">, format: "pdf" | "docx") {
   const blob = await exportStudioDocument(item.id, { format }, { responseType: "blob" });
   const url = URL.createObjectURL(blob);

@@ -10,6 +10,8 @@ import { syncProjectItem, removeProjectVectors } from "../lib/studio-index";
 import { exportStudioFile } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
 import { runPlagiarismCheck } from "../lib/plagiarism-check";
+import { screenAuthorship } from "../lib/human-authorship";
+import { exportBlockReason } from "../lib/export-gate";
 import { aiContext } from "../lib/ai-budget";
 import { studioTemplates } from "../lib/studio-templates";
 import { formatIssues } from "../lib/studio-formatting";
@@ -48,6 +50,8 @@ router.post("/studio/items",async(req,res)=>{
     metadata={...parent.metadata,edited:true};
     delete metadata.pdfExport;delete metadata.docxExport;
     delete metadata.review;delete metadata.reviewedAt;
+    // Checks describe the parent's text; an edited revision must be checked again.
+    if(b.content!==parent.content){delete metadata.plagiarism;delete metadata.aiDetection;}
   }
   if(b.templateId){
     if(!studioTemplates.some(t=>t.id===b.templateId&&t.kind===b.kind))throw new HttpError(400,"Choose a profile matching this document type.");
@@ -159,6 +163,8 @@ router.get("/studio/items/:id/figures/:figureId",async(req,res)=>{
 router.get("/studio/items/:id/export",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req)),{format}=ExportStudioDocumentQueryParams.parse(req.query);
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish before exporting.");
+  const blocked=exportBlockReason(row);
+  if(blocked)throw new HttpError(409,blocked);
   const bytes=await exportStudioFile(row,format);
   res.setHeader("Cache-Control","private, no-store");
   res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}.${format}"`);
@@ -180,9 +186,12 @@ router.post("/studio/items/:id/check",async(req,res)=>{
   const sourceEvidence=(row.metadata?.sources??[]).filter((s:any)=>s.text).map((s:any)=>({title:s.title,content:s.text,url:s.url}));
   const comparison=[...rows,...references.rows.map(r=>({title:r.data.title,content:r.data.abstract??"",url:r.data.doi?`https://doi.org/${r.data.doi}`:undefined})),...sourceEvidence];
   const result={...reviewDocument(row.content,comparison),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
-  const plagiarism=await aiContext.run({owner:uid(req),analysisId:`plagiarism:${row.id}`},()=>runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),
-    project:comparison.map(c=>({title:c.title,text:c.content,url:c.url,origin:"project" as const}))}));
-  await pool.query("UPDATE research_studio_items SET metadata=(metadata-'externalChecks')||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString(),plagiarism})]);
+  // Re-run both independent checks on the current text: plagiarism and AI-writing.
+  const [plagiarism,aiDetection]=await aiContext.run({owner:uid(req),analysisId:`plagiarism:${row.id}`},()=>Promise.all([
+    runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),project:comparison.map(c=>({title:c.title,text:c.content,url:c.url,origin:"project" as const}))}),
+    screenAuthorship(row.content,row.metadata?.aiDetection?.passes??0).catch(()=>undefined),
+  ]));
+  await pool.query("UPDATE research_studio_items SET metadata=(metadata-'externalChecks')||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString(),plagiarism,...(aiDetection?{aiDetection}:{})})]);
   res.json(result);
 });
 router.post("/studio/items/:id/sync",async(req,res)=>{

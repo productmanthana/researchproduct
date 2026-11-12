@@ -4,6 +4,8 @@ import { jsonCall } from "./ai-json";
 import { SCIENTIFIC_MODEL } from "./ai-budget";
 import { generateDocumentReview } from "./document-review";
 import { reviewDocument } from "./studio-checks";
+import { runPlagiarismCheck } from "./plagiarism-check";
+import { screenAuthorship } from "./human-authorship";
 import { ownedStudio } from "./studio-store";
 import { studioTemplates } from "./studio-templates";
 import { prepareRequirements,evaluateRequirements } from "./submission-requirements";
@@ -78,7 +80,13 @@ Findings need exact section/page if available; use 'Section not identified' othe
     scope:"AI-assisted rubric estimates, not human peer review, an acceptance probability, a plagiarism verdict or proof of novelty. Bounded retrieval from connected scholarly indexes (320M+ catalogue coverage is not 320M papers read), EPO patent publications and supplemental web results where available. A patent disclosure does not establish a marketed product. Missing evidence is not evidence of absence. Overall score is the equal-weight mean of assessed categories; unassessed categories are excluded.",
   };
   const similarity=reviewDocument(generated.content,sources.filter((s:any)=>s.text).map((s:any)=>({title:s.title,content:s.text,url:s.url})));
-  return {...generated,title:`Paper review: ${m.originalName}`,metadata:{...m,paperReview:true,scorecard,similarity,stage:"Completed"}};
+  // Independent plagiarism and AI-writing checks on the submitted manuscript itself.
+  await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Originality Agent · plagiarism and AI-writing checks"})]);
+  const [plagiarism,aiDetection]=await Promise.all([
+    runPlagiarismCheck({content:generated.content,title:m.originalName??row.title,owner:row.owner_id,project:sources.filter((s:any)=>s.text).map((s:any)=>({title:s.title,text:s.text,url:s.url,origin:"project" as const}))}).catch(()=>undefined),
+    screenAuthorship(generated.content).catch(()=>undefined),
+  ]);
+  return {...generated,title:`Paper review: ${m.originalName}`,metadata:{...m,paperReview:true,scorecard,similarity,...(plagiarism?{plagiarism}:{}),...(aiDetection?{aiDetection}:{}),stage:"Completed"}};
 }
 export function scorecardMarkdown(m:any){
   const s=m.scorecard;

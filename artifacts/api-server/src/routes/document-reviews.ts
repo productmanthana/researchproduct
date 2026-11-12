@@ -76,7 +76,7 @@ router.post("/studio/items/:id/review-decisions",async(req,res)=>{
         message:"Approved changes created a new draft. Official export settings are retained; re-run the requirements check on this version.",
         coverage:"Content changed after the requirements assessment; previous draft findings are not current.",
         checks:[{label:"Recheck the revised manuscript",status:"manual",detail:"Approved changes may affect requirements.",action:"Run Check requirements & research on the revised draft."}]};
-      for(const key of ["pdfExport","docxExport","review","reviewedAt","reviewSuggestions","currentDraftId","request","figureRevisionOf","paperReview","scorecard","similarity","sourceItemId","sourceRevision"])delete metadata[key];
+      for(const key of ["pdfExport","docxExport","review","reviewedAt","reviewSuggestions","currentDraftId","request","figureRevisionOf","paperReview","scorecard","similarity","plagiarism","aiDetection","sourceItemId","sourceRevision"])delete metadata[key];
       metadata.warnings=["Converted working draft with individually approved changes. Original uploaded file and its layout are preserved separately. Recheck citations, numerical values and formatting before publication."];
       await client.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)
         VALUES($1,$2,$3,'answer',$4,$5,$6,$7,$8)`,[nextId,owner,row.project_id,`Reviewed draft: ${row.metadata.originalName}`,content,current.id,current.revision+1,JSON.stringify(metadata)]);

@@ -19,7 +19,7 @@ import { CheckPanel } from "./check-panel";
 import { RequirementsCheck, requirementsCheckOf } from "./requirements-check";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
-import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
+import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, exportBlockReason, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
 import { savedReviewOf, aiDetectionOf } from "./check-panel";
@@ -46,9 +46,11 @@ function IndexChip({ status }: { status: string }) {
   return <span className={`sx-chip ${tone}`} data-testid="status-index">{label}</span>;
 }
 
-export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title">; disabled?: boolean }) {
+export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title" | "kind" | "metadata">; disabled?: boolean }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
+  const blocked = exportBlockReason(item);
+  if (blocked) return <span className="inline-flex items-center gap-1.5 text-xs text-vermilion" title={blocked} data-testid="status-export-blocked"><Download className="h-3.5 w-3.5" />{blocked.startsWith("Run") ? "Export locked · run plagiarism check" : "Export locked · matched text over 1%"}</span>;
   const run = async (f: "pdf" | "docx") => {
     setBusy(f);
     try { await downloadStudioItem(item, f); }

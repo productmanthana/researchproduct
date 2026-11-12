@@ -38,7 +38,7 @@ function Inner() {
   useAgentJob(job);
   const [drawer, setDrawer] = useState(false);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
-  const intro = "Plagiarism check: compares a saved draft with this project's documents, the scholarly index, open-access full texts and the Internet, and reports identical, lightly edited and paraphrased passages with their sources. It is not an AI-authorship detector.";
+  const intro = "Plagiarism check: compares a saved draft with this project's documents, the scholarly index, open-access full texts and the Internet, and reports identical, lightly edited and paraphrased passages with their sources. Each check also re-runs the AI-writing screen: style measures plus a reviewer model, with the sentences to revise.";
   if (!project) return <><StudioHeader kicker="Originality" title="Check your draft for plagiarism." intro={intro} /><NeedsProject what="Originality checking" /></>;
   const all = items.data ?? [];
   const choices = latestItems(all.filter(i => i.status === "completed" && i.content.trim()));

@@ -19,6 +19,8 @@ import { friendlyError, isWorking, KIND_LABEL, latestItems } from "@/lib/studio"
 import { confirmLeave } from "@/lib/unsaved";
 import { RequirementsCheck, ResearchCoverage, requirementsCheckOf, researchCoverageOf } from "@/components/studio/requirements-check";
 import { ApplyFormatAction } from "@/components/studio/apply-format-action";
+import { PlagiarismReportPanel, plagiarismOf } from "@/components/studio/plagiarism-report";
+import { AiDetectionPanel, aiDetectionOf } from "@/components/studio/ai-detection-panel";
 import "./paper-review.css";
 
 type DocType = "manuscript" | "proposal" | "thesis" | "literature";
@@ -177,6 +179,8 @@ function ReviewView({ id, onClose }: { id: string; onClose: () => void }) {
         {researchCoverageOf(item) ? <ResearchCoverage data={researchCoverageOf(item)} /> : <section className="sx-card p-4 text-xs text-muted-foreground" data-testid="panel-research-coverage-empty"><p className="sx-eyebrow">What was searched</p><p className="mt-2">Search counts were not recorded for this review. The comparisons below list every source that was used.</p></section>}
       </div>}
       <ScorecardPanel item={item} />
+      {!isWorking(item.status) && plagiarismOf(item) && <PlagiarismReportPanel data={plagiarismOf(item)!} />}
+      {!isWorking(item.status) && aiDetectionOf(item) && <AiDetectionPanel data={aiDetectionOf(item)!} />}
       </div>} /></div>
       </div>
     </div>
