@@ -7,7 +7,8 @@
 .ld-status.is-finishing i{animation:none}
 .ld-body{position:relative}
 .ld-body .academic-reading>:last-child{margin-bottom:.25rem}
-.ld-caret{display:inline-block;width:2px;height:1.05em;margin-left:2px;vertical-align:-2px;background:hsl(var(--foreground)/.5);animation:ld-blink 1s steps(2) infinite}
+.ld-body.is-writing .academic-reading>:is(p,h2,h3,h4,blockquote):last-child::after,
+.ld-body.is-writing .academic-reading>:is(ul,ol):last-child>li:last-child::after{content:"";display:inline-block;width:2px;height:1.05em;margin-left:3px;vertical-align:-2px;background:hsl(var(--foreground)/.55);animation:ld-blink 1s steps(2) infinite}
 .ld-note{margin-top:10px;padding-left:10px;border-left:2px solid hsl(var(--turmeric,40 80% 50%)/.5);font-size:12px;color:hsl(var(--muted-foreground))}
 .ld-jump{position:sticky;bottom:12px;display:block;margin:12px auto 0;padding:6px 14px;border-radius:999px;border:1px solid hsl(var(--border));background:hsl(var(--background));color:hsl(var(--foreground));font-size:12.5px;box-shadow:0 4px 14px hsl(var(--foreground)/.08);cursor:pointer}
 .ld-jump:focus-visible{outline:2px solid hsl(var(--ring,var(--primary)));outline-offset:2px}
@@ -16,4 +17,4 @@
 @keyframes ld-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes ld-pulse{50%{opacity:.35}}
 @keyframes ld-blink{50%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.ld-live,.ld-caret,.ld-status i{animation:none}}
+@media (prefers-reduced-motion:reduce){.ld-live,.ld-status i,.ld-body.is-writing *::after{animation:none}}

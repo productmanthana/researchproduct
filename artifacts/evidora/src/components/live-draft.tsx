@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useAgentProgressContext } from "@/components/agent-progress/provider";
 import type { QueryKey } from "@tanstack/react-query";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { useLiveGeneration, type LiveKind, type LiveConnection } from "@/hooks/use-live-generation";
 import "./live-draft.css";
 import { AcademicAnswer } from "@/components/academic-answer";
@@ -43,7 +44,8 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const root = useRef<HTMLElement>(null);
   const follow = useRef(true);
   const [behind, setBehind] = useState(false);
-  const text = stabilizeLiveMarkdown(draft);
+  const typed = useTypewriter(draft, working);
+  const text = stabilizeLiveMarkdown(typed);
   const hasText = !!text;
 
   useLayoutEffect(() => { follow.current = true; setBehind(false); }, [id]);
@@ -76,9 +78,8 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
 
   return <section ref={root} className={`ld-live ld-${presentation}`} aria-label="Live draft, not yet checked" aria-busy="true" data-testid={testId ?? `panel-live-draft-${id}`}>
     {!hasText ? <>{fallback}{(presentation==="chat"||connection==="reconnecting"||connection==="unavailable")&&statusLine}</> : <>{statusLine}
-    <div className="ld-body" aria-live="off" data-testid={`text-live-draft-${id}`}>
+    <div className={`ld-body${phase === "writing" ? " is-writing" : ""}`} aria-live="off" data-testid={`text-live-draft-${id}`}>
       <AcademicAnswer content={text} inline={plain} />
-      {phase === "writing" && <span className="ld-caret" aria-hidden />}
     </div>
     {research && <p className="ld-note" data-testid={`text-live-note-${id}`}>Provisional. Claims and citations may change once checked against your sources.</p>}
     {behind && <button type="button" className="ld-jump" onClick={jump} data-testid={`button-live-jump-${id}`}>Jump to latest</button>}</>}
