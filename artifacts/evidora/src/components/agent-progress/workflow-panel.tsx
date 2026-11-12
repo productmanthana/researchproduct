@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { BarChart3, Bell, BookOpen, Check, ChevronDown, Compass, Database, FileText, Lightbulb, ListChecks, Minus, PenLine, Save, ScanSearch, Search, ShieldCheck, Upload, type LucideIcon } from "lucide-react";
 import { STATE_LABEL, TONES, type RoleIcon, type WorkflowView } from "@/lib/agent-workflow";
+import { AgentActivity, type ActivityEntry } from "./agent-activity";
 import "./agent-progress.css";
 
 export const ICONS: Record<RoleIcon, LucideIcon> = {
@@ -9,7 +10,7 @@ export const ICONS: Record<RoleIcon, LucideIcon> = {
 };
 
 /** Presentational five-role workflow. Used by the shared popup and inline in the upload dialog. */
-export function WorkflowPanel({ view, preview, connection, compact, titleId }: { view: WorkflowView; preview?: string; connection?: string; compact?: boolean; titleId?: string }) {
+export function WorkflowPanel({ view, preview, connection, compact, titleId, log, since }: { view: WorkflowView; preview?: string; connection?: string; compact?: boolean; titleId?: string; log?: ActivityEntry[]; since?: number }) {
   const active = view.activeIndex >= 0 ? view.tiles[view.activeIndex] : null;
   const tone = active ? TONES[active.index] : "208 68% 34%";
   const HeroIcon = active ? ICONS[active.role.icon] : view.phase === "queued" ? ListChecks : ScanSearch;
@@ -25,6 +26,10 @@ export function WorkflowPanel({ view, preview, connection, compact, titleId }: {
         <p className="ap-task" role="status" aria-live="polite" aria-atomic="true" data-testid="text-agent-status">{view.statusLine}</p>
         <p className="ap-subject" title={view.title}>{view.title}</p>
       </div>
+
+      {!compact && log && log.length > 0 && (
+        <AgentActivity log={log} since={since ?? Date.now()} preview={preview} live={view.phase === "running"} />
+      )}
 
       <div className={`ap-bar ${view.indeterminate ? "is-indeterminate" : ""}`} role="progressbar" aria-label={`${view.workflow} progress`}
         aria-valuemin={0} aria-valuemax={view.tiles.length} aria-valuenow={view.indeterminate ? undefined : view.activeIndex + 1}

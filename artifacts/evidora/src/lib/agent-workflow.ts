@@ -12,7 +12,7 @@ export type WorkflowInput = {
   key: string;
   workflow: string;          // eyebrow, e.g. "Literature synthesis"
   title: string;             // what is being worked on
-  roles: RoleDef[];          // exactly five
+  roles: RoleDef[];          // up to eight, in pipeline order
   active: string | null;     // role id from a real stage value, null = indeterminate
   phase: Phase;
   skipped?: Record<string, string>;
@@ -22,14 +22,14 @@ export type WorkflowInput = {
 export type WorkflowTile = { role: RoleDef; state: RoleState; detail: string; index: number };
 export type WorkflowView = WorkflowInput & { tiles: WorkflowTile[]; activeIndex: number; indeterminate: boolean };
 
-export const TONES = ["208 68% 34%", "8 70% 48%", "38 86% 44%", "158 45% 32%", "262 30% 46%"];
+export const TONES = ["208 68% 34%", "8 70% 48%", "38 86% 44%", "158 45% 32%", "262 30% 46%", "338 42% 44%", "188 50% 34%"];
 
 export const STATE_LABEL: Record<RoleState, string> = {
   done: "Completed", active: "In progress", pending: "Pending", skipped: "Skipped", unreported: "Not reported",
 };
 
 export function buildWorkflowView(input: WorkflowInput, observed: readonly string[] = []): WorkflowView {
-  const roles = input.roles.slice(0, 5);
+  const roles = input.roles.slice(0, 8);
   const activeIndex = input.active ? roles.findIndex(r => r.id === input.active) : -1;
   const tiles = roles.map((role, index): WorkflowTile => {
     const skip = input.skipped?.[role.id];
@@ -91,7 +91,9 @@ export function studioStageRole(stage?: string | null): string | null {
   if (s.startsWith("Evidence Reader")) return "evidence";
   if (s.startsWith("Academic Writing Agent") || s.startsWith("Writing Agent")) return "write";
   if (s.startsWith("Evidence Review Agent")) return "review";
+  if (s.startsWith("Authorship Agent")) return "authorship";
   if (s.startsWith("Scientific Figure Agent")) return "figures";
+  if (s.startsWith("Originality Agent")) return "originality";
   return null;
 }
 export function studioWorkflow(item: { id: string; kind: string; status: string; title: string; metadata?: unknown }): WorkflowInput {
@@ -103,18 +105,26 @@ export function studioWorkflow(item: { id: string; kind: string; status: string;
   const active = queued ? null : studioStageRole(stage);
   const projectOnly = req.evidenceMode === "project";
   const figureRevision = typeof m.figureRevisionOf === "string";
+  // Every stage the worker actually reports, in order. Authorship rewriting and the
+  // originality screen run for scholarly kinds only.
+  const scholarly = ["journal", "thesis", "literature", "synopsis", "report"].includes(item.kind);
   const roles: RoleDef[] = [
     { id: "survey", name: "Literature Survey", task: "Finding relevant evidence", icon: "search" },
     { id: "evidence", name: "Evidence Reader", task: "Reviewing papers and project documents", icon: "book" },
     { id: "write", name: k.write, task: stage.startsWith("Writing Agent") ? "Drafting with retrieved evidence" : k.task, icon: k.icon },
     { id: "review", name: "Evidence Review", task: "Checking claims and references", icon: "shield" },
+    { id: "authorship", name: "Authorship", task: "Rewriting in human academic prose", icon: "pen" },
     { id: "figures", name: "Scientific Figures", task: "Validating data and diagrams", icon: "chart" },
+    { id: "originality", name: "Originality", task: "Searching scholarly indexes and the web for matching text", icon: "scan" },
   ];
   const detail = stage.includes("·") ? stage.split("·").slice(1).join("·").trim() : "";
   return {
     key: `studio:${item.id}`, workflow: k.workflow, title: item.title, roles, active,
     phase: queued ? "queued" : active ? "running" : "unknown",
-    skipped: projectOnly ? { survey: "Project sources only; no catalogue search" } : undefined,
+    skipped: {
+      ...(projectOnly ? { survey: "Project sources only; no catalogue search" } : {}),
+      ...(scholarly ? {} : { authorship: "Authorship rewriting runs on scholarly drafts only" }),
+    },
     statusLine: queued ? "Queued · your request is saved and waiting for a writer slot" : active ? (detail ? detail[0].toUpperCase() + detail.slice(1) : roles.find(r => r.id === active)!.task) : "Working · stage not reported yet",
     note: figureRevision ? "Figure revision: the existing text is kept; figures are re-checked." : "You can leave this page; the result is saved to your project automatically.",
   };

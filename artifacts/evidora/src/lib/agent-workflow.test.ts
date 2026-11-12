@@ -4,15 +4,17 @@ import { buildWorkflowView, observe, researchWorkflow, studioWorkflow, reviewWor
 
 const states = (v: ReturnType<typeof buildWorkflowView>) => v.tiles.map(t => t.state);
 
-test("every workflow has exactly five roles", () => {
-  const all = [
+test("workflows list their real stages, at most eight", () => {
+  const five = [
     researchWorkflow({ id: "a", status: "running", stage: "planning", question: "q", reusedSources: false }),
-    studioWorkflow({ id: "s", kind: "thesis", status: "running", title: "t", metadata: {} }),
     reviewWorkflow({ id: "r", status: "running", title: "t", metadata: {} }),
     uploadWorkflow("put", "f.pdf").input, originalityWorkflow("o", "t"),
     watchWorkflow({ projectId: "p", status: "running", patents: false, topic: "t" }),
   ];
-  for (const w of all) assert.equal(w.roles.length, 5);
+  for (const w of five) assert.equal(w.roles.length, 5);
+  // Studio reports authorship rewriting and the originality screen after the figures stage.
+  const studio = studioWorkflow({ id: "s", kind: "thesis", status: "running", title: "t", metadata: {} });
+  assert.deepEqual(studio.roles.map(r => r.id), ["survey", "evidence", "write", "review", "authorship", "figures", "originality"]);
 });
 
 test("queued and unknown research stages are indeterminate", () => {
@@ -30,11 +32,14 @@ test("reused sources mark survey skipped, never done", () => {
   assert.deepEqual(states(buildWorkflowView(input, ["plan", "survey"])), ["done", "skipped", "active", "pending", "pending"]);
 });
 
-test("studio stages map into five roles and project-only skips survey", () => {
+test("studio stages map into their pipeline role and project-only skips survey", () => {
   const w = studioWorkflow({ id: "s", kind: "literature", status: "running", title: "t", metadata: { stage: "Writing Agent · drafting with retrieved evidence", request: { evidenceMode: "project" } } });
   assert.equal(w.active, "write");
   assert.equal(w.skipped?.survey !== undefined, true);
+  assert.equal(w.skipped?.authorship, undefined);
   assert.equal(studioWorkflow({ id: "s", kind: "ideas", status: "running", title: "t", metadata: { stage: "Scientific Figure Agent · validating data and diagrams" } }).active, "figures");
+  assert.equal(studioWorkflow({ id: "s", kind: "journal", status: "running", title: "t", metadata: { stage: "Authorship Agent · rewriting in human academic prose" } }).active, "authorship");
+  assert.equal(studioWorkflow({ id: "s", kind: "journal", status: "running", title: "t", metadata: { stage: "Originality Agent · searching scholarly indexes and the Internet for matching text" } }).active, "originality");
   assert.equal(studioWorkflow({ id: "s", kind: "ideas", status: "queued", title: "t", metadata: { stage: "Queued" } }).active, null);
 });
 

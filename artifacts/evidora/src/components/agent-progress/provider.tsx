@@ -3,11 +3,12 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useAuth } from "@clerk/react";
 import { Activity, Minimize2 } from "lucide-react";
 import { buildWorkflowView, observe, TONES, type WorkflowInput } from "@/lib/agent-workflow";
+import type { ActivityEntry } from "./agent-activity";
 import { WorkflowPanel } from "./workflow-panel";
 import { showProgressPopup, streamHasStarted } from "@/lib/progress-visibility";
 import "./agent-progress.css";
 
-type Job = { input: WorkflowInput; observed: string[]; seq: number; preview?: string; connection?: string; streamStarted?: boolean; openedAfterStreaming?: boolean };
+type Job = { input: WorkflowInput; observed: string[]; seq: number; preview?: string; connection?: string; streamStarted?: boolean; openedAfterStreaming?: boolean; log: ActivityEntry[]; since: number };
 type Ctx = {
   register: (input: WorkflowInput, subscriber: string) => void;
   unregister: (key: string, subscriber: string) => void;
@@ -37,7 +38,12 @@ function AgentProgressRegistry({ children }: { children: ReactNode }) {
     owners.add(subscriber); subscribers.current.set(input.key, owners);
     setJobs(prev => {
       const old = prev[input.key];
-      return { ...prev, [input.key]: { ...old, input, observed: observe(old?.observed ?? [], input.active), seq: old?.seq ?? ++seq.current } };
+      // Keep a short history of the stages the server actually reported, plus when the
+      // current stage began, so the popup can show real activity instead of a frozen step.
+      const log = old?.log ? [...old.log] : [];
+      if (log.at(-1)?.line !== input.statusLine) log.push({ line: input.statusLine, at: Date.now() });
+      const since = old && old.input.active === input.active ? old.since : Date.now();
+      return { ...prev, [input.key]: { ...old, input, observed: observe(old?.observed ?? [], input.active), seq: old?.seq ?? ++seq.current, log: log.slice(-12), since } };
     });
   }, []);
   const unregister = useCallback((key: string, subscriber: string) => {
@@ -94,7 +100,7 @@ function AgentProgressRegistry({ children }: { children: ReactNode }) {
                 ))}
               </div>
             )}
-            <WorkflowPanel view={view} preview={job?.preview} connection={job?.connection} titleId={titleId} />
+            <WorkflowPanel view={view} preview={job?.preview} connection={job?.connection} log={job?.log} since={job?.since} titleId={titleId} />
             <div className="ap-actions">
               <p>Closing keeps the work running. Reopen it from the page or the progress button.</p>
               <DialogPrimitive.Close className="ap-btn" data-testid="button-minimise-progress"><Minimize2 />Keep working in background</DialogPrimitive.Close>
