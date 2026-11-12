@@ -29,6 +29,7 @@ import { loadStudioConversation } from "./studio-conversation";
 import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE } from "./manuscript-policy";
 import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft } from "./human-authorship";
 import { reviewDocument } from "./studio-checks";
+import { runExternalChecks, type ExternalChecks } from "./pangram";
 
 const Idea=z.object({title:z.string().min(1),problem:z.string(),question:z.string(),method:z.string(),feasibility:z.string()});
 const Generated=z.object({title:z.string().min(1).max(300),content:z.string().min(1).max(100000),ideas:z.array(Idea).optional()});
@@ -221,11 +222,22 @@ Do not add a References section; it will be assembled from actual sources. Prese
   ]):undefined;
   if(originality&&originality.corpusSimilarityPercent>=15)
     warnings.push(`The originality screen finds ${originality.corpusSimilarityPercent}% shared wording with this project's sources. Review the overlapping passages before submission.`);
+  // Independent web plagiarism and AI-writing checks (Pangram), reported as-is.
+  let externalChecks:ExternalChecks|undefined;
+  if(scholarly){
+    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Originality Agent · independent plagiarism and AI-writing checks"})]);
+    externalChecks=await runExternalChecks(content.replace(/\[\[figure:[^\]]+\]\]/g,""));
+    if(externalChecks?.plagiarism&&externalChecks.plagiarism.uniquePercent<externalChecks.target)
+      warnings.push(`The web plagiarism check finds ${externalChecks.plagiarism.plagiarizedPercent}% of sentences matching online sources (target: ${externalChecks.target}% unique). Rewrite or quote and cite the matched passages.`);
+    if(externalChecks?.ai&&externalChecks.ai.humanPercent<externalChecks.target)
+      warnings.push(`The independent AI-writing check rates ${externalChecks.ai.humanPercent}% of the text as human-written (target: ${externalChecks.target}%). Revise the flagged passages in your own words before submission.`);
+  }
   const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:sources.map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode};
   metadata.includeFigures=includeFigures;
   delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
   if(originality)Object.assign(metadata,{review:{...originality,profileName:studioTemplates.find(t=>t.id===selectedTemplateId)?.name??"General academic"},reviewedAt:originality.checkedAt});
   if(aiDetection)metadata.aiDetection=aiDetection;
+  if(externalChecks)metadata.externalChecks=externalChecks;else delete metadata.externalChecks;
   const formattedFinal=personalFormat?customFormatContent(final,personalFormat,draft.title):final;
   if(personalFormat)Object.assign(metadata,{customFormat:personalFormat,customFormatWarnings:customFormatWarnings({content:formattedFinal,metadata},personalFormat),customFormatStatus:"Customised — not verified"});
   if(requirementPlan){
