@@ -50,7 +50,10 @@ test("review, upload, watch mapping is honest", () => {
   const w = buildWorkflowView(watchWorkflow({ projectId: "p", status: "running", patents: false, topic: "t" }));
   assert.equal(w.tiles[2].state, "skipped");
   assert.ok(!w.tiles.some(t => t.state === "done"));
-  assert.ok(!/internet|plagiarism score/i.test(originalityWorkflow("o", "t").roles.map(r => r.task).join(" ")));
+  // The originality check now searches the Internet and screens AI writing, so the dialog must say so.
+  const originality = originalityWorkflow("o", "t");
+  assert.match(originality.roles.map(r => r.task).join(" "), /Internet/);
+  assert.match(originality.note ?? "", /AI-writing/);
 });
 
 test("observe is idempotent", () => {

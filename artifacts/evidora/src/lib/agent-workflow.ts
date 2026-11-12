@@ -207,16 +207,16 @@ export function uploadWorkflow(stage: UploadStage, fileName: string): { input: W
 /* ---------------- Originality (local project screening) ---------------- */
 export function originalityWorkflow(id: string, title: string): WorkflowInput {
   return {
-    key: `originality:${id}`, workflow: "Project screening", title, active: null, phase: "unknown",
+    key: `originality:${id}`, workflow: "Originality check", title, active: null, phase: "unknown",
     roles: [
       { id: "corpus", name: "Project Material", task: "Collecting other drafts and notes in this project", icon: "database" },
       { id: "refs", name: "Saved References", task: "Including saved paper abstracts and draft sources", icon: "book" },
-      { id: "overlap", name: "Shared Wording", task: "Comparing phrases against project material only", icon: "scan" },
+      { id: "overlap", name: "Shared Wording", task: "Comparing phrases with project material, scholarly abstracts, open full texts and the Internet", icon: "scan" },
       { id: "format", name: "Writing & Format", task: "Checking structure and stated requirements", icon: "list" },
       { id: "save", name: "Saved Result", task: "Storing the check with this draft", icon: "save" },
     ],
-    statusLine: "Running the project check · steps are not reported individually",
-    note: "Local project screening only. This is not an internet plagiarism search or an AI-authorship verdict.",
+    statusLine: "Running the originality check · steps are not reported individually",
+    note: "Compares the draft with this project's material, the scholarly index, open-access full texts and the Internet, then re-runs the AI-writing screen. Paywalled full texts and pages the search does not return cannot be compared.",
   };
 }
 
