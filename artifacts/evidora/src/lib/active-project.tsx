@@ -28,7 +28,10 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   }, [uid]);
 
   const projects = useMemo(() => (isSignedIn ? list.data ?? [] : []), [isSignedIn, list.data]);
-  const project = projects.find(p => p.id === selectedId) ?? null;
+  // A stored id that no longer exists (folder deleted or merged away) falls back to the newest folder,
+  // so every project page is not left gated behind "None selected".
+  const storedProject = projects.find(p => p.id === selectedId) ?? null;
+  const project = storedProject ?? (selectedId && !list.isLoading ? projects[0] ?? null : null);
 
   const [location, setLocation] = useLocation();
   const search = useSearch();
