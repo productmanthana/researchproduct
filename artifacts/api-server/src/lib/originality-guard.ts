@@ -11,7 +11,7 @@ import { markersPreserved } from "./human-authorship";
 import { checkAgainst, ORIGINALITY_TARGET, type PlagiarismCorpus, type PlagiarismReport } from "./plagiarism-check";
 
 /** Final-check repair passes before an unresolved match is shown to the user. */
-export const MAX_REPAIR_PASSES = 2;
+export const MAX_REPAIR_PASSES = 4;
 const BATCH = 10, PER_SECTION = 14, SECTION_CONCURRENCY = 4;
 
 export type FixItem = { sentence: string; reasons: string[]; source?: string };
@@ -40,7 +40,12 @@ export function sentencesCovering(content: string, passage: string) {
   let start = head.index, end = tail ? tail.index + tail[0].length : head.index + head[0].length;
   while (start > 0 && content[start - 1] !== "\n" && !isEnd(content, start - 2 >= 0 ? start - 2 : 0)) start--;
   while (end < content.length && content[end] !== "\n" && !isEnd(content, end - 1)) end++;
-  const span = content.slice(start, end).trim();
+  let span = content.slice(start, end).trim();
+  // A match running into a list ("objectives are to:\n1. Establish ...") is fixed through the line it starts on.
+  if (span.includes("\n")) {
+    const lineEnd = content.indexOf("\n", head.index);
+    span = content.slice(start, lineEnd < 0 ? undefined : lineEnd).trim();
+  }
   return span.length >= 20 && span.length <= 1500 && !span.includes("\n") ? span : null;
 }
 
@@ -120,9 +125,9 @@ export async function repairOriginality({ content, corpus, onProgress }: { conte
     passes++;
     await onProgress?.({ pass: passes, similarityPercent: report.similarityPercent });
     const next = await rewriteSentences(content, items);
-    if (next === content) break;
+    if (next === content) continue; // Rewrites are not deterministic: try the next pass.
     const checked = await checkAgainst(next, corpus);
-    if (checked.matchedWords >= report.matchedWords) break; // Keep the version with less shared wording.
+    if (checked.matchedWords >= report.matchedWords) continue; // Keep the version with less shared wording and retry.
     content = next; report = checked;
   }
   return { content, report, passes };
