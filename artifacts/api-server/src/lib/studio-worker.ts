@@ -26,7 +26,7 @@ import { generateDocumentReview } from "./document-review";
 import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
-import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS } from "./manuscript-policy";
+import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE } from "./manuscript-policy";
 
 const Idea=z.object({title:z.string().min(1),problem:z.string(),question:z.string(),method:z.string(),feasibility:z.string()});
 const Generated=z.object({title:z.string().min(1).max(300),content:z.string().min(1).max(100000),ideas:z.array(Idea).optional()});
@@ -114,10 +114,10 @@ async function generate(row:any) {
   if(gathered.patents){
     const patents=gathered.patents;
     if(!patents.available)warnings.push(patents.message);
-    for(const p of patents.patents.slice(0,8))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
+    for(const p of patents.patents.slice(0,15))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
   }
   // Preserve exact source identities, and report bounded processing rather than implying an exhaustive read.
-  sources=[...new Map(sources.map(s=>[s.id,s])).values()].slice(0,36);
+  sources=[...new Map(sources.map(s=>[s.id,s])).values()].slice(0,48);
   if(["literature","journal"].includes(request.kind)&&!sources.length&&!figureOnly)
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
   const webEvidence=gathered.web.evidence;
@@ -138,6 +138,7 @@ Write natural, precise scholarly prose with developed paragraphs, analytical com
 The current request is the assignment. Project notes and earlier drafts are optional context, not a reason to change its topic. Ignore unrelated material rather than summarising it or adopting its subject. If supplied evidence does not address the current topic, state the evidence boundary briefly and develop clearly labelled proposals instead of claiming unrelated sources support them.
 The supplied conversation is the actual ordered dialogue in this chat. Use its earlier questions and replies to resolve follow-ups, choices and pronouns; do not treat unrelated project documents as messages from this conversation. Earlier assistant replies are context, NOT independent scientific evidence. Their citation numbers are local to those earlier replies: do not copy them into the new answer; use only the CURRENT evidence reference numbers. Answer the newest user question without unnecessarily rewriting the preceding conversation.
 ${instructions[request.kind]}
+${["journal","thesis","literature","synopsis","report"].includes(request.kind)?PROFESSIONAL_ACADEMIC_STYLE:""}
 Only empirical findings supported by supplied evidence may be asserted. Use exact numbered citations [1], [2] matching evidence reference numbers. Distinguish abstract-level evidence, accessible page excerpts, user data and patents. Lack of a result is not proof of novelty. Do not claim experiments were performed unless explicitly supplied as actual data, and attribute user-supplied data as such.
 For journal/thesis assignments, follow the supplied source-grounded officialRequirements rules wherever possible: include required sections and respect explicit abstract/keyword bounds. Preserve a useful complete draft; never invent signatures, ethics approvals, author details, declarations of facts or completed results to satisfy a requirement. Requirements that need author information must remain explicitly unfulfilled. Missing or unavailable official rules are not proof of compliance.
 Return JSON {"title":"...","content":"markdown body WITHOUT bibliography","ideas":[five objects with title,problem,question,method,feasibility only when generating ideas]}.

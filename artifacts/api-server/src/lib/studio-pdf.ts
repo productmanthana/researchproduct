@@ -23,14 +23,14 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
       pdf.registerFont("AcademicBold",path.join(fontDir,l.fontFamily==="sans"?"DejaVuSans-Bold.ttf":"DejaVuSerif-Bold.ttf"));
       pdf.font("Academic").fillColor("#000000");
       const fullWidth=pdf.page.width-l.margins.left-l.margins.right;
-      let columns=1,column=0,y=l.margins.top;
+      let columns=1,column=0,y=l.margins.top,colTop=l.margins.top;
       const width=()=>columns===2?(fullWidth-18)/2:fullWidth;
       const x=()=>l.margins.left+column*(width()+18);
       let pageIndex=0;
-      const addPage=()=>{pdf.addPage();pageIndex++;column=0;y=l.margins.top;};
+      const addPage=()=>{pdf.addPage();pageIndex++;column=0;y=l.margins.top;colTop=y;};
       const ensure=(height:number)=>{
         if(y+height<=pdf.page.height-l.margins.bottom)return;
-        if(columns===2&&column===0){column=1;y=l.margins.top;}else addPage();
+        if(columns===2&&column===0){column=1;y=colTop;}else addPage();
       };
       const wrap=(text:string,w:number)=>{
         const lines:string[]=[];let line="";
@@ -43,6 +43,9 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         }
         if(line)lines.push(line);return lines;
       };
+      // Tables and figures span the full page width, then the two-column flow resumes below them.
+      const beginSpan=()=>{const prev=columns;if(prev===2){if(column===1||y>colTop+1)addPage();columns=1;column=0;}return prev;};
+      const endSpan=(prev:number)=>{if(prev===2){columns=2;column=0;colTop=y;}};
       const text=(value:string,size=l.fontSize,bold=false,center=false,spacing=l.lineSpacing)=>{
         pdf.font(bold?"AcademicBold":"Academic").fontSize(size);
         const lines=wrap(value,width()),height=size*spacing+2;
@@ -50,7 +53,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         y+=size*0.6;
       };
       const title=()=>{y+=id==="academic-report"?0:36;text(id==="stanford"?row.title.toUpperCase():row.title,id==="academic-report"?18:20,true,id!=="academic-report",1.2);y+=id==="academic-report"?6:20;if(["journal","synopsis","thesis"].includes(row.kind)||l.thesis){text(d.author||"[Author name required]",12,false,true);text(d.affiliation||"[Affiliation required]",12,false,true);}else if(d.author)text(d.author,12,false,true);};
-      let body=String(row.content).replace(/^#\s+([^\n]+)\n/,(_,s:string)=>s.trim()===row.title.trim()?"":`# ${s}\n`);
+      let body=String(row.content).replace(/^\s*#\s+([^\n]+)\n/,"");
       let bodyStart=0,prelimStart=0,contentsPages:number[]=[];
       const toc:{title:string;page:number}[]=[];
       title();
@@ -68,7 +71,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         const pages=Math.max(1,Math.ceil(headings.length/22));
         for(let i=0;i<pages;i++){addPage();contentsPages.push(pageIndex);}
         addPage();bodyStart=pageIndex;columns=l.columns;
-      }else{y+=14;columns=l.columns;}
+      }else{y+=14;columns=l.columns;colTop=y;}
       let references=false,disclosure=false;
       for(const block of documentBlocks(body)){
         if(block.kind==="heading"){
@@ -105,8 +108,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         }
         else if(block.kind==="figure"){
           const f=figures.find(f=>f.id===block.id)!;
-          const previousColumns=columns;
-          if(columns===2){columns=1;addPage();}
+          const previousColumns=beginSpan();
           const imageHeight=Math.min(width()*(custom?.figureWidth??100)/100*figureAspect(f),id==="academic-report"?255:pdf.page.height-l.margins.top-l.margins.bottom-100);
           ensure(imageHeight+50);
           if(custom?.captionPosition==="above")text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
@@ -115,21 +117,28 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
           if(custom?.captionPosition!=="above")text(`Figure ${figures.indexOf(f)+1}. ${f.title}. ${f.caption}`,10,false,false,1.2);
           if(f.explanation&&id!=="academic-report")text(f.explanation,10,false,false,1.3);
           text(f.provenance,9,false,false,1.15);
-          if(previousColumns===2){columns=previousColumns;addPage();}
+          endSpan(previousColumns);
         }
         else{
+          const prev=beginSpan(),cols=Math.max(...block.rows.map(r=>r.length));
+          const weights=Array.from({length:cols},(_,c)=>Math.min(36,Math.max(6,...block.rows.map(r=>(r[c]??"").length))));
+          const total=weights.reduce((a,b)=>a+b,0),widths=weights.map(w=>width()*w/total);
           for(let r=0;r<block.rows.length;r++){
-            const cells=block.rows[r],cellWidth=width()/Math.max(...block.rows.map(row=>row.length));
             pdf.font(r===0?"AcademicBold":"Academic").fontSize(9);
-            const wrapped=cells.map(c=>wrap(c,cellWidth-10)),max=Math.max(...wrapped.map(c=>c.length));
-            // Render line-by-line so tall rows can flow without clipping.
-            for(let n=0;n<max;n++){
-              ensure(15);
-              cells.forEach((_,i)=>{pdf.rect(x()+i*cellWidth,y,cellWidth,15).strokeColor("#777777").stroke();pdf.text(wrapped[i][n]??"",x()+i*cellWidth+5,y+2,{width:cellWidth-10,lineBreak:false});});
-              y+=15;
+            const wrapped=Array.from({length:cols},(_,c)=>wrap(block.rows[r][c]??"",widths[c]-10));
+            const lineH=12,rowH=Math.max(...wrapped.map(c=>c.length),1)*lineH+8;
+            ensure(rowH);
+            let cx=x();
+            for(let c=0;c<cols;c++){
+              pdf.rect(cx,y,widths[c],rowH);
+              if(r===0)pdf.fillAndStroke("#eeeeee","#777777");else pdf.strokeColor("#777777").stroke();
+              pdf.fillColor("#000000").font(r===0?"AcademicBold":"Academic").fontSize(9);
+              wrapped[c].forEach((line,n)=>pdf.text(line,cx+5,y+4+n*lineH,{width:widths[c]-10,lineBreak:false}));
+              cx+=widths[c];
             }
+            y+=rowH;
           }
-          y+=10;
+          y+=10;endSpan(prev);
         }
       }
       // Fill contents after actual body pagination is known.

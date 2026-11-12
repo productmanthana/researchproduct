@@ -82,7 +82,8 @@ export function documentBlocks(content:string):MarkdownBlock[]{
   for(let i=0;i<lines.length;i++){
     const line=lines[i],heading=/^(#{1,3})\s+(.+)$/.exec(line);
     const figure=/^\s*\[\[figure:([a-zA-Z0-9_-]+)\]\]\s*$/.exec(line);
-    if(figure){flush();blocks.push({kind:"figure",id:figure[1]});}
+    if(/^\s*(```|~~~)/.test(line)){flush();i++;while(i<lines.length&&!/^\s*(```|~~~)/.test(lines[i]))i++;}
+    else if(figure){flush();blocks.push({kind:"figure",id:figure[1]});}
     else if(heading){flush();blocks.push({kind:"heading",level:heading[1].length,text:plainText(heading[2])});}
     else if(line.trim().startsWith("|")){
       flush();const rows:string[][]=[];
