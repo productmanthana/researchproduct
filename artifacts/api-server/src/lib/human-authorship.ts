@@ -109,18 +109,34 @@ export async function rewriteFlagged(content: string, flagged: FlaggedSentence[]
  * flagged sentences and re-screens, up to MAX_HUMANISE_PASSES. Never drops the
  * draft: the best-scoring version wins.
  */
-export async function humaniseDraft({ content }: { content: string }) {
+/** Reported after each real step, so a live view can follow the rewrite instead of freezing. */
+export type AuthorshipProgress = {
+  step: "screening" | "rewriting" | "done";
+  pass: number;
+  passes: number;
+  /** Best draft so far, so the reader sees the text change rather than a stalled panel. */
+  content: string;
+  humanScore: number;
+  flagged: number;
+  revised: number;
+};
+
+export async function humaniseDraft({ content, onProgress }: { content: string; onProgress?: (progress: AuthorshipProgress) => void | Promise<void> }) {
   let best = { content, detection: await screenAuthorship(content) };
+  await onProgress?.({ step: "screening", pass: 0, passes: MAX_HUMANISE_PASSES, content, humanScore: best.detection.humanScore, flagged: best.detection.flagged.length, revised: 0 });
   let current = best;
   for (let pass = 1; pass <= MAX_HUMANISE_PASSES && best.detection.humanScore < HUMAN_AUTHORSHIP_TARGET; pass++) {
     try {
-      const rewritten = await rewriteFlagged(current.content, current.detection.flagged);
+      const flagged = current.detection.flagged;
+      const rewritten = await rewriteFlagged(current.content, flagged);
       if (rewritten === current.content) break;
       current = { content: rewritten, detection: await screenAuthorship(rewritten, pass) };
+      await onProgress?.({ step: "rewriting", pass, passes: MAX_HUMANISE_PASSES, content: rewritten, humanScore: current.detection.humanScore, flagged: flagged.length, revised: flagged.filter(f => !rewritten.includes(f.sentence)).length });
       if (current.detection.humanScore > best.detection.humanScore) best = current;
     } catch {
       break; // Keep the best supported draft when a pass fails validation or the service.
     }
   }
+  await onProgress?.({ step: "done", pass: best.detection.passes, passes: MAX_HUMANISE_PASSES, content: best.content, humanScore: best.detection.humanScore, flagged: best.detection.flagged.length, revised: 0 });
   return best;
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { aiContext, SCIENTIFIC_MODEL } from "./ai-budget";
 import { jsonCall, liveJsonCall } from "./ai-json";
 import { customFormatContent,customFormatWarnings } from "./custom-format";
-import { withLiveGeneration, clearLive } from "./live-generation";
+import { withLiveGeneration, clearLive, publishLive } from "./live-generation";
 import { parallelEvidence } from "./parallel-evidence";
 import { generationCustomFormat, generationFiguresEnabled } from "./studio-generation-preferences";
 import { retrievalContext } from "./semantic-retrieval";
@@ -27,7 +27,7 @@ import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
 import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE } from "./manuscript-policy";
-import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft } from "./human-authorship";
+import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft, MAX_HUMANISE_PASSES } from "./human-authorship";
 import { reviewDocument } from "./studio-checks";
 import { runPlagiarismCheck, type PlagiarismReport } from "./plagiarism-check";
 
@@ -181,8 +181,23 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const scholarly=!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind);
   let aiDetection:Awaited<ReturnType<typeof humaniseDraft>>["detection"]|undefined;
   if(scholarly){
-    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Authorship Agent · rewriting in human academic prose"})]);
-    const humanised=await humaniseDraft({content});
+    // Authorship rewrites only flagged sentences, so nothing streams token by token here.
+    // Publish the finished draft and a per-pass line so the live view keeps visibly moving.
+    const stage=async(text:string)=>pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:text})]);
+    const since=new Date().toISOString();
+    await Promise.all([
+      publishLive("studio",row.id,content,{detail:"Screening style, rhythm and phrasing",pass:0,passes:MAX_HUMANISE_PASSES,since}),
+      stage("Authorship Agent · screening the draft for machine-written style"),
+    ]);
+    const humanised=await humaniseDraft({content,onProgress:async p=>{
+      const detail=p.step==="screening"?`Screening style · ${p.flagged} passages flagged`
+        :p.step==="done"?`Rewriting finished · ${p.humanScore}% human-authorship estimate`
+        :`Pass ${p.pass} of ${p.passes} · ${p.revised} of ${p.flagged} flagged passages rewritten`;
+      await Promise.all([
+        publishLive("studio",row.id,p.content,{detail,pass:p.pass,passes:p.passes,revised:p.revised,total:p.flagged,since}),
+        stage(`Authorship Agent · ${detail}`),
+      ]);
+    }});
     content=humanised.content;aiDetection=humanised.detection;
     if(aiDetection.humanScore<aiDetection.threshold)
       warnings.push(`The authorship screen estimates ${aiDetection.humanScore}% human authorship, below the ${aiDetection.threshold}% target. Revise the passages it flagged before submission.`);

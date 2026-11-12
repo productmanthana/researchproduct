@@ -124,7 +124,7 @@ test("A reached answer limit remains actionable while other blocked sends stay d
 });
 import "./ideas-chat.test";
 
-import { stabilizeLiveMarkdown, liveStage } from "./live-markdown";
+import { stabilizeLiveMarkdown, liveStage, authorshipStatusLine } from "./live-markdown";
 test("Live drafts hide partial Markdown syntax without inventing content", () => {
   assert.equal(stabilizeLiveMarkdown("## Findings\nText"), "## Findings\n\nText");
   assert.equal(stabilizeLiveMarkdown("Intro\n\n| A | B |"), "Intro");
@@ -138,6 +138,14 @@ test("Live drafts hide partial Markdown syntax without inventing content", () =>
   assert.equal(liveStage("Evidence Review Agent · checking claims and references", "live", true), "checking");
   assert.equal(stabilizeLiveMarkdown("Use C#"), "Use C#");
   assert.equal(stabilizeLiveMarkdown("###### Methods\nUse C#"), "### Methods\n\nUse C#");
+});
+
+test("A rewriting stage shows its pass and counts elapsed time instead of a silent draft", () => {
+  const since = "2026-11-12T10:00:00.000Z";
+  assert.equal(authorshipStatusLine({ detail: "Pass 2 of 3 · 14 of 45 flagged passages rewritten", since }, Date.parse(since) + 54000),
+    "Pass 2 of 3 · 14 of 45 flagged passages rewritten · 54s");
+  assert.equal(authorshipStatusLine({ since }, Date.parse(since) + 125000), "Rewriting in human academic prose · 2m 05s");
+  assert.equal(authorshipStatusLine({ detail: "Screening style" }), "Screening style");
 });
 
 import { classifySource, mergeSources, studioItemSources, sourcesRetrievedOnly, sourceKindCounts } from "./source-provenance";

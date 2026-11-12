@@ -46,6 +46,20 @@ export function stabilizeLiveMarkdown(raw: string): string {
   return blocks.filter(b => b.trim()).join("\n\n").trim();
 }
 
+/** Server-reported progress for stages that rewrite finished text instead of streaming tokens. */
+export type LiveProgress = { detail?: string; pass?: number; passes?: number; revised?: number; total?: number; since?: string };
+
+/** Pass line for a rewriting stage, with elapsed time so the pause visibly counts up. */
+export function authorshipStatusLine(progress: LiveProgress, now = Date.now()): string {
+  const parts = [progress.detail?.trim() || "Rewriting in human academic prose"];
+  const since = progress.since ? Date.parse(progress.since) : NaN;
+  if (Number.isFinite(since) && now > since) {
+    const seconds = Math.floor((now - since) / 1000);
+    parts.push(seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`);
+  }
+  return parts.join(" · ");
+}
+
 export type LiveStage = "waiting" | "researching" | "writing" | "checking" | "reconnecting" | "finishing";
 
 /** Maps the server-reported stage/connection to a single honest phase. */

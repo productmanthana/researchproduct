@@ -5,7 +5,7 @@ import { useTypewriter } from "@/hooks/use-typewriter";
 import { useLiveGeneration, type LiveKind, type LiveConnection } from "@/hooks/use-live-generation";
 import "./live-draft.css";
 import { AcademicAnswer } from "@/components/academic-answer";
-import { liveStage, liveStatusLabel, stabilizeLiveMarkdown } from "@/lib/live-markdown";
+import { authorshipStatusLine, liveStage, liveStatusLabel, stabilizeLiveMarkdown } from "@/lib/live-markdown";
 
 const CONN_LABEL: Record<LiveConnection, string> = {
   idle: "", connecting: "Connecting to live draft", live: "Live", reconnecting: "Reconnecting; progress still refreshes",
@@ -44,6 +44,15 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const root = useRef<HTMLElement>(null);
   const follow = useRef(true);
   const [behind, setBehind] = useState(false);
+  // Rewriting stages (authorship) send no tokens; count the elapsed time so the pause reads as work in progress.
+  const liveProgress = snapshot?.progress ?? null;
+  const authorship = working && liveProgress && /authorship/i.test(snapshot?.stage ?? "") ? liveProgress : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!authorship) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [authorship?.since, !!authorship]);
   const typed = useTypewriter(draft, working);
   const text = stabilizeLiveMarkdown(typed);
   const hasText = !!text;
@@ -72,7 +81,7 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   if (!working) return null;
   const stage = snapshot?.stage ?? "";
   const phase = liveStage(stage, connection, hasText);
-  const label = liveStatusLabel(phase, stage, connection);
+  const label = authorship ? authorshipStatusLine(authorship, now) : liveStatusLabel(phase, stage, connection);
   const research = kind === "studio" || !["", "queued", "running", "planning"].includes(stage);
   const statusLine = <p className={`ld-status is-${phase}`} role="status" aria-live="polite" data-testid={`status-live-${id}`}><i aria-hidden />{label}</p>;
 

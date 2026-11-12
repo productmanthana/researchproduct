@@ -6,6 +6,20 @@ export const liveKey=(kind:LiveKind,id:string)=>`generation-live:${kind}:${id}`;
 export const withLiveGeneration=<T>(kind:LiveKind,id:string,run:()=>Promise<T>)=>context.run({kind,id},run);
 export async function clearLive(kind:LiveKind,id:string){await pool.query("DELETE FROM research_search_cache WHERE key=$1",[liveKey(kind,id)]);}
 
+export type LiveProgress = { detail: string; pass?: number; passes?: number; revised?: number; total?: number; since: string };
+
+/**
+ * Publishes a full draft snapshot with an optional progress line. Used by stages that
+ * rewrite finished text (authorship, checks) where nothing streams token by token.
+ */
+export async function publishLive(kind: LiveKind, id: string, draft: string, progress?: LiveProgress) {
+  const data = { draft: draft.slice(0, 100000), updatedAt: new Date().toISOString(), ...(progress ? { progress } : {}) };
+  await pool.query(
+    "INSERT INTO research_search_cache(key,data,expires_at) VALUES($1,$2,now()+interval '1 hour') ON CONFLICT(key) DO UPDATE SET data=$2,expires_at=excluded.expires_at",
+    [liveKey(kind, id), JSON.stringify(data)],
+  );
+}
+
 /** Whitelisted user-facing JSON string fields only. Never exposes raw JSON, quotes or reasoning. */
 export function visibleDraft(json:string){
   // Intent routing is also streamed. Research routing replies are not evidence
