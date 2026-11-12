@@ -50,7 +50,14 @@ export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" 
   const { toast } = useToast();
   const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
   const blocked = exportBlockReason(item);
-  if (blocked) return <span className="inline-flex items-center gap-1.5 text-xs text-vermilion" title={blocked} data-testid="status-export-blocked"><Download className="h-3.5 w-3.5" />{blocked.startsWith("Run") ? "Export locked · run plagiarism check" : "Export locked · matched text over 1%"}</span>;
+  if (blocked) {
+    const report = (item.metadata as Record<string, unknown> | null)?.plagiarism as { similarityPercent?: number; target?: number } | undefined;
+    const limit = typeof report?.similarityPercent === "number" ? 100 - (report.target ?? 99) : null;
+    const label = !report || limit === null || blocked.startsWith("Run")
+      ? "Export locked · run plagiarism check"
+      : `Export locked · ${report.similarityPercent}% matched text (limit ${limit}%)`;
+    return <span className="inline-flex items-center gap-1.5 text-xs text-vermilion" title={blocked} data-testid="status-export-blocked"><Download className="h-3.5 w-3.5" />{label}</span>;
+  }
   const run = async (f: "pdf" | "docx") => {
     setBusy(f);
     try { await downloadStudioItem(item, f); }
@@ -204,6 +211,8 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
     onOpen(id);
   };
 
+  const aiWriting = aiDetectionOf(item);
+
   if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} inline={inlineProgress} />;
 
   return (
@@ -213,6 +222,9 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
           <span className="sx-chip" data-testid="text-revision">rev {item.revision}</span>
           <IndexChip status={item.indexStatus} />
+          {aiWriting && typeof aiWriting.humanScore === "number" && aiWriting.humanScore < (aiWriting.threshold ?? 99) && (
+            <span className="sx-chip bad" title={`AI-writing screen: ${aiWriting.humanScore}% estimated human writing, below the ${aiWriting.threshold ?? 99}% target. This is a separate check from plagiarism.`} data-testid="status-ai-writing">AI-writing · {Math.round(aiWriting.humanScore)}% human</span>
+          )}
           <div className="ml-auto flex flex-wrap gap-1.5">
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}

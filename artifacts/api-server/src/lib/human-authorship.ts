@@ -7,6 +7,8 @@ import { measureStyle, type FlaggedSentence, type StyleMetrics } from "./ai-styl
 export const HUMAN_AUTHORSHIP_TARGET = 99;
 /** Humanising passes over flagged sentences before the best version is kept. */
 export const MAX_HUMANISE_PASSES = 3;
+/** Sentences per rewrite request, so one long prompt cannot lose the whole pass. */
+const REWRITE_BATCH = 10;
 
 export const HUMAN_AUTHORSHIP_STYLE = `Write the way a named human scholar with a strong personal voice writes a first draft, not the way a language model summarises a topic.
 Vary sentence and paragraph length deliberately: mix short declarative sentences with longer qualified ones, and let paragraph lengths differ. Never open consecutive paragraphs with the same transition or with a one-word connector ("Moreover", "Furthermore", "Additionally", "In conclusion", "Overall").
@@ -94,12 +96,22 @@ export async function rewriteFlagged(content: string, flagged: FlaggedSentence[]
   const items = flagged.filter(f => content.includes(f.sentence)).slice(0, 40)
     .map((f, id) => ({ id, sentence: f.sentence, reasons: f.reasons, paragraph: paragraphOf(content, f.sentence) }));
   if (!items.length) return content;
-  const { rewrites } = Rewrites.parse((await jsonCall(REWRITER, [{ type: "text", text: JSON.stringify({ sentences: items }) }], SCIENTIFIC_MODEL)).value);
   let next = content;
-  for (const r of rewrites) {
-    const item = items[r.id];
-    if (!item || !markersPreserved(item.sentence, r.text) || r.text.length < item.sentence.length * 0.4) continue;
-    next = next.replace(item.sentence, r.text.trim());
+  // One request per bounded batch: a single oversized prompt can come back truncated
+  // or rejected, which used to leave the whole rewrite pass unapplied.
+  for (let start = 0; start < items.length; start += REWRITE_BATCH) {
+    const batch = items.slice(start, start + REWRITE_BATCH).map((item, id) => ({ ...item, id }));
+    let rewrites: { id: number; text: string }[] = [];
+    try {
+      ({ rewrites } = Rewrites.parse((await jsonCall(REWRITER, [{ type: "text", text: JSON.stringify({ sentences: batch }) }], SCIENTIFIC_MODEL)).value));
+    } catch {
+      continue; // A failed batch is skipped; the sentences it covered stay flagged for the next pass.
+    }
+    for (const r of rewrites) {
+      const item = batch[r.id];
+      if (!item || !markersPreserved(item.sentence, r.text) || r.text.length < item.sentence.length * 0.4) continue;
+      next = next.replace(item.sentence, r.text.trim());
+    }
   }
   return next;
 }
