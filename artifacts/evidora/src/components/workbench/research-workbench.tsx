@@ -81,8 +81,8 @@ const KIND_META: Record<SourceKind, { label: string; tone: string }> = {
 };
 
 /** Saved sources with provenance and original links. Empty states say exactly what is (not) there. */
-export function SourcesList({ sources, pending, retrieved, title = "Sources", note, emptyBody, extra }: {
-  sources: ProvenancedSource[]; pending?: boolean; retrieved?: boolean; title?: string; note?: ReactNode; emptyBody?: ReactNode; extra?: ReactNode;
+export function SourcesList({ sources, pending, title = "Sources", note, emptyBody, extra }: {
+  sources: ProvenancedSource[]; pending?: boolean; title?: string; note?: ReactNode; emptyBody?: ReactNode; extra?: ReactNode;
 }) {
   const [kind, setKind] = useState<SourceKind | "all">("all");
   const [q, setQ] = useState("");
@@ -91,8 +91,7 @@ export function SourcesList({ sources, pending, retrieved, title = "Sources", no
   const abstractOnly = sources.some(s => s.abstractOnly);
   return <div className="wb-src" data-testid="panel-sources">
     <div className="wb-src-head"><h2>{title}</h2><span className="wb-count" data-testid="text-source-count">{sources.length}</span></div>
-    <p className="wb-src-note">{note ?? "Sources saved with this work. Type labels are inferred from each link; open the original to confirm."}</p>
-    {retrieved && sources.length > 0 && <p className="wb-empty mt-3" role="status" data-testid="status-sources-retrieved"><b>Retrieved evidence</b>Available inputs for this request. Writing and source checks are not complete; the final list replaces this when the response finishes.</p>}
+    {note && <p className="wb-src-note">{note}</p>}
     {extra}
     {sources.length === 0 ? <div className="wb-empty mt-3" data-testid="status-sources-empty">
       <b>{pending ? "Still gathering" : "No sources saved"}</b>

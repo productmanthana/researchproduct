@@ -36,7 +36,7 @@ import { IdeasChat } from "@/components/studio/ideas-chat";
 import { ideasIntent, CHAT_KINDS } from "@/lib/ideas-chat";
 import { buildConversations, conversationFor } from "@/lib/conversation";
 import { SourcesList } from "@/components/workbench/research-workbench";
-import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
+import { studioItemSources } from "@/lib/source-provenance";
 import { useStudioItem } from "@/components/studio/use-studio";
 import { KIND_LABEL } from "@/lib/studio";
 import type { ProjectIntent } from "@/lib/studio";
@@ -173,7 +173,6 @@ function AskInner() {
   }, [itemQ.data, reviewsQ.data]);
   const itemSources = useMemo(() => studioItemSources(itemConvItems, k => KIND_LABEL[k] ?? k), [itemConvItems]);
   const itemWriting = itemConvItems.some(x => isWorking(x.status));
-  const itemRetrieved = itemConvItems.some(sourcesRetrievedOnly);
   const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
   const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
@@ -472,7 +471,7 @@ function AskInner() {
         <aside className={`es-panel es-persist ${panel ? "is-open" : ""}`} aria-label="Sources" data-testid="panel-ask-right">
           <div className="es-panel-header">{sourcesHead(itemSources.length)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
           <div className="wb-scroll" style={{ flex: 1, minHeight: 0 }} id="ask-panel-sources">
-            <SourcesList sources={itemSources} pending={itemWriting} retrieved={itemRetrieved} />
+            <SourcesList sources={itemSources} pending={itemWriting} />
           </div>
         </aside></div> :
       <div className="es-workspace">

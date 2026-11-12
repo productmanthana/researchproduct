@@ -21,7 +21,7 @@ import { ProjectAttachMenu } from "./project-attach";
 import { HistoryDrawer, WorkspaceBar, WorkspaceIntro } from "./workspace-shell";
 import { ResearchWorkbench, SourcesList } from "@/components/workbench/research-workbench";
 import { buildConversations, conversationFor } from "@/lib/conversation";
-import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
+import { studioItemSources } from "@/lib/source-provenance";
 import { isWorking, KIND_LABEL } from "@/lib/studio";
 
 export type StudioPageConfig = {
@@ -141,7 +141,6 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
   const shownItems = item ? (conv ? conv.turns.map(t => t.revisions.find(r => r.id === item.id) ?? t.latest) : [item]) : [];
   const sources = studioItemSources(shownItems, k => KIND_LABEL[k] ?? k);
   const writing = shownItems.some(i => isWorking(i.status));
-  const retrieved = shownItems.some(sourcesRetrievedOnly);
 
   return (
     <div className="mx-auto max-w-[1520px] pb-6">
@@ -152,7 +151,7 @@ function Inner({ cfg }: { cfg: StudioPageConfig }) {
         {open.data && open.data.projectId !== project.id && <p className="sx-card p-5 text-sm">This item belongs to a different project. Switch projects to open it, or start a new draft.</p>}
         {item && <ResearchWorkbench idBase="studio" label={`${cfg.kicker} workspace`} sourceCount={sources.length}
           conversation={<div className="mx-auto w-full max-w-[860px] pb-3"><StudioDiscussion item={item} allItems={all} onOpen={x => setId(x)} attachSlot={attach} /></div>}
-          sources={<SourcesList sources={sources} pending={writing} retrieved={retrieved} />} />}
+          sources={<SourcesList sources={sources} pending={writing} />} />}
       </section>
       {drawerEl}
     </div>
