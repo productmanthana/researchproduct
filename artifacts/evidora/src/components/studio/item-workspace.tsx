@@ -24,6 +24,7 @@ import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
 import { savedReviewOf, aiDetectionOf } from "./check-panel";
 import { PlagiarismReportPanel, plagiarismOf } from "./plagiarism-report";
+import { OriginalityCertificate } from "./originality-certificate";
 import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
@@ -222,6 +223,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
           <span className="sx-chip" data-testid="text-revision">rev {item.revision}</span>
           <IndexChip status={item.indexStatus} />
+          <OriginalityCertificate item={item} />
           {aiWriting && typeof aiWriting.humanScore === "number" && aiWriting.humanScore < (aiWriting.threshold ?? 99) && (
             <span className="sx-chip bad" title={`AI-writing screen: ${aiWriting.humanScore}% estimated human writing, below the ${aiWriting.threshold ?? 99}% target. This is a separate check from plagiarism.`} data-testid="status-ai-writing">AI-writing · {Math.round(aiWriting.humanScore)}% human</span>
           )}

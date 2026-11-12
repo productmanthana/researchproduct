@@ -28,14 +28,26 @@ const confirmWithEmbeddings: Confirm = async pairs => {
   } catch (err) { logger.warn({ err }, "Paraphrase embeddings unavailable"); return null; }
 };
 
-/** Full plagiarism check: project material + scholarly index + open full text + Internet. */
-export async function runPlagiarismCheck(input: { content: string; title: string; owner?: string; project: CandidateSource[] }): Promise<PlagiarismReport> {
-  const found = await findCandidates(input.content, input.title, input.owner);
-  const result = await alignDraft(input.content, [...input.project, ...found.sources], confirmWithEmbeddings);
+export type PlagiarismCorpus = { project: CandidateSource[]; found: Awaited<ReturnType<typeof findCandidates>> };
+
+/** Retrieves the comparison corpus once, so a repaired draft can be re-checked without searching again. */
+export async function plagiarismCorpus(input: { content: string; title: string; owner?: string; project: CandidateSource[] }): Promise<PlagiarismCorpus> {
+  return { project: input.project, found: await findCandidates(input.content, input.title, input.owner) };
+}
+
+/** Aligns a draft against an already retrieved corpus. */
+export async function checkAgainst(content: string, corpus: PlagiarismCorpus): Promise<PlagiarismReport> {
+  const { project, found } = corpus;
+  const result = await alignDraft(content, [...project, ...found.sources], confirmWithEmbeddings);
   return {
     ...result, notices: [...found.notices, ...result.notices],
     target: ORIGINALITY_TARGET, checkedAt: new Date().toISOString(),
-    searched: { project: input.project.length, ...found.searched },
+    searched: { project: project.length, ...found.searched },
     method: `Compared against this project's documents, ${found.searched.scholarly} scholarly abstracts, ${found.searched.fullText} open-access full texts and ${found.searched.web} Internet pages. Seeds are exact 5-word sequences and stemmed content-word trigrams, merged into passages; matches under ${MIN_MATCH_WORDS} words are ignored. Paraphrases are counted when a sentence keeps most of a source sentence's content words and, unless the overlap is strong, embeddings confirm the same meaning. Quotations, citations, headings, tables, equations and the reference list are excluded. Paywalled full texts and pages the search did not return cannot be compared.`,
   };
+}
+
+/** Full plagiarism check: project material + scholarly index + open full text + Internet. */
+export async function runPlagiarismCheck(input: { content: string; title: string; owner?: string; project: CandidateSource[] }): Promise<PlagiarismReport> {
+  return checkAgainst(input.content, await plagiarismCorpus(input));
 }
