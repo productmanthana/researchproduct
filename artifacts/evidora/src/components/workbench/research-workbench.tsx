@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { sourceKindCounts, type ProvenancedSource, type SourceKind } from "@/lib/source-provenance";
 import "./workbench.css";
@@ -29,6 +29,13 @@ export function PanelTabs<T extends string>({ tabs, value, onChange, idBase, lab
   </div>;
 }
 
+const SPLIT_KEY = "evidora.wb-split";
+const DEFAULT_SPLIT = 75, MIN_SPLIT = 35, MAX_SPLIT = 85;
+const clampSplit = (v: number) => Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, v));
+function readSplit() {
+  try { const v = Number(localStorage.getItem(SPLIT_KEY)); return v ? clampSplit(v) : DEFAULT_SPLIT; } catch { return DEFAULT_SPLIT; }
+}
+
 /**
  * Conversation (each question followed by its full response, editor and follow-ups) in the main pane;
  * Sources in a secondary pane. Both stay mounted, so toggling sources on mobile never resets edits or live writing.
@@ -37,12 +44,29 @@ export function ResearchWorkbench({ conversation, sources, sourceCount, label = 
   conversation: ReactNode; sources: ReactNode; sourceCount?: number; label?: string; idBase?: string;
 }) {
   const [mobile, setMobile] = useState<"conversation" | "sources">("conversation");
-  return <div className="wb rise" data-mobile={mobile} aria-label={label} data-testid="research-workbench">
+  const [split, setSplit] = useState(readSplit);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const applySplit = (v: number) => { const n = clampSplit(v); setSplit(n); try { localStorage.setItem(SPLIT_KEY, String(n)); } catch { /* storage unavailable */ } };
+  const onDrag = (e: PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const r = rootRef.current?.getBoundingClientRect();
+    if (r && r.width) applySplit(((e.clientX - r.left) / r.width) * 100);
+  };
+  const onHandleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowLeft" ? -2 : e.key === "ArrowRight" ? 2 : 0;
+    if (e.key === "Home") { e.preventDefault(); applySplit(DEFAULT_SPLIT); } else if (step) { e.preventDefault(); applySplit(split + step); }
+  };
+  const style = { "--wb-l": `${split}fr`, "--wb-r": `${100 - split}fr` } as CSSProperties;
+  return <div ref={rootRef} className="wb rise" style={style} data-mobile={mobile} aria-label={label} data-testid="research-workbench">
     <div className="wb-mobile-switch" role="group" aria-label="Show">
       <button type="button" aria-pressed={mobile === "conversation"} onClick={() => setMobile("conversation")} data-testid="button-mobile-conversation">Conversation</button>
       <button type="button" aria-pressed={mobile === "sources"} onClick={() => setMobile("sources")} data-testid="button-mobile-sources">Sources{typeof sourceCount === "number" ? ` (${sourceCount})` : ""}</button>
     </div>
     <section className="wb-pane wb-left" aria-label="Conversation">{conversation}</section>
+    <div className="wb-resizer" role="separator" aria-orientation="vertical" aria-label="Resize sources panel" aria-valuemin={MIN_SPLIT} aria-valuemax={MAX_SPLIT} aria-valuenow={Math.round(split)} tabIndex={0}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={onDrag}
+      onDoubleClick={() => applySplit(DEFAULT_SPLIT)} onKeyDown={onHandleKey} data-testid="handle-workbench-resize" />
     <section className="wb-pane wb-right" aria-label="Sources" id={`${idBase}-sources`}>
       <div className="wb-right-body">{sources}</div>
     </section>

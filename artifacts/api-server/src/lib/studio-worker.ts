@@ -229,7 +229,7 @@ export async function processStudioJob() {
       await client.query("COMMIT");
     }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
   }catch(e){
-    logger.error({jobId:row?.id,errorType:e instanceof Error?e.name:"unknown"},"Project draft generation failed");
+    logger.error({jobId:row?.id,errorType:e instanceof Error?e.name:"unknown",errorMessage:e instanceof Error?e.message.slice(0,500):undefined,stack:e instanceof Error?e.stack?.split("\n").slice(1,6).join(" | "):undefined},"Project draft generation failed");
     if(row){
       await pool.query("UPDATE research_studio_items SET status='failed',error=$2 WHERE id=$1",[row.id,e instanceof HttpError?e.message:"Draft generation failed. Your request allowance was restored. Please retry."]);
       await pool.query("UPDATE research_usage SET status='refunded' WHERE id=$1 AND status='reserved'",[row.id]);

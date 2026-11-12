@@ -9,6 +9,7 @@
 .wb-tabpanel[hidden]{display:none!important}
 .wb-doc-pad{padding:18px 18px 28px}
 .wb-mobile-switch{display:none}
+.wb-resizer{display:none}
 
 /* Tabs */
 .wb-tabs{display:inline-flex;gap:2px;padding:3px;border-radius:9px;background:hsl(90 14% 90%);}
@@ -50,11 +51,12 @@
 .wb-mobile-only{display:none!important}
 
 @media (min-width:1024px){
-  .wb{grid-template-columns:minmax(0,1fr) minmax(320px,400px);height:calc(100dvh - 9.5rem);min-height:560px}
-  .wb-left{overflow-y:auto;overscroll-behavior:contain;padding:22px 22px 0;border-right:1px solid hsl(var(--border))}
+  .wb{grid-template-columns:minmax(0,var(--wb-l,3fr)) 7px minmax(280px,var(--wb-r,1fr));height:calc(100dvh - 9.5rem);min-height:560px}
+  .wb-left{overflow-y:auto;overscroll-behavior:contain;padding:22px 22px 0}
   .wb-right{border-top:0}
+  .wb-resizer{display:block;cursor:col-resize;touch-action:none;background:hsl(var(--border));border-inline:3px solid hsl(52 30% 97%);transition:background .15s}
+  .wb-resizer:hover,.wb-resizer:focus-visible,.wb-resizer:active{background:hsl(var(--primary));outline:none}
 }
-@media (min-width:1500px){.wb{grid-template-columns:minmax(420px,1fr) minmax(640px,1.35fr)}}
 @media (max-width:1023px){
   .wb-mobile-switch{display:flex;gap:4px;padding:6px;border-bottom:1px solid hsl(var(--border));background:hsl(52 30% 95%);position:sticky;top:0;z-index:5}
   .wb-mobile-switch button{flex:1;min-height:40px;border-radius:7px;font-size:13px;font-weight:500;color:hsl(var(--muted-foreground))}

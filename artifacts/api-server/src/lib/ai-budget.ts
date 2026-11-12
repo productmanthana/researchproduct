@@ -40,7 +40,7 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
     const response = await fetch(`https://api.openai.com/v1/${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify(onDelta?{...body,stream:true,stream_options:{include_usage:true}}:body), signal: AbortSignal.timeout(180000),
+      body: JSON.stringify(onDelta?{...body,stream:true,stream_options:{include_usage:true}}:body), signal: AbortSignal.timeout(onDelta ? 600000 : 180000), // streamed long drafts need more than 3 minutes
     });
     if (!response.ok) {
       // Explicit rejection is unbilled. On ambiguous server/network failures
