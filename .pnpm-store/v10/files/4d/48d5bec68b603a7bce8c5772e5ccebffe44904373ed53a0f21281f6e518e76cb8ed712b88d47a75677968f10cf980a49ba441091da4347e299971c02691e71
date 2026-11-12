@@ -1,0 +1,1 @@
+{"version":3,"file":"transform-errors.d.ts","sourceRoot":"","sources":["../src/transform-errors.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,qBAAqB,CAAA;AAGpD,OAAO,EAAE,KAAK,QAAQ,EAAqB,MAAM,uBAAuB,CAAA;AACxE,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,SAAS,CAAA;AAE1C;;;;;GAKG;AACH,wBAAgB,eAAe,CAAC,aAAa,EAAE,SAAS,EAAE,MAAM,EAAE,MAAM,GAAG,QAAQ,EAAE,GAAG,WAAW,EAAE,CAyCpG"}

@@ -1,0 +1,2 @@
+import { Transports, TransportsParams } from '@weaviate/core';
+export declare const transportsFactory: (params: TransportsParams) => Transports;

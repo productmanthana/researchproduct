@@ -1,0 +1,56 @@
+import ConnectionGQL from './gql.js';
+import { InternalConnectionParams } from './http.js';
+import { ConsistencyLevel } from '../replication.js';
+import { DbVersionSupport } from '../utils/dbVersion.js';
+import { RetryOptions } from 'nice-grpc-client-middleware-retry';
+import { Aggregate } from '../grpc/aggregator.js';
+import { Batch } from '../grpc/batcher.js';
+import { Search } from '../grpc/searcher.js';
+import { Tenants } from '../grpc/tenantsManager.js';
+import { HealthClient } from '../proto/google/health/v1/health.js';
+import { WeaviateClient } from '../proto/v1/weaviate.js';
+export type GrpcConnectionParams = InternalConnectionParams & {
+    grpcAddress: string;
+    grpcSecure: boolean;
+    grpcMaxMessageLength?: number;
+};
+export default class ConnectionGRPC extends ConnectionGQL {
+    private grpc;
+    grpcMaxMessageLength: number;
+    private readonly params;
+    private readonly transportsFactory;
+    private constructor();
+    static use: (transportsFactory: TransportsFactory, params: GrpcConnectionParams) => Promise<{
+        connection: ConnectionGRPC;
+        dbVersionProvider: import("../utils/dbVersion.js").DbVersionProvider;
+        dbVersionSupport: DbVersionSupport;
+    }>;
+    reconnect(): Promise<void>;
+    private createGrpcClient;
+    private checkGrpcHealth;
+    batch: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string) => Promise<Batch>;
+    aggregate: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string) => Promise<Aggregate>;
+    search: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string, abortSignal?: AbortSignal) => Promise<Search>;
+    tenants: (collection: string) => Promise<Tenants>;
+    close: () => void;
+}
+export interface GrpcClient {
+    aggregate: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string, bearerToken?: string) => Aggregate;
+    batch: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string, bearerToken?: string) => Batch;
+    close: () => void;
+    health: () => Promise<boolean>;
+    search: (collection: string, consistencyLevel?: ConsistencyLevel, tenant?: string, bearerToken?: string, abortSignal?: AbortSignal) => Search;
+    tenants: (collection: string, bearerToken?: string) => Tenants;
+}
+export type Transports = {
+    weaviate: WeaviateClient<RetryOptions>;
+    health: HealthClient<RetryOptions>;
+    close: () => void;
+};
+export type TransportsParams = {
+    address: string;
+    secure: boolean;
+    maxMessageLength: number;
+    proxyUrl?: string;
+};
+export type TransportsFactory = (params: TransportsParams) => Transports;

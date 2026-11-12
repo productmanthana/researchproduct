@@ -1,0 +1,88 @@
+import { backup } from './backup/client.js';
+import cluster from './cluster/index.js';
+import collections from './collections.js';
+import { ApiKey, AuthAccessTokenCredentials, AuthClientCredentials, AuthUserPasswordCredentials, isApiKey, mapApiKey, } from './connection/auth.js';
+import * as helpers from './connection/helpers.js';
+import { ConnectionGRPC } from './connection/index.js';
+import roles, { permissions } from './roles/index.js';
+import MetaGetter from './v2/misc/metaGetter.js';
+import { LiveChecker, OpenidConfigurationGetter, ReadyChecker } from './v2/misc/index.js';
+import alias from './alias/index.js';
+import batch from './data/batch.js';
+import filter from './filters/index.js';
+import groups from './groups/index.js';
+import tokenize from './tokenize/index.js';
+import users from './users/index.js';
+export const cleanHost = (host, protocol) => {
+    if (host.includes('http')) {
+        console.warn(`The ${protocol}.host parameter should not include the protocol. Please remove the http:// or https:// from the ${protocol}.host parameter.\
+      To specify a secure connection, set the secure parameter to true. The protocol will be inferred from the secure parameter instead.`);
+        return host.replace('http://', '').replace('https://', '');
+    }
+    return host;
+};
+const client = async (context, params, isGrpcWeb = false) => {
+    let { host: httpHost } = params.connectionParams.http;
+    let { host: grpcHost } = params.connectionParams.grpc;
+    const { port: httpPort, secure: httpSecure, path: httpPath } = params.connectionParams.http;
+    const { port: grpcPort, secure: grpcSecure, path: grpcPath } = params.connectionParams.grpc;
+    httpHost = cleanHost(httpHost, 'rest');
+    grpcHost = cleanHost(grpcHost, 'grpc');
+    // check if headers are set
+    if (!params.headers)
+        params.headers = {};
+    const scheme = httpSecure ? 'https' : 'http';
+    const grpcScheme = `${grpcSecure ? 'https' : 'http'}://`;
+    const agent = context.agentMaker?.(httpSecure);
+    const { connection, dbVersionProvider, dbVersionSupport } = await ConnectionGRPC.use(context.transportsFactory, {
+        host: `${scheme}://${httpHost}:${httpPort}${httpPath || ''}`,
+        scheme: scheme,
+        headers: params.headers,
+        // Native gRPC targets are host:port only; a path breaks name resolution.
+        grpcAddress: isGrpcWeb
+            ? `${grpcScheme}${grpcHost}:${grpcPort}${grpcPath || ''}`
+            : `${grpcHost}:${grpcPort}`,
+        grpcSecure: grpcSecure,
+        grpcProxyUrl: params.proxies?.grpc,
+        apiKey: isApiKey(params.auth) ? mapApiKey(params.auth) : undefined,
+        authClientSecret: isApiKey(params.auth) ? undefined : params.auth,
+        agent,
+        timeout: params.timeout,
+        skipInitChecks: params.skipInitChecks,
+        grpcMaxMessageLength: params.connectionParams.grpcMaxMessageLength,
+    });
+    const ifc = {
+        alias: alias(connection),
+        backup: backup(connection, dbVersionSupport),
+        batch: batch(connection, dbVersionSupport, isGrpcWeb),
+        cluster: cluster(connection),
+        collections: collections(connection, dbVersionSupport, isGrpcWeb, context.toBase64FromMedia),
+        groups: groups(connection),
+        roles: roles(connection),
+        tokenize: tokenize(connection, dbVersionSupport),
+        users: users(connection),
+        close: () => Promise.resolve(connection.close()), // hedge against future changes to add I/O to .close()
+        getMeta: () => new MetaGetter(connection).do(),
+        getConnectionDetails: connection.getDetails,
+        getOpenIDConfig: () => new OpenidConfigurationGetter(connection.http).do(),
+        getWeaviateVersion: () => dbVersionSupport.getVersion(),
+        isLive: () => new LiveChecker(connection, dbVersionProvider).do(),
+        isReady: () => new ReadyChecker(connection, dbVersionProvider).do(),
+    };
+    if (connection.oidcAuth)
+        ifc.oidcAuth = connection.oidcAuth;
+    return ifc;
+};
+export default client;
+export * from './alias/index.js';
+export * from './collections.js';
+export * from './connection/index.js';
+export * from './errors.js';
+export * from './groups/index.js';
+export { GenerativeOpenAI_ReasoningEffort, GenerativeOpenAI_Verbosity } from './proto/v1/generative.js';
+export * from './roles/index.js';
+export * from './roles/types.js';
+export * from './tokenize/index.js';
+export * from './users/index.js';
+export * from './utils/uuid.js';
+export { ApiKey, AuthAccessTokenCredentials, AuthClientCredentials, AuthUserPasswordCredentials, filter, helpers, permissions, };
