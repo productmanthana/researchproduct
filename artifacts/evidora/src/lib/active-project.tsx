@@ -33,6 +33,13 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const storedProject = projects.find(p => p.id === selectedId) ?? null;
   const project = storedProject ?? (selectedId && !list.isLoading ? projects[0] ?? null : null);
 
+  // Remember the replacement, so later loads do not keep asking for the deleted folder.
+  useEffect(() => {
+    if (!project || !selectedId || project.id === selectedId) return;
+    setSelectedId(project.id);
+    if (uid) window.localStorage.setItem(keyFor(uid), project.id);
+  }, [project, selectedId, uid]);
+
   const [location, setLocation] = useLocation();
   const search = useSearch();
   const routeRef = useRef({ location, search, setLocation });
