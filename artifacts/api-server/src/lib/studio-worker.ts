@@ -27,6 +27,8 @@ import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
 import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE } from "./manuscript-policy";
+import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft } from "./human-authorship";
+import { reviewDocument } from "./studio-checks";
 
 const Idea=z.object({title:z.string().min(1),problem:z.string(),question:z.string(),method:z.string(),feasibility:z.string()});
 const Generated=z.object({title:z.string().min(1).max(300),content:z.string().min(1).max(100000),ideas:z.array(Idea).optional()});
@@ -139,11 +141,12 @@ The current request is the assignment. Project notes and earlier drafts are opti
 The supplied conversation is the actual ordered dialogue in this chat. Use its earlier questions and replies to resolve follow-ups, choices and pronouns; do not treat unrelated project documents as messages from this conversation. Earlier assistant replies are context, NOT independent scientific evidence. Their citation numbers are local to those earlier replies: do not copy them into the new answer; use only the CURRENT evidence reference numbers. Answer the newest user question without unnecessarily rewriting the preceding conversation.
 ${instructions[request.kind]}
 ${["journal","thesis","literature","synopsis","report"].includes(request.kind)?PROFESSIONAL_ACADEMIC_STYLE:""}
+${["journal","thesis","literature","synopsis","report","answer"].includes(request.kind)?HUMAN_AUTHORSHIP_STYLE:""}
 Only empirical findings supported by supplied evidence may be asserted. Use exact numbered citations [1], [2] matching evidence reference numbers. Distinguish abstract-level evidence, accessible page excerpts, user data and patents. Lack of a result is not proof of novelty. Do not claim experiments were performed unless explicitly supplied as actual data, and attribute user-supplied data as such.
 For journal/thesis assignments, follow the supplied source-grounded officialRequirements rules wherever possible: include required sections and respect explicit abstract/keyword bounds. Preserve a useful complete draft; never invent signatures, ethics approvals, author details, declarations of facts or completed results to satisfy a requirement. Requirements that need author information must remain explicitly unfulfilled. Missing or unavailable official rules are not proof of compliance.
 Return JSON {"title":"...","content":"markdown body WITHOUT bibliography","ideas":[five objects with title,problem,question,method,feasibility only when generating ideas]}.
 Scientific figures are created in a separate evidence-checked step. Do not invent figure markers, pretend an image has been rendered, or promise a graph without data. Preserve existing [[figure:id]] markers verbatim when revising a source draft.
-Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never promise human authorship or detector evasion.`;
+Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never claim human authorship or a certified detector result; the author still reviews and owns the draft.`;
   // Make retrieved source records available to the side panel before writing
   // completes. They are evidence inputs, not an approved answer or novelty claim.
   await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1 AND status='running'",[row.id,JSON.stringify({
@@ -172,6 +175,17 @@ Do not add a References section; it will be assembled from actual sources. Prese
   let content=figureOnly?review.content:review.content.replace(/^#{1,3}\s+References[\s\S]*$/im,"").trim();
   const cited=[...content.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1]));
   if(!figureOnly&&cited.some(n=>n<1||n>sources.length))throw new HttpError(503,"The draft contained an invalid citation and was not saved. Please retry.");
+  // Every generated paper is screened for machine-written style and, if needed,
+  // rewritten once in human academic prose before figures and references are added.
+  const scholarly=!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind);
+  let aiDetection:Awaited<ReturnType<typeof humaniseDraft>>["detection"]|undefined;
+  if(scholarly){
+    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Authorship Agent · rewriting in human academic prose"})]);
+    const humanised=await humaniseDraft({content});
+    content=humanised.content;aiDetection=humanised.detection;
+    if(aiDetection.humanScore<aiDetection.threshold)
+      warnings.push(`The authorship screen estimates ${aiDetection.humanScore}% human authorship, below the ${aiDetection.threshold}% target. Revise the passages it flagged before submission.`);
+  }
   const existing:ScientificFigure[]=parentRow?.metadata?.figures??[];
   const figureSources:FigureSource[]=[
     {id:"request",title:"user-supplied request (not independently verified)",text:request.prompt},
@@ -199,9 +213,19 @@ Do not add a References section; it will be assembled from actual sources. Prese
     return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${s.title}. ${p?.venue??""} ${s.url}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
   }).join("\n\n");
   const final=figureOnly?content:`${content}${references?`\n\n## References\n\n${references}`:""}\n\n## Author review\n\nAI-assisted working draft. Verify sources, actual research inputs and target submission requirements before use.`;
+  // Strict originality screen on every generated paper: shared wording against
+  // this project's documents and the evidence actually supplied to the draft.
+  const originality=scholarly?reviewDocument(final,[
+    ...projectMaterial.filter(p=>p.id!==parentRow?.id).map(p=>({title:`project ${p.kind}: ${p.title}`,content:p.text})),
+    ...sources.filter(s=>s.text).map((s,i)=>({title:`reference [${i+1}]: ${s.title}`,content:s.text,url:s.url})),
+  ]):undefined;
+  if(originality&&originality.corpusSimilarityPercent>=15)
+    warnings.push(`The originality screen finds ${originality.corpusSimilarityPercent}% shared wording with this project's sources. Review the overlapping passages before submission.`);
   const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:sources.map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode};
   metadata.includeFigures=includeFigures;
   delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
+  if(originality)Object.assign(metadata,{review:{...originality,profileName:studioTemplates.find(t=>t.id===selectedTemplateId)?.name??"General academic"},reviewedAt:originality.checkedAt});
+  if(aiDetection)metadata.aiDetection=aiDetection;
   const formattedFinal=personalFormat?customFormatContent(final,personalFormat,draft.title):final;
   if(personalFormat)Object.assign(metadata,{customFormat:personalFormat,customFormatWarnings:customFormatWarnings({content:formattedFinal,metadata},personalFormat),customFormatStatus:"Customised — not verified"});
   if(requirementPlan){

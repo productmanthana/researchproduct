@@ -13,6 +13,14 @@ export function savedReviewOf(item: StudioItem): StudioCheck | null {
   return { externalAvailable: false, ...r, checkedAt: r.checkedAt ?? (typeof at === "string" ? at : undefined) } as StudioCheck;
 }
 
+export type AiDetection = { humanScore?: number; threshold?: number; verdict?: string; signals?: string[]; passes?: number; method?: string; checkedAt?: string };
+
+/** The authorship screen stored on this revision (metadata.aiDetection), if any. */
+export function aiDetectionOf(item: StudioItem): AiDetection | null {
+  const d = (item.metadata as Record<string, unknown> | null)?.aiDetection as AiDetection | undefined;
+  return d && typeof d === "object" && typeof d.humanScore === "number" ? d : null;
+}
+
 const n = (v?: number) => (typeof v === "number" ? v.toLocaleString() : "not reported");
 const pct = (v?: number) => (typeof v === "number" ? `${v.toFixed(1)}%` : null);
 
@@ -42,7 +50,7 @@ export function checkReportText(r: StudioCheck, draftTitle: string, missing: str
   return lines.join("\n");
 }
 
-export function CheckResult({ result, missing = [], save }: { result: StudioCheck; missing?: string[]; save?: { projectId: string; draftTitle: string } }) {
+export function CheckResult({ result, missing = [], save, aiDetection }: { result: StudioCheck; missing?: string[]; save?: { projectId: string; draftTitle: string }; aiDetection?: AiDetection | null }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const saveItem = useSaveStudioItem();
@@ -63,6 +71,15 @@ export function CheckResult({ result, missing = [], save }: { result: StudioChec
 
   return (
     <div className="space-y-4 text-sm" data-testid="panel-check-result">
+      {aiDetection && typeof aiDetection.humanScore === "number" && (
+        <div className="rounded-lg border bg-[hsl(var(--turmeric)/0.07)] p-3.5" data-testid="panel-ai-detection">
+          <p className="sx-eyebrow">AI-authorship screen · estimated human writing</p>
+          <p className="sx-title mt-1 text-3xl" data-testid="text-human-score">{aiDetection.humanScore.toFixed(0)}%</p>
+          <p className="mt-1 text-xs text-muted-foreground">Target: {aiDetection.threshold ?? 99}% human. {aiDetection.verdict}</p>
+          {aiDetection.signals?.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">{aiDetection.signals.map((s, i) => <li key={i}>{s}</li>)}</ul> : null}
+          <p className="mt-2 text-[11px] text-muted-foreground">{aiDetection.method ?? "Language-model estimate, not a certified detector."}{typeof aiDetection.passes === "number" ? ` Humanising rewrites applied: ${aiDetection.passes}.` : ""}</p>
+        </div>
+      )}
       <div className="rounded-lg border bg-[hsl(var(--teal)/0.05)] p-3.5">
         <p className="sx-eyebrow">Shared wording within checked project sources</p>
         <p className="sx-title mt-1 text-3xl" data-testid="text-overlap-percent">{overlap ?? "Not reported"}</p>
@@ -118,7 +135,7 @@ export function CheckResult({ result, missing = [], save }: { result: StudioChec
 }
 
 /** Mount with key={itemId}: state never leaks between revisions. Shows the stored result for this revision until re-run. */
-export function CheckPanel({ itemId, disabled, missing, projectId, draftTitle, saved }: { itemId: string; disabled?: boolean; missing?: string[]; projectId?: string; draftTitle?: string; saved?: StudioCheck | null }) {
+export function CheckPanel({ itemId, disabled, missing, projectId, draftTitle, saved, aiDetection }: { itemId: string; disabled?: boolean; missing?: string[]; projectId?: string; draftTitle?: string; saved?: StudioCheck | null; aiDetection?: AiDetection | null }) {
   const check = useCheckStudioDocument();
   const shown = check.data ?? saved ?? null;
   return (
@@ -130,7 +147,7 @@ export function CheckPanel({ itemId, disabled, missing, projectId, draftTitle, s
       {disabled && <p className="mt-2 text-xs text-muted-foreground">Save your edits first; the check reads the saved version.</p>}
       {check.isError && <p className="mt-3 text-sm text-vermilion">{friendlyError(check.error)}</p>}
       {!check.data && saved && <p className="mt-2 text-[11px] text-muted-foreground" data-testid="text-saved-review">Last result saved for this revision.</p>}
-      {shown && <div className="mt-4"><CheckResult key={`${itemId}:${shown.checkedAt ?? ""}`} result={shown} missing={missing} save={projectId ? { projectId, draftTitle: draftTitle ?? "draft" } : undefined} /></div>}
+      {shown && <div className="mt-4"><CheckResult key={`${itemId}:${shown.checkedAt ?? ""}`} result={shown} missing={missing} aiDetection={aiDetection} save={projectId ? { projectId, draftTitle: draftTitle ?? "draft" } : undefined} /></div>}
     </div>
   );
 }

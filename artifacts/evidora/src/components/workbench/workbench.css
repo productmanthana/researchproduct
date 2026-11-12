@@ -4,7 +4,7 @@
 .wb-left{padding:20px 18px 0;display:flex;flex-direction:column}
 .wb-right{display:flex;flex-direction:column;background:hsl(var(--card));border-top:1px solid hsl(var(--border))}
 .wb-right-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid hsl(var(--border));background:hsl(52 30% 96%)}
-.wb-right-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.wb-right-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .wb-tabpanel{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain}
 .wb-tabpanel[hidden]{display:none!important}
 .wb-doc-pad{padding:18px 18px 28px}
@@ -47,6 +47,7 @@
 
 .es-persist .wb-tabpanel{overflow:hidden}
 .es-persist .wb-tabpanel.wb-scroll{overflow-y:auto}
+.wb-scroll{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
 .es-persist .es-panel-header{padding:10px 14px;border-bottom:1px solid var(--line)}
 .wb-mobile-only{display:none!important}
 

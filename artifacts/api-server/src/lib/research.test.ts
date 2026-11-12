@@ -12,6 +12,7 @@ import "./idea-generation.test";
 import "./selected-idea.test";
 import "./studio-conversation.test";
 import "./manuscript-policy.test";
+import "./human-authorship.test";
 import "./export-references.test";
 import "./submission-requirements.test";
 import { test, after } from "node:test";

@@ -14,7 +14,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { ErrorState } from "@/components/states";
 import { StudioHeader } from "@/components/studio/studio-page";
 import { NeedsProject } from "@/components/studio/project-switcher";
-import { CheckResult, savedReviewOf } from "@/components/studio/check-panel";
+import { CheckResult, savedReviewOf, aiDetectionOf } from "@/components/studio/check-panel";
 import { useProjectItems } from "@/components/studio/use-studio";
 import { useActiveProject } from "@/lib/active-project";
 import { ItemWorkspace } from "@/components/studio/item-workspace";
@@ -67,7 +67,7 @@ function Inner() {
       {chosen && <div className="mt-5" data-testid="originality-draft"><ItemWorkspace key={chosen.id} item={chosen} allItems={all} presentation="reading" inlineProgress onOpen={x => { if (x) { setId(x); setDiscussionId(null); check.reset(); } else pick(""); }} /></div>}
       <div className="mt-5 min-w-0 space-y-5" aria-live="polite">
         {check.isError && <ErrorState error={{ message: friendlyError(check.error) }} title="Check failed" onRetry={run} />}
-        {result ? <div className="sx-card rise p-6"><CheckResult key={`${id}:${result.checkedAt ?? ""}`} result={result} missing={chosen ? missingRequirements(chosen.kind, chosen.title, detailsOf(chosen)) : []} save={chosen ? { projectId: project.id, draftTitle: chosen.title } : undefined} /></div>
+        {result ? <div className="sx-card rise p-6"><CheckResult key={`${id}:${result.checkedAt ?? ""}`} result={result} missing={chosen ? missingRequirements(chosen.kind, chosen.title, detailsOf(chosen)) : []} aiDetection={chosen ? aiDetectionOf(chosen) : undefined} save={chosen ? { projectId: project.id, draftTitle: chosen.title } : undefined} /></div>
           : !check.isError && <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-originality-empty"><ScanSearch className="h-6 w-6 shrink-0 text-[hsl(var(--teal))]" strokeWidth={1.4} /><div className="min-w-0 flex-1"><p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">{check.isPending ? "Reading your project..." : chosen ? "Ready to check." : "Pick a draft to begin."}</span> Results open here; you can then discuss them in follow-ups.</p>{job && <div className="mt-3"><AgentProgressChip jobKey={job.key} /></div>}</div></div>}
         {chosen && chosen.status === "completed" && <StudioDiscussion item={all.find(i => i.id === discussionId) ?? chosen} allItems={all} onOpen={setDiscussionId} hideDocument />}
       </div>

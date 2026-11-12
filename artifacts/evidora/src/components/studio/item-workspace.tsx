@@ -22,7 +22,7 @@ import { useUnsavedGuard } from "@/lib/unsaved";
 import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
-import { savedReviewOf } from "./check-panel";
+import { savedReviewOf, aiDetectionOf } from "./check-panel";
 import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
@@ -292,7 +292,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           </div>
         )}
         {docKind && <RequirementsCheck compact data={requirementsCheckOf(item)} emptyHint={item.status === "completed" ? "No requirements check is saved with this version yet. Use Check requirements & research to compare this draft with the official instructions for your journal or university, and with relevant papers and patents." : undefined} />}
-        <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
+        <CheckPanel key={item.id} saved={savedReviewOf(item)} aiDetection={aiDetectionOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
         {figNotices.length > 0 && <div className="sx-card p-4 text-sm" data-testid="panel-figure-notices"><p className="sx-eyebrow mb-1">Figure notes</p><ul className="list-disc space-y-1 pl-5 text-muted-foreground">{figNotices.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
         {(m.sources.length > 0 || m.warnings.length > 0) && (
           <div className="sx-card p-4 text-sm">
