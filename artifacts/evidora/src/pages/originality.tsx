@@ -15,7 +15,7 @@ import { ErrorState } from "@/components/states";
 import { StudioHeader } from "@/components/studio/studio-page";
 import { NeedsProject } from "@/components/studio/project-switcher";
 import { CheckResult, savedReviewOf, aiDetectionOf } from "@/components/studio/check-panel";
-import { ExternalChecksPanel, externalChecksOf } from "@/components/studio/external-checks";
+import { PlagiarismReportPanel, plagiarismOf } from "@/components/studio/plagiarism-report";
 import { useProjectItems } from "@/components/studio/use-studio";
 import { useActiveProject } from "@/lib/active-project";
 import { ItemWorkspace } from "@/components/studio/item-workspace";
@@ -38,8 +38,8 @@ function Inner() {
   useAgentJob(job);
   const [drawer, setDrawer] = useState(false);
   const [attachmentBusy, setAttachmentBusy] = useState(false);
-  const intro = "Free, bounded screening: compares a saved draft with the other papers, notes and drafts in this project and flags writing issues. It does not search the web or journal databases and is not an AI-authorship detector.";
-  if (!project) return <><StudioHeader kicker="Originality" title="Check your draft against your own project." intro={intro} /><NeedsProject what="Originality checking" /></>;
+  const intro = "Plagiarism check: compares a saved draft with this project's documents, the scholarly index, open-access full texts and the Internet, and reports identical, lightly edited and paraphrased passages with their sources. It is not an AI-authorship detector.";
+  if (!project) return <><StudioHeader kicker="Originality" title="Check your draft for plagiarism." intro={intro} /><NeedsProject what="Originality checking" /></>;
   const all = items.data ?? [];
   const choices = latestItems(all.filter(i => i.status === "completed" && i.content.trim()));
   const chosen = choices.find(i => i.id === id);
@@ -61,14 +61,14 @@ function Inner() {
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-[hsl(90_14%_86%)] bg-[hsl(66_22%_95%)] px-4 py-3">
           <ProjectAttachMenu projectId={project.id} items={all} onBusyChange={setAttachmentBusy} />
-          <button className="sx-btn sx-primary" disabled={!id || check.isPending || attachmentBusy} onClick={run} data-testid="button-check-originality"><ShieldCheck />{check.isPending ? "Checking..." : attachmentBusy ? "Preparing document..." : "Run project check"}</button>
-          <span className="min-w-0 flex-1 text-xs text-muted-foreground">Project scope only. Attached files join the comparison set. The shared-wording figure is not a global originality percentage, web-wide plagiarism score or AI-authorship verdict.</span>
+          <button className="sx-btn sx-primary" disabled={!id || check.isPending || attachmentBusy} onClick={run} data-testid="button-check-originality"><ShieldCheck />{check.isPending ? "Checking..." : attachmentBusy ? "Preparing document..." : "Run plagiarism check"}</button>
+          <span className="min-w-0 flex-1 text-xs text-muted-foreground">Attached files join the comparison set. Takes up to a minute. Paywalled full texts and pages the search does not return cannot be compared.</span>
         </div>
       </section>
       {chosen && <div className="mt-5" data-testid="originality-draft"><ItemWorkspace key={chosen.id} item={chosen} allItems={all} presentation="reading" inlineProgress onOpen={x => { if (x) { setId(x); setDiscussionId(null); check.reset(); } else pick(""); }} /></div>}
       <div className="mt-5 min-w-0 space-y-5" aria-live="polite">
         {check.isError && <ErrorState error={{ message: friendlyError(check.error) }} title="Check failed" onRetry={run} />}
-        {chosen && externalChecksOf(chosen) && <ExternalChecksPanel data={externalChecksOf(chosen)!} />}
+        {chosen && plagiarismOf(chosen) && <PlagiarismReportPanel data={plagiarismOf(chosen)!} />}
         {result ? <div className="sx-card rise p-6"><CheckResult key={`${id}:${result.checkedAt ?? ""}`} result={result} missing={chosen ? missingRequirements(chosen.kind, chosen.title, detailsOf(chosen)) : []} aiDetection={chosen ? aiDetectionOf(chosen) : undefined} save={chosen ? { projectId: project.id, draftTitle: chosen.title } : undefined} /></div>
           : !check.isError && <div className="flex items-center gap-4 rounded-lg border border-dashed border-[hsl(110_14%_78%)] px-4 py-3" data-testid="status-originality-empty"><ScanSearch className="h-6 w-6 shrink-0 text-[hsl(var(--teal))]" strokeWidth={1.4} /><div className="min-w-0 flex-1"><p className="text-[13px] text-muted-foreground"><span className="font-medium text-[hsl(var(--ink-teal))]">{check.isPending ? "Reading your project..." : chosen ? "Ready to check." : "Pick a draft to begin."}</span> Results open here; you can then discuss them in follow-ups.</p>{job && <div className="mt-3"><AgentProgressChip jobKey={job.key} /></div>}</div></div>}
         {chosen && chosen.status === "completed" && <StudioDiscussion item={all.find(i => i.id === discussionId) ?? chosen} allItems={all} onOpen={setDiscussionId} hideDocument />}
@@ -78,7 +78,7 @@ function Inner() {
     <div className={`mx-auto ${chosen ? "max-w-[1520px]" : "max-w-[900px]"} pb-6`}>
       {chosen
         ? <WorkspaceBar newLabel="Check another draft" onNew={() => pick("")} label={`Originality · ${chosen.title}`} onHistory={() => setDrawer(true)} projectName={project.name} />
-        : <WorkspaceIntro kicker="Originality" title="Check a draft against your own project." sub={intro} projectName={project.name} onHistory={() => setDrawer(true)} />}
+        : <WorkspaceIntro kicker="Originality" title="Check a draft for plagiarism." sub={intro} projectName={project.name} onHistory={() => setDrawer(true)} />}
       {chosen ? (() => { const srcs = [...studioItemSources([chosen], k => KIND_LABEL[k] ?? k), ...mergeSources([{ origin: "Originality check matches", sources: (result?.matches ?? []).filter(x => x.url).map(x => ({ title: x.title, url: x.url, text: x.sourceExcerpt || x.excerpt, evidenceLevel: x.matchType })) }])]; return <ResearchWorkbench idBase="originality" label="Originality workspace" sourceCount={srcs.length}
         conversation={<div className="mx-auto w-full max-w-[900px] pb-3">
         {leftBody}

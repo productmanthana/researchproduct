@@ -9,6 +9,8 @@ import { ownedDocument } from "../lib/documents";
 import { syncProjectItem, removeProjectVectors } from "../lib/studio-index";
 import { exportStudioFile } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
+import { runPlagiarismCheck } from "../lib/plagiarism-check";
+import { aiContext } from "../lib/ai-budget";
 import { studioTemplates } from "../lib/studio-templates";
 import { formatIssues } from "../lib/studio-formatting";
 import { invalidateRequirementsCheck } from "../lib/submission-requirements";
@@ -176,8 +178,11 @@ router.post("/studio/items/:id/check",async(req,res)=>{
     AND NOT EXISTS(SELECT 1 FROM research_studio_items c WHERE c.parent_id=s.id) LIMIT 100`,[uid(req),row.project_id,row.id]);
   const references=await pool.query("SELECT p.data FROM research_library l JOIN research_papers p ON p.id=l.paper_id WHERE l.owner_id=$1 AND l.project_id=$2",[uid(req),row.project_id]);
   const sourceEvidence=(row.metadata?.sources??[]).filter((s:any)=>s.text).map((s:any)=>({title:s.title,content:s.text,url:s.url}));
-  const result={...reviewDocument(row.content,[...rows,...references.rows.map(r=>({title:r.data.title,content:r.data.abstract??"",url:r.data.doi?`https://doi.org/${r.data.doi}`:undefined})),...sourceEvidence]),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
-  await pool.query("UPDATE research_studio_items SET metadata=metadata||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString()})]);
+  const comparison=[...rows,...references.rows.map(r=>({title:r.data.title,content:r.data.abstract??"",url:r.data.doi?`https://doi.org/${r.data.doi}`:undefined})),...sourceEvidence];
+  const result={...reviewDocument(row.content,comparison),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
+  const plagiarism=await aiContext.run({owner:uid(req),analysisId:`plagiarism:${row.id}`},()=>runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),
+    project:comparison.map(c=>({title:c.title,text:c.content,url:c.url,origin:"project" as const}))}));
+  await pool.query("UPDATE research_studio_items SET metadata=(metadata-'externalChecks')||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString(),plagiarism})]);
   res.json(result);
 });
 router.post("/studio/items/:id/sync",async(req,res)=>{
