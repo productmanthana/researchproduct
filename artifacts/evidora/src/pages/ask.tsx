@@ -146,7 +146,7 @@ function AskInner() {
   const sourceAnalysis = evidenceTurns.find(t => t.id === sourceAnalysisId) ?? evidenceTurns.at(-1);
   const hasDirtyDraft = Object.values(draftBuffers).some(value => value.dirty);
   useUnsavedGuard("ask-draft", hasDirtyDraft, "You have unsaved draft changes in AI Chat.");
-  const { project: activeProject, select: selectProject } = useActiveProject();
+  const { project: activeProject, projects, select: selectProject } = useActiveProject();
   const chatContext = currentThread.filter(t => t.status === "completed").map(t => ({ question: t.question, answer: t.content }));
   const baseIntent = projectIntent(question, chatContext);
   // Explicit idea requests run the structured five-idea generator, never a generic guided answer.
@@ -305,7 +305,9 @@ function AskInner() {
       try {
         let project = activeProject;
         if (!project) {
-          project = await createProject.mutateAsync({ data: { name: ideaAsk ? `Ideas: ${(ideaAsk.topic ?? "research").slice(0, 80)}` : `${intent.kind === "journal" ? "Journal" : intent.kind} research`, description: "Research document started from AI Chat." } });
+          // Reuse an auto-named folder from an earlier chat instead of creating a second one with the same name.
+          const autoName = ideaAsk ? `Ideas: ${(ideaAsk.topic ?? "research").slice(0, 80)}` : `${intent.kind === "journal" ? "Journal" : intent.kind} research`;
+          project = projects.find(p => p.name === autoName) ?? await createProject.mutateAsync({ data: { name: autoName, description: "Research document started from AI Chat." } });
           await qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
           selectProject(project.id, { skipGuard: true });
         }
