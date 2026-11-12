@@ -16,11 +16,15 @@ Avoid stock markers of generated academic prose: "delve", "underscore", "pivotal
 Do not hedge every sentence; state a judgement where the evidence supports one. Prefer concrete, source-specific detail actually present in the supplied evidence (named methods, settings, numbers, materials, historical specifics) over generic abstraction.
 Allow a human draft's uneven emphasis: develop the points you judge most important at length and compress the rest. Do not restate the same point in different words. Prefer active voice and ordinary connectives ("because", "but", "so", "even though") over ornate ones. Never claim human authorship and never claim an AI-detector result.`;
 
+/** Model output is trimmed to the limits rather than rejected, so one verbose reply cannot fail a draft. */
+const clipped = (max: number) => z.string().transform((s) => s.slice(0, max));
+const clippedList = (itemMax: number, count: number) =>
+  z.array(z.string()).default([]).transform((list) => list.slice(0, count).map((s) => s.slice(0, itemMax)));
 const Detection = z.object({
-  humanScore: z.number().min(0).max(100),
-  verdict: z.string().min(1).max(400),
-  signals: z.array(z.string().max(300)).max(8).default([]),
-  flagged: z.array(z.string().max(1200)).max(30).default([]),
+  humanScore: z.coerce.number().transform((n) => Math.min(100, Math.max(0, n))),
+  verdict: clipped(400).default("No verdict returned."),
+  signals: clippedList(300, 8),
+  flagged: clippedList(1200, 30),
 });
 const Rewrites = z.object({ rewrites: z.array(z.object({ id: z.number().int(), text: z.string().min(1) })).default([]) });
 

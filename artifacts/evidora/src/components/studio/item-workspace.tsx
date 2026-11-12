@@ -25,6 +25,7 @@ import { TemplatePicker } from "./template-picker";
 import { savedReviewOf, aiDetectionOf } from "./check-panel";
 import { PlagiarismReportPanel, plagiarismOf } from "./plagiarism-report";
 import { OriginalityCertificate } from "./originality-certificate";
+import { FinishingDialog } from "./finishing-dialog";
 import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
@@ -214,10 +215,11 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
 
   const aiWriting = aiDetectionOf(item);
 
-  if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} inline={inlineProgress} />;
+  if (working || item.status === "failed") return <><GenerationStatus item={item} onRetry={onRetry} inline={inlineProgress} /><FinishingDialog item={item} /></>;
 
   return (
     <div className={reading ? "rise" : "rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]"} data-testid={`workspace-item-${item.id}`}>
+      <FinishingDialog item={item} />
       <article className="sx-card overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b bg-[hsl(66_20%_95%)] px-4 py-2.5">
           <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
