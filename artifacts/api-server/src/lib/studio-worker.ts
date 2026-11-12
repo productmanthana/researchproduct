@@ -182,7 +182,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const planned=!includeFigures
     ?{figures:[],notices:[]}
     :await planStudioFigures({kind:request.kind,request:request.prompt,content,sources:figureSources,existing});
-  const generatedFigures=await persistStudioFigures(owner,row.id,planned.figures);
+  const generatedFigures=await persistStudioFigures(owner,row.id,planned.figures,planned.notices);
   // Keep source figures only when their marker survived; reject unknown markers.
   const retained=referencedFigures(content,existing).filter(f=>!generatedFigures.some(n=>n.replacesId===f.id));
   for(const f of generatedFigures)if(f.replacesId)content=content.replaceAll(`[[figure:${f.replacesId}]]`,`[[figure:${f.id}]]`);

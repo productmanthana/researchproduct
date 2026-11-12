@@ -13,6 +13,9 @@ export const CHAT_MODEL = "gpt-4.1";
 // Explicitly priced, used for scientific document/figure work only.
 export const SCIENTIFIC_MODEL = "gpt-6.1-sol";
 export const EMBEDDING_MODEL = "text-embedding-3-large";
+// Figure illustrations only. Billed per image, so priced at a fixed estimate, not per token.
+export const IMAGE_MODEL = "gpt-image-1.5";
+export const IMAGE_PRICE_INR = 8;
 export const aiContext = new AsyncLocalStorage<{ owner: string; analysisId: string }>();
 export function priceMicros(model: string, input: number, output = 0) {
   if (![CHAT_MODEL, SCIENTIFIC_MODEL, EMBEDDING_MODEL].includes(model)) throw new Error("Unpriced AI model");
@@ -55,6 +58,45 @@ export async function paidOpenAI(path: "embeddings" | "chat/completions", body: 
     if (!Number.isSafeInteger(input) || input < 0 || !Number.isSafeInteger(output) || output < 0) throw new Error("The AI service did not return valid usage information");
     await pool.query("UPDATE research_ai_spend SET status='completed',amount_micros=$2,input_tokens=$3,output_tokens=$4 WHERE id=$1", [id, priceMicros(body.model, input, output), input, output]);
     return result;
+  } catch (error) {
+    await pool.query("UPDATE research_ai_spend SET status='uncertain' WHERE id=$1 AND status='reserved'", [id]);
+    throw error;
+  }
+}
+/** Generates one figure illustration and records its fixed estimated spend against the monthly budget. */
+export async function paidImage(prompt: string): Promise<Buffer> {
+  const context = aiContext.getStore();
+  if (!context) throw new Error("AI call requires an owner and analysis context");
+  if (!process.env.OPENAI_API_KEY) throw new HttpError(503, "The AI service is not configured.");
+  const id = randomUUID(), period = new Date().toISOString().slice(0, 7), reserve = IMAGE_PRICE_INR * 1e6;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('research-ai-monthly-budget'))");
+    const { rows } = await client.query("SELECT coalesce(sum(amount_micros::bigint),0) AS spent FROM research_ai_spend WHERE period=$1", [period]);
+    if (Number(rows[0].spent) + reserve > AI_MONTHLY_INR * 1e6)
+      throw new HttpError(429, "The service's monthly AI budget limit has been reached. No further AI request was sent. Your run allowance will be restored.");
+    await client.query("INSERT INTO research_ai_spend(id,owner_id,analysis_id,period,model,status,amount_micros) VALUES($1,$2,$3,$4,$5,'reserved',$6)", [id, context.owner, context.analysisId, period, IMAGE_MODEL, reserve]);
+    await client.query("COMMIT");
+  } catch (error) { await client.query("ROLLBACK"); throw error; }
+  finally { client.release(); }
+  try {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: IMAGE_MODEL, prompt, size: "1536x1024", quality: "medium", n: 1 }),
+      signal: AbortSignal.timeout(240000),
+    });
+    if (!response.ok) {
+      if (response.status >= 400 && response.status < 500 && response.status !== 408)
+        await pool.query("UPDATE research_ai_spend SET status='rejected',amount_micros=0 WHERE id=$1", [id]);
+      throw new HttpError(503, response.status === 401 ? "The AI service could not authenticate. Contact the app administrator." : response.status === 429 ? "The AI image service quota or rate limit was reached. Please retry later." : "The AI image service could not complete this request. Please retry later.");
+    }
+    const body = await response.json() as { data?: { b64_json?: string }[] };
+    const base64 = body.data?.[0]?.b64_json;
+    if (!base64) throw new Error("The AI image service did not return an image");
+    await pool.query("UPDATE research_ai_spend SET status='completed',amount_micros=$2 WHERE id=$1", [id, reserve]);
+    return Buffer.from(base64, "base64");
   } catch (error) {
     await pool.query("UPDATE research_ai_spend SET status='uncertain' WHERE id=$1 AND status='reserved'", [id]);
     throw error;

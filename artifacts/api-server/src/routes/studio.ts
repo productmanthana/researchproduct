@@ -140,6 +140,7 @@ router.get("/studio/items/:id/figures/:figureId",async(req,res)=>{
   const {format}=DownloadStudioFigureQueryParams.parse(req.query);
   const figure=(row.metadata?.figures??[]).find((f:ScientificFigure)=>f.id===req.params.figureId) as ScientificFigure|undefined;
   if(row.status!=="completed"||!figure)throw new HttpError(404,"Figure not found.");
+  if(figure.kind==="illustration"&&format!=="png")throw new HttpError(400,"AI illustrations are available as PNG only.");
   if(figure.kind==="original"&&format!=="png")throw new HttpError(400,"Original image previews are available as PNG only; the original uploaded file is preserved separately.");
   let bytes:Buffer,mime:string;
   if(format==="png"){bytes=await figurePng(figure);mime="image/png";}

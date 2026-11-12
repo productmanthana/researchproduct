@@ -7,7 +7,7 @@ const diagramNode=z.object({id:z.string().regex(/^[a-zA-Z0-9_-]{1,30}$/),label:s
   role:diagramRole.optional(),icon:diagramIcon.optional(),description:z.string().max(120).optional()});
 export const FigureProposal=z.object({
   title:short,caption:z.string().min(1).max(1200),
-  kind:z.enum(["diagram","line","bar","scatter","theory"]),
+  kind:z.enum(["diagram","line","bar","scatter","theory","illustration"]),
   replacesId:z.string().regex(/^fig-[a-zA-Z0-9_-]+$/).optional(),
   sourceId:z.string().max(150).optional(),sourceQuote:z.string().max(20000).optional(),
   xLabel:short.optional(),yLabel:short.optional(),
@@ -18,6 +18,7 @@ export const FigureProposal=z.object({
   range:z.object({min:z.number().finite(),max:z.number().finite()}).optional(),
   layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
   explanation:z.string().max(1800).optional(),
+  prompt:z.string().min(20).max(1200).optional(),
   nodes:z.array(diagramNode).min(2).max(9).optional(),
   edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback","association"]).optional()})).max(16).optional(),
 });
@@ -25,6 +26,7 @@ export type FigureProposalType=z.infer<typeof FigureProposal>;
 export type FigureSource={id:string;title:string;text:string};
 export type ScientificFigure={
   id:string;title:string;caption:string;kind:FigureProposalType["kind"]|"original";provenance:string;
+  prompt?:string;
   sourceId?:string;sourceQuote?:string;xLabel?:string;yLabel?:string;
   series?:{name:string;points:{x:number|string;y:number}[]}[];
   expression?:string;range?:{min:number;max:number};
@@ -77,6 +79,14 @@ export function validateFigure(input:unknown,sources:FigureSource[],id:string):S
     return {...base,layout:p.layout??"process",explanation:p.explanation,nodes:p.nodes,edges:p.edges,
       ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
       provenance:"Conceptual / proposed schematic — not an experimental observation."+(source?` Based on supplied source: ${source.title}.`:"")};
+  }
+  if(p.kind==="illustration"){
+    if(!p.prompt||p.prompt.trim().length<20)throw new Error("An illustration requires a detailed image prompt.");
+    const source=p.sourceId?sources.find(s=>s.id===p.sourceId):undefined;
+    if((p.sourceId||p.sourceQuote)&&(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote))))throw new Error("Exact source text for this figure was not found.");
+    return {...base,explanation:p.explanation,prompt:p.prompt.trim(),
+      ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
+      provenance:"AI-generated conceptual illustration, not a photograph, measured data or evidence of a completed experiment. Check your target journal's policy on AI-generated images before submission."+(source?` Related to supplied source: ${source.title}.`:"")};
   }
   const source=sources.find(s=>s.id===p.sourceId);
   if(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote)))throw new Error("Exact source text for this figure was not found.");

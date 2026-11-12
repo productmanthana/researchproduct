@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Reveals `target` progressively, like a typist, even when the server sends large snapshots.
- * Speed adapts to the backlog so the visible text never falls far behind (≈1s to catch up).
+ * Reveal speed adapts to the backlog: at least 90 characters per second, faster when a large
+ * snapshot arrives, capped so text never dumps in one frame and never lags far behind.
  * If a snapshot rewrites earlier text, the reveal restarts from the shared prefix.
  */
 export function useTypewriter(target: string, enabled = true) {
@@ -31,8 +32,8 @@ export function useTypewriter(target: string, enabled = true) {
       last = now;
       const backlog = t.length - pos.current;
       if (backlog > 0) {
-        // ~60 chars/s minimum; faster when far behind so it catches up within about a second.
-        const step = Math.max(1, Math.round((Math.max(60, backlog) * dt) / 1000));
+        const rate = Math.min(900, Math.max(90, backlog * 2.5)); // characters per second
+        const step = Math.max(1, Math.round((rate * dt) / 1000));
         let next = Math.min(t.length, pos.current + step);
         // Finish the current word so text never ends mid-word between frames.
         while (next < t.length && /\S/.test(t[next]) && next - pos.current < step + 12) next++;

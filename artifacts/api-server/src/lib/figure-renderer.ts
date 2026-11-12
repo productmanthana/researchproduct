@@ -6,7 +6,7 @@ const esc=(s:unknown)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",
 const palette=["#61A9BD","#CED14E","#44986D","#DD83C9"];
 const compact=(n:number)=>Math.abs(n)>=100000||Math.abs(n)>0&&Math.abs(n)<0.001?n.toExponential(2):Number(n.toPrecision(5)).toString();
 export function figureSvg(f:ScientificFigure):string {
-  if(f.kind==="original")throw new Error("Original image previews are available as PNG, not editable SVG.");
+  if(f.kind==="original"||f.kind==="illustration")throw new Error(f.kind==="original"?"Original image previews are available as PNG, not editable SVG.":"AI illustrations are raster images, available as PNG, not editable SVG.");
   if(f.kind==="diagram")return illustratedDiagramSvg(f);
   const width=1200,height=760;
   const out:string[]=[`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${esc(f.title)}</title><rect width="100%" height="100%" fill="white"/>`];
@@ -50,8 +50,8 @@ export function figureSvg(f:ScientificFigure):string {
   out.push("</svg>");return out.join("");
 }
 export async function figurePng(f:ScientificFigure):Promise<Buffer>{
-  if(f.kind==="original"){
-    if(!f.pngPath)throw new Error("Original image is unavailable.");
+  if(f.kind==="original"||f.kind==="illustration"){
+    if(!f.pngPath)throw new Error(f.kind==="original"?"Original image is unavailable.":"The AI illustration is unavailable.");
     const [bytes]=await (await storage.getObjectEntityFile(f.pngPath)).download();
     return bytes;
   }
@@ -60,4 +60,4 @@ export async function figurePng(f:ScientificFigure):Promise<Buffer>{
   ctx.drawImage(image,0,0,canvas.width,canvas.height);
   return canvas.toBuffer("image/png");
 }
-export const figureAspect=(f:ScientificFigure)=>f.kind==="original"&&f.width&&f.height?f.height/f.width:f.kind==="diagram"?diagramSize(f).height/diagramSize(f).width:760/1200;
+export const figureAspect=(f:ScientificFigure)=>(f.kind==="original"||f.kind==="illustration")&&f.width&&f.height?f.height/f.width:f.kind==="diagram"?diagramSize(f).height/diagramSize(f).width:760/1200;
