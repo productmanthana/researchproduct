@@ -6,11 +6,11 @@ import { documentBlocks } from "./studio-formatting";
 import { renderStudioWord } from "./studio-docx";
 import { renderStudioPdf } from "./studio-pdf";
 import mammoth from "mammoth";
-import { routeDiagramEdge, crossesTextArea } from "./diagram-routing";
+import { routeDiagramEdge, crossesTextArea, nodeObstacle } from "./diagram-routing";
 
 test("diagram connectors avoid descriptions and intermediate node text rather than cutting diagonally across them",()=>{
   const points=[{x:340,y:280},{x:810,y:280},{x:1280,y:280},{x:575,y:620},{x:1045,y:620}];
-  const boxes=points.map(p=>({left:p.x-180,right:p.x+180,top:p.y-100,bottom:p.y+166}));
+  const boxes=points.map(p=>nodeObstacle(p,true));
   for(const [from,to] of [[2,3],[0,2],[4,0],[3,4],[1,4]]){
     const path=routeDiagramEdge(points[from],points[to],boxes,1620,814);
     assert.ok(path.length>=2);

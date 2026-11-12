@@ -1,5 +1,5 @@
 import type { ScientificFigure } from "./scientific-figures";
-import { routeDiagramEdge, type DiagramObstacle } from "./diagram-routing";
+import { nodeObstacle, routeDiagramEdge, type DiagramObstacle } from "./diagram-routing";
 
 // Structured, escaped SVG rather than generated pixels: labels and connections
 // remain exact, reproducible, sharp in print, and compatible with Word/PDF.
@@ -64,10 +64,7 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   for(const [key,tone] of Object.entries(tones)){
     out.push(`<defs><marker id="arrow-${key}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="${tone.ink}"/></marker></defs>`);
   }
-  const obstacles:DiagramObstacle[]=nodes.map(n=>{
-    const p=positions.get(n.id)!;
-    return {left:p.x-180,right:p.x+180,top:p.y-100,bottom:p.y+(n.description?166:100)};
-  });
+  const obstacles:DiagramObstacle[]=nodes.map(n=>nodeObstacle(positions.get(n.id)!,!!n.description));
   const routeBottom=Math.max(...obstacles.map(r=>r.bottom),400)+28;
   const edgeLabels:{letter:string;from:number;to:number;label:string}[]=[];
   for(const e of edges){
@@ -89,16 +86,19 @@ export function illustratedDiagramSvg(f:ScientificFigure){
       text(lx,ly+4,letter,14,tone.ink,"middle",600);
     }
   }
+  // Stages are free-standing: a role-coloured medallion holds the pictogram and
+  // number, with the label and description set beneath it. No card outlines, so
+  // the figure reads as a diagram rather than a stack of boxes.
+  const medallionY=(p:{y:number})=>p.y-26;
   nodes.forEach((n,i)=>{
-    const p=positions.get(n.id)!,tone=tones[p.role],shape=layout==="neural"||layout==="cycle";
-    if(shape)out.push(`<ellipse cx="${p.x}" cy="${p.y}" rx="166" ry="84" fill="${tone.fill}" stroke="${tone.ink}" stroke-width="1.5"/>`);
-    else if(layout==="system")out.push(`<path d="M${p.x-165} ${p.y-80}h300l30 30v130h-330z" fill="${tone.fill}" stroke="${tone.ink}" stroke-width="1.5"/>`);
-    else out.push(`<rect x="${p.x-165}" y="${p.y-80}" width="330" height="160" rx="${layout==="taxonomy"?3:22}" fill="${tone.fill}" stroke="${tone.ink}" stroke-width="1.5"/>`);
-    out.push(`<circle cx="${p.x-143}" cy="${p.y-70}" r="17" fill="${tone.ink}"/>`);
-    text(p.x-143,p.y-64,String(i+1),15,"white","middle",600);
-    out.push(icon(n.icon??(layout==="neural"&&p.role==="process"?"network":p.role==="input"?"data":p.role==="output"?"target":p.role==="evidence"?"knowledge":"compute"),p.x,p.y-34,tone.ink));
-    wrap(n.label,30).slice(0,3).forEach((s,j)=>text(p.x,p.y+13+j*21,s,18,tone.ink,"middle",600));
-    if(n.description)wrap(n.description,45).slice(0,3).forEach((s,j)=>text(p.x,p.y+112+j*17,s,14,"#52665f","middle"));
+    const p=positions.get(n.id)!,tone=tones[p.role],cy=medallionY(p);
+    out.push(`<circle cx="${p.x}" cy="${cy}" r="44" fill="${tone.fill}" stroke="${tone.ink}" stroke-width="2"/>`);
+    out.push(icon(n.icon??(layout==="neural"&&p.role==="process"?"network":p.role==="input"?"data":p.role==="output"?"target":p.role==="evidence"?"knowledge":"compute"),p.x,cy,tone.ink));
+    out.push(`<circle cx="${p.x-34}" cy="${cy-34}" r="15" fill="${tone.ink}"/>`);
+    text(p.x-34,cy-29,String(i+1),15,"white","middle",600);
+    const lines=wrap(n.label,30).slice(0,3);
+    lines.forEach((s,j)=>text(p.x,p.y+42+j*21,s,18,tone.ink,"middle",600));
+    if(n.description)wrap(n.description,45).slice(0,3).forEach((s,j)=>text(p.x,p.y+42+lines.length*21+8+j*17,s,14,"#52665f","middle"));
   });
   edgeLabels.forEach((e,i)=>{
     const x=90+(i%2)*760,y=routeBottom+42+Math.floor(i/2)*64;
