@@ -1053,6 +1053,26 @@ export const CheckStudioDocumentResponse = zod.object({
 })
 
 
+export const FixStudioWordingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const FixStudioWordingResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
+})
+
+
 export const SyncStudioDocumentParams = zod.object({
   "id": zod.coerce.string()
 })

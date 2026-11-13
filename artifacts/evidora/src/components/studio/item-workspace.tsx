@@ -25,6 +25,7 @@ import { TemplatePicker } from "./template-picker";
 import { savedReviewOf, aiDetectionOf } from "./check-panel";
 import { PlagiarismReportPanel, plagiarismOf } from "./plagiarism-report";
 import { OriginalityCertificate } from "./originality-certificate";
+import { FixWordingButton } from "./fix-wording-button";
 import { ResearchTrace, traceOf } from "./research-trace";
 import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
@@ -235,6 +236,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             {canSave && dirty && <button className="sx-btn sx-primary" disabled={save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-toolbar"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>}
             {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Check requirements &amp; research</Link>}
             {canCustomFormat && <button className="sx-btn" disabled={dirty} title={dirty ? "Save your edits first, then customise the format" : "Choose your own layout for a new revision"} onClick={() => setFmtOpen(true)} aria-haspopup="dialog" data-testid="button-open-custom-format"><SlidersHorizontal />Custom format</button>}
+            <FixWordingButton item={item} disabled={dirty} onOpen={onOpen} />
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>

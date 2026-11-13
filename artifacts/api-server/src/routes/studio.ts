@@ -9,7 +9,9 @@ import { ownedDocument } from "../lib/documents";
 import { syncProjectItem, removeProjectVectors } from "../lib/studio-index";
 import { exportStudioFile } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
-import { runPlagiarismCheck } from "../lib/plagiarism-check";
+import { runPlagiarismCheck, plagiarismCorpus } from "../lib/plagiarism-check";
+import { repairOriginality } from "../lib/originality-guard";
+import { projectComparison, asCandidates } from "../lib/studio-comparison";
 import { screenAuthorship } from "../lib/human-authorship";
 import { exportBlockReason } from "../lib/export-gate";
 import { aiContext } from "../lib/ai-budget";
@@ -173,26 +175,41 @@ router.get("/studio/items/:id/export",async(req,res)=>{
 router.post("/studio/items/:id/check",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish.");
-  const {rows}=await pool.query(`WITH RECURSIVE family AS (
-    SELECT id,parent_id FROM research_studio_items WHERE id=$3 AND owner_id=$1
-    UNION ALL SELECT s.id,s.parent_id FROM research_studio_items s JOIN family f ON f.parent_id=s.id WHERE s.owner_id=$1
-  ), descendants AS (
-    SELECT id FROM research_studio_items WHERE id=$3 AND owner_id=$1
-    UNION ALL SELECT s.id FROM research_studio_items s JOIN descendants d ON s.parent_id=d.id WHERE s.owner_id=$1
-  ) SELECT s.title,s.content FROM research_studio_items s WHERE s.owner_id=$1 AND s.project_id=$2
-    AND s.id NOT IN(SELECT id FROM family UNION SELECT id FROM descendants) AND s.status='completed'
-    AND NOT EXISTS(SELECT 1 FROM research_studio_items c WHERE c.parent_id=s.id) LIMIT 100`,[uid(req),row.project_id,row.id]);
-  const references=await pool.query("SELECT p.data FROM research_library l JOIN research_papers p ON p.id=l.paper_id WHERE l.owner_id=$1 AND l.project_id=$2",[uid(req),row.project_id]);
-  const sourceEvidence=(row.metadata?.sources??[]).filter((s:any)=>s.text).map((s:any)=>({title:s.title,content:s.text,url:s.url}));
-  const comparison=[...rows,...references.rows.map(r=>({title:r.data.title,content:r.data.abstract??"",url:r.data.doi?`https://doi.org/${r.data.doi}`:undefined})),...sourceEvidence];
+  const comparison=await projectComparison(row,uid(req));
   const result={...reviewDocument(row.content,comparison),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
   // Re-run both independent checks on the current text: plagiarism and AI-writing.
   const [plagiarism,aiDetection]=await aiContext.run({owner:uid(req),analysisId:`plagiarism:${row.id}`},()=>Promise.all([
-    runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),project:comparison.map(c=>({title:c.title,text:c.content,url:c.url,origin:"project" as const}))}),
+    runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),project:asCandidates(comparison)}),
     screenAuthorship(row.content,row.metadata?.aiDetection?.passes??0).catch(()=>undefined),
   ]));
   await pool.query("UPDATE research_studio_items SET metadata=(metadata-'externalChecks')||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString(),plagiarism,...(aiDetection?{aiDetection}:{})})]);
   res.json(result);
+});
+// Rewrites only the sentences the plagiarism check matched, re-checks them and saves the result as a new revision.
+router.post("/studio/items/:id/fix-wording",async(req,res)=>{
+  const owner=uid(req),row=await ownedStudio(routeId(req),owner);
+  if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish.");
+  if(!row.metadata?.plagiarism?.sources?.length)throw new HttpError(400,"Run the plagiarism check first so there are matched passages to rewrite.");
+  if((await pool.query("SELECT id FROM research_studio_items WHERE parent_id=$1",[row.id])).rowCount)throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+  const {content,report,aiDetection}=await aiContext.run({owner,analysisId:`plagiarism:${row.id}`},async()=>{
+    const corpus=await plagiarismCorpus({content:row.content,title:row.title,owner,project:asCandidates(await projectComparison(row,owner))});
+    const fixed=await repairOriginality({content:row.content,corpus});
+    const aiDetection=fixed.content===row.content?undefined:await screenAuthorship(fixed.content,row.metadata?.aiDetection?.passes??0).catch(()=>undefined);
+    return {...fixed,aiDetection};
+  });
+  if(content===row.content)throw new HttpError(422,"The matched wording couldn't be rewritten automatically. Quote and cite those passages, or edit them by hand.");
+  const metadata:Record<string,any>={...row.metadata,plagiarism:report,wordingFixedFrom:row.id};
+  delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
+  if(aiDetection)metadata.aiDetection=aiDetection;else delete metadata.aiDetection;
+  invalidateRequirementsCheck(metadata);
+  try{
+    const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata,status)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'completed') RETURNING *`,[randomUUID(),owner,row.project_id,row.kind,row.title,content,row.id,row.revision+1,JSON.stringify(metadata)]);
+    res.json(studioView(rows[0]));
+  }catch(e:any){
+    if(e.code==="23505")throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+    throw e;
+  }
 });
 router.post("/studio/items/:id/sync",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));

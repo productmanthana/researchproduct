@@ -93,6 +93,9 @@
     "/studio/items/{id}/check": {
       "post":{"operationId":"checkStudioDocument","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Project-scoped review","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioCheck"}}}}}}
     },
+    "/studio/items/{id}/fix-wording": {
+      "post":{"operationId":"fixStudioWording","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"New revision with matched wording rewritten and re-checked","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
+    },
     "/studio/items/{id}/sync": {
       "post":{"operationId":"syncStudioDocument","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string"}}],"responses":{"200":{"description":"Index status","content":{"application/json":{"schema":{"$ref":"#/components/schemas/StudioItem"}}}}}}
     },

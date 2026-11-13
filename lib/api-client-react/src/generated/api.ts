@@ -2638,6 +2638,74 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getCheckStudioDocumentMutationOptions(options), queryClient);
     }
 
+export const getFixStudioWordingUrl = (id: string,) => {
+
+
+
+
+  return `/api/studio/items/${id}/fix-wording`
+}
+
+export const fixStudioWording = async (id: string, options?: Parameters<typeof customFetch>[1]): Promise<StudioItem> => {
+
+  return customFetch<StudioItem>(getFixStudioWordingUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getFixStudioWordingMutationKey = () => ['fixStudioWording'] as const;
+
+export const getFixStudioWordingMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fixStudioWording>>, TError,FixStudioWordingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof fixStudioWording>>, TError,FixStudioWordingMutationVariables, TContext> => {
+
+const mutationKey = getFixStudioWordingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof fixStudioWording>>, FixStudioWordingMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  fixStudioWording(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FixStudioWordingMutationResult = NonNullable<Awaited<ReturnType<typeof fixStudioWording>>>
+
+    export type FixStudioWordingMutationError = ErrorType<unknown>
+    export type FixStudioWordingMutationVariables = {id: string}
+
+    export const useFixStudioWording = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fixStudioWording>>, TError,FixStudioWordingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof fixStudioWording>>,
+        TError,
+        FixStudioWordingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getFixStudioWordingMutationOptions(options), queryClient);
+    }
+
 export const getSyncStudioDocumentUrl = (id: string,) => {
 
 
