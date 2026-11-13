@@ -29,9 +29,11 @@ const metrics = (s: HTMLElement | Window) => s instanceof Window
  * Renders the server's partial draft inline, formatted progressively from real SSE snapshots.
  * Before text arrives, `fallback` (honest progress) is shown. No actions are offered on partial text.
  */
-export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation = "panel" }: {
+export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation = "panel", onSection }: {
   kind: LiveKind; id: string; working: boolean; fallback: ReactNode; invalidate?: QueryKey[]; testId?: string;
   presentation?: "panel" | "chat";
+  /** Reports the section heading currently being streamed, e.g. "Writing section 4 · Methodology". */
+  onSection?: (line: string | null) => void;
   /** Shared progress popup job key; the streamed text is mirrored there as an optional preview. */
   progressKey?: string;
 }) {
@@ -40,6 +42,10 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const setPreview = progress?.setPreview;
   const registered = !!(progressKey && progress?.jobs[progressKey]);
   useEffect(() => { if (progressKey && registered && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, registered, setPreview, working, draft, connection]);
+
+  const headings = [...draft.matchAll(/^#{2,3}\s+(.+)$/gm)];
+  const sectionLine = headings.length ? `Writing section ${headings.length} · ${headings[headings.length - 1][1].replace(/[*_`#]/g, "").trim()}` : null;
+  useEffect(() => { onSection?.(sectionLine); }, [sectionLine, onSection]);
 
   const root = useRef<HTMLElement>(null);
   const follow = useRef(true);

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { sourceKindCounts, type ProvenancedSource, type SourceKind } from "@/lib/source-provenance";
 import "./workbench.css";
@@ -89,6 +89,15 @@ export function SourcesList({ sources, pending, title = "Sources", note, emptyBo
   const counts = useMemo(() => sourceKindCounts(sources), [sources]);
   const shown = sources.filter(s => (kind === "all" || s.kind === kind) && `${s.title} ${s.excerpt}`.toLowerCase().includes(q.trim().toLowerCase()));
   const abstractOnly = sources.some(s => s.abstractOnly);
+  // Sources that arrive after the panel opened get a brief "new" highlight, staggered so they land one by one.
+  const seen = useRef<Set<string> | null>(null);
+  if (!seen.current) seen.current = new Set(sources.map(s => s.key));
+  const fresh = sources.filter(s => !seen.current!.has(s.key)).map(s => s.key);
+  useEffect(() => {
+    if (!fresh.length) return;
+    const t = window.setTimeout(() => fresh.forEach(k => seen.current!.add(k)), 4000);
+    return () => window.clearTimeout(t);
+  }, [fresh.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div className="wb-src" data-testid="panel-sources">
     <div className="wb-src-head"><h2>{title}</h2><span className="wb-count" data-testid="text-source-count">{sources.length}</span></div>
     {note && <p className="wb-src-note">{note}</p>}
@@ -104,8 +113,8 @@ export function SourcesList({ sources, pending, title = "Sources", note, emptyBo
       {sources.length > 6 && <input className="wb-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Search source titles and excerpts" aria-label="Search sources" data-testid="input-source-search" />}
       {abstractOnly && <p className="wb-src-note">Some entries rest on abstract metadata only. An abstract is not full-text evidence and does not establish novelty.</p>}
       <ol className="wb-src-list">
-        {shown.map((s, i) => <li key={s.key} className="wb-src-card" style={{ ["--wb-tone" as string]: KIND_META[s.kind].tone }} data-testid={`card-source-${i}`}>
-          <p className="wb-src-kind">{KIND_META[s.kind].label}{s.abstractOnly ? " · abstract only" : ""}</p>
+        {shown.map((s, i) => { const f = fresh.indexOf(s.key); return <li key={s.key} className={`wb-src-card${f >= 0 ? " wb-src-new" : ""}`} style={{ ["--wb-tone" as string]: KIND_META[s.kind].tone, ...(f >= 0 ? { animationDelay: `${Math.min(f, 16) * 120}ms` } : {}) }} data-testid={`card-source-${i}`}>
+          <p className="wb-src-kind">{KIND_META[s.kind].label}{s.abstractOnly ? " · abstract only" : ""}{f >= 0 && <span className="wb-src-badge">New</span>}</p>
           <p className="wb-src-title">{s.title}</p>
           {s.excerpt && <p className="wb-src-excerpt">{s.excerpt}</p>}
           <div className="wb-src-meta">
@@ -113,7 +122,7 @@ export function SourcesList({ sources, pending, title = "Sources", note, emptyBo
             <span>From {s.origins.join("; ")}</span>
             {s.url ? <a className="wb-src-link" href={s.url} target="_blank" rel="noopener noreferrer" data-testid={`link-source-original-${i}`}>Open original<ExternalLink /></a> : <span>No public link (project material)</span>}
           </div>
-        </li>)}
+        </li>; })}
       </ol>
       {!shown.length && <p className="wb-src-note">No sources match this filter.</p>}
     </>}

@@ -35,6 +35,7 @@ function AgentProgressRegistry({ children }: { children: ReactNode }) {
   // effect, it cannot erase registrations from children mounting in that commit.
   const register = useCallback((input: WorkflowInput, subscriber: string) => {
     const owners = subscribers.current.get(input.key) ?? new Set<string>();
+    if (input.quiet && !subscribers.current.has(input.key)) setMinimised(prev => new Set(prev).add(input.key));
     owners.add(subscriber); subscribers.current.set(input.key, owners);
     setJobs(prev => {
       const old = prev[input.key];

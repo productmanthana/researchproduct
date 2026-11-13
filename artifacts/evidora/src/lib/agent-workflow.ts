@@ -18,6 +18,8 @@ export type WorkflowInput = {
   skipped?: Record<string, string>;
   statusLine: string;
   note?: string;
+  /** Start in the background (dock button only); the page shows its own inline progress. */
+  quiet?: boolean;
 };
 export type WorkflowTile = { role: RoleDef; state: RoleState; detail: string; index: number };
 export type WorkflowView = WorkflowInput & { tiles: WorkflowTile[]; activeIndex: number; indeterminate: boolean };
