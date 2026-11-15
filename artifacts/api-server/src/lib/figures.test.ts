@@ -1,12 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluateFormula,validateFigure,figureCsv,referencedFigures } from "./scientific-figures";
+import { evaluateFormula,validateFigure,figureCsv,referencedFigures,FigureProposal } from "./scientific-figures";
 import { figureSvg,figurePng } from "./figure-renderer";
 import { documentBlocks } from "./studio-formatting";
 import { renderStudioWord } from "./studio-docx";
 import { renderStudioPdf } from "./studio-pdf";
 import mammoth from "mammoth";
 import { routeDiagramEdge, crossesTextArea, nodeObstacle } from "./diagram-routing";
+
+test("over-long planner text is shortened instead of dropping the figure",()=>{
+  const p=FigureProposal.parse({title:"Plant",caption:"c ".repeat(800),kind:"illustration",prompt:"turbine hall ".repeat(150)});
+  assert.ok(p.prompt!.length<=1200&&p.prompt!.length>900);
+  assert.ok(p.caption.length<=1200);
+  assert.equal(FigureProposal.parse({title:"T",caption:"c",kind:"diagram"}).prompt,undefined);
+  assert.throws(()=>FigureProposal.parse({title:"T",caption:"c",kind:"illustration",prompt:"short"}));
+});
 
 test("diagram connectors avoid descriptions and intermediate node text rather than cutting diagonally across them",()=>{
   const points=[{x:340,y:280},{x:810,y:280},{x:1280,y:280},{x:575,y:620},{x:1045,y:620}];

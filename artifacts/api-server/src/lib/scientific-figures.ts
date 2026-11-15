@@ -1,12 +1,18 @@
 import { z } from "zod";
 
 const short=z.string().min(1).max(180);
+/** Over-long free text from the planner is shortened at a word boundary, never a reason to drop the figure. */
+const clipped=(max:number)=>z.preprocess(v=>{
+  if(typeof v!=="string"||v.length<=max)return v;
+  const cut=v.slice(0,max);const space=cut.lastIndexOf(" ");
+  return (space>max*0.8?cut.slice(0,space):cut).trim();
+},z.string().max(max));
 const diagramRole=z.enum(["input","process","output","feedback","evidence"]);
 const diagramIcon=z.enum(["data","document","sensor","network","compute","experiment","compare","target","knowledge"]);
 const diagramNode=z.object({id:z.string().regex(/^[a-zA-Z0-9_-]{1,30}$/),label:short,
-  role:diagramRole.optional(),icon:diagramIcon.optional(),description:z.string().max(120).optional()});
+  role:diagramRole.optional(),icon:diagramIcon.optional(),description:clipped(120).optional()});
 export const FigureProposal=z.object({
-  title:short,caption:z.string().min(1).max(1200),
+  title:short,caption:clipped(1200).pipe(z.string().min(1)),
   kind:z.enum(["diagram","line","bar","scatter","theory","illustration"]),
   replacesId:z.string().regex(/^fig-[a-zA-Z0-9_-]+$/).optional(),
   sourceId:z.string().max(150).optional(),sourceQuote:z.string().max(20000).optional(),
@@ -17,8 +23,8 @@ export const FigureProposal=z.object({
   expression:z.string().min(1).max(300).optional(),
   range:z.object({min:z.number().finite(),max:z.number().finite()}).optional(),
   layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
-  explanation:z.string().max(1800).optional(),
-  prompt:z.string().min(20).max(1200).optional(),
+  explanation:clipped(1800).optional(),
+  prompt:clipped(1200).pipe(z.string().min(20)).optional(),
   callouts:z.array(z.string().min(1).max(40)).max(10).optional(),
   nodes:z.array(diagramNode).min(2).max(9).optional(),
   edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback","association"]).optional()})).max(16).optional(),
