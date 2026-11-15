@@ -92,6 +92,7 @@ export function studioStageRole(stage?: string | null): string | null {
   if (s.startsWith("Literature Survey Agent")) return "survey";
   if (s.startsWith("Evidence Reader")) return "evidence";
   if (s.startsWith("Academic Writing Agent") || s.startsWith("Writing Agent")) return "write";
+  if (s.startsWith("Simulated Peer Review Agent") || s.startsWith("Reviewer Agent")) return "peer";
   if (s.startsWith("Evidence Review Agent")) return "review";
   if (s.startsWith("Authorship Agent")) return "authorship";
   if (s.startsWith("Scientific Figure Agent")) return "figures";
@@ -114,6 +115,7 @@ export function studioWorkflow(item: { id: string; kind: string; status: string;
     { id: "survey", name: "Literature Survey", task: "Finding relevant evidence", icon: "search" },
     { id: "evidence", name: "Evidence Reader", task: "Reviewing papers and project documents", icon: "book" },
     { id: "write", name: k.write, task: stage.startsWith("Writing Agent") ? "Drafting with retrieved evidence" : k.task, icon: k.icon },
+    { id: "peer", name: "Simulated Peer Review Agent", task: "Reviewing the draft and revising weak points", icon: "shield" },
     { id: "review", name: "Evidence Review", task: "Checking claims and references", icon: "shield" },
     { id: "authorship", name: "Authorship", task: "Rewriting in human academic prose", icon: "pen" },
     { id: "figures", name: "Scientific Figures", task: "Validating data and diagrams", icon: "chart" },
@@ -126,6 +128,7 @@ export function studioWorkflow(item: { id: string; kind: string; status: string;
     skipped: {
       ...(projectOnly ? { survey: "Project sources only; no catalogue search" } : {}),
       ...(scholarly ? {} : { authorship: "Authorship rewriting runs on scholarly drafts only" }),
+      ...(["journal", "thesis", "literature", "synopsis"].includes(item.kind) ? {} : { peer: "Simulated peer review runs on journal, thesis, literature and synopsis drafts" }),
     },
     statusLine: queued ? "Queued · your request is saved and waiting for a writer slot" : active ? (detail ? detail[0].toUpperCase() + detail.slice(1) : roles.find(r => r.id === active)!.task) : "Working · stage not reported yet",
     note: figureRevision ? "Figure revision: the existing text is kept; figures are re-checked." : "You can leave this page; the result is saved to your project automatically.",

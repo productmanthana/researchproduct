@@ -14,7 +14,7 @@ test("workflows list their real stages, at most eight", () => {
   for (const w of five) assert.equal(w.roles.length, 5);
   // Studio reports authorship rewriting and the originality screen after the figures stage.
   const studio = studioWorkflow({ id: "s", kind: "thesis", status: "running", title: "t", metadata: {} });
-  assert.deepEqual(studio.roles.map(r => r.id), ["survey", "evidence", "write", "review", "authorship", "figures", "originality"]);
+  assert.deepEqual(studio.roles.map(r => r.id), ["survey", "evidence", "write", "peer", "review", "authorship", "figures", "originality"]);
 });
 
 test("queued and unknown research stages are indeterminate", () => {
@@ -41,6 +41,9 @@ test("studio stages map into their pipeline role and project-only skips survey",
   assert.equal(studioWorkflow({ id: "s", kind: "journal", status: "running", title: "t", metadata: { stage: "Authorship Agent · rewriting in human academic prose" } }).active, "authorship");
   assert.equal(studioWorkflow({ id: "s", kind: "journal", status: "running", title: "t", metadata: { stage: "Originality Agent · searching scholarly indexes and the Internet for matching text" } }).active, "originality");
   assert.equal(studioWorkflow({ id: "s", kind: "ideas", status: "queued", title: "t", metadata: { stage: "Queued" } }).active, null);
+  const peer = studioWorkflow({ id: "s", kind: "journal", status: "running", title: "t", metadata: { stage: "Simulated Peer Review Agent · round 1 scored 6/10 · revised" } });
+  assert.equal(peer.active, "peer");
+  assert.equal(peer.statusLine, "Round 1 scored 6/10 · revised");
 });
 
 test("review, upload, watch mapping is honest", () => {

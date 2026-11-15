@@ -203,9 +203,10 @@ Do not add a References section; it will be assembled from actual sources. Prese
   writeStep?.done(`Draft written · ${draft.content.trim().split(/\s+/).length.toLocaleString("en")} words`);
   let peerReview:ReviewRound[]|undefined;
   if(scholarly&&request.kind!=="ideas"){
-    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Reviewer Agent · simulated peer review"})]);
-    const peerStep=trace.start("Simulated peer review");
-    const reviewed=await peerReviewRevise({content:draft.content,kind:request.kind,request:request.prompt,evidence:writerEvidence,results,onRound:r=>{
+    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Simulated Peer Review Agent · reviewing round 1"})]);
+    const peerStep=trace.start("Simulated Peer Review Agent working");
+    const reviewed=await peerReviewRevise({content:draft.content,kind:request.kind,request:request.prompt,evidence:writerEvidence,results,onRound:async r=>{
+      await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:`Simulated Peer Review Agent · round ${r.round} scored ${r.overall}/10${r.revised?" · revised":""}`})]);
       peerStep.update(`Round ${r.round} · reviewer score ${r.overall}/10${r.revised?` · ${r.weaknesses.length} issues addressed`:""}`);
     }});
     draft.content=reviewed.content;peerReview=reviewed.rounds;
