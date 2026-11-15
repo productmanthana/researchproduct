@@ -19,6 +19,7 @@ export const FigureProposal=z.object({
   layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
   explanation:z.string().max(1800).optional(),
   prompt:z.string().min(20).max(1200).optional(),
+  callouts:z.array(z.string().min(1).max(40)).max(10).optional(),
   nodes:z.array(diagramNode).min(2).max(9).optional(),
   edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback","association"]).optional()})).max(16).optional(),
 });
@@ -27,6 +28,8 @@ export type FigureSource={id:string;title:string;text:string};
 export type ScientificFigure={
   id:string;title:string;caption:string;kind:FigureProposalType["kind"]|"original";provenance:string;
   prompt?:string;
+  /** Component names drawn as labels with leader lines on an illustration; positions are located after the image is generated. */
+  callouts?:string[];labels?:{label:string;x:number;y:number}[];
   sourceId?:string;sourceQuote?:string;xLabel?:string;yLabel?:string;
   series?:{name:string;points:{x:number|string;y:number}[]}[];
   expression?:string;range?:{min:number;max:number};
@@ -84,7 +87,8 @@ export function validateFigure(input:unknown,sources:FigureSource[],id:string):S
     if(!p.prompt||p.prompt.trim().length<20)throw new Error("An illustration requires a detailed image prompt.");
     const source=p.sourceId?sources.find(s=>s.id===p.sourceId):undefined;
     if((p.sourceId||p.sourceQuote)&&(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote))))throw new Error("Exact source text for this figure was not found.");
-    return {...base,explanation:p.explanation,prompt:p.prompt.trim(),
+    const callouts=[...new Set((p.callouts??[]).map(c=>c.trim()).filter(Boolean))];
+    return {...base,explanation:p.explanation,prompt:p.prompt.trim(),...(callouts.length?{callouts}:{}),
       ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
       provenance:"AI-generated conceptual illustration, not a photograph, measured data or evidence of a completed experiment. Check your target journal's policy on AI-generated images before submission."+(source?` Related to supplied source: ${source.title}.`:"")};
   }

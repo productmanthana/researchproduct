@@ -1,5 +1,6 @@
 import "./watch.test";
 import "./figures.test";
+import "./labelled-illustration.test";
 import "./document-review.test";
 import "./paper-review.test";
 import "./custom-format.test";
