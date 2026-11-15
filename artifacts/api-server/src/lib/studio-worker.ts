@@ -351,7 +351,7 @@ let busy=false;
 export async function processStudioJob() {
   if(busy)return;busy=true;let row:any,heartbeat:ReturnType<typeof setInterval>|undefined;
   try{
-    await pool.query(`WITH expired AS (UPDATE research_studio_items SET status='failed',error='Processing was interrupted. Please retry; your request allowance was restored.' WHERE status='running' AND started_at<now()-interval '15 minutes' RETURNING id)
+    await pool.query(`WITH expired AS (UPDATE research_studio_items SET status='failed',error='Processing was interrupted. Please retry; your request allowance was restored.' WHERE status='running' AND started_at<now()-interval '3 minutes' RETURNING id)
       UPDATE research_usage SET status='refunded' WHERE id IN(SELECT id FROM expired) AND status='reserved'`);
     const result=await pool.query(`UPDATE research_studio_items SET status='running',started_at=now() WHERE id=(SELECT id FROM research_studio_items WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`);
     row=result.rows[0];if(!row)return;
