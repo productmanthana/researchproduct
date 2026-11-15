@@ -13,6 +13,8 @@ const CONN_LABEL: Record<LiveConnection, string> = {
 };
 
 const plain = (value: string) => value;
+/** Stages that stream draft text; leaving one means later checks are running. */
+const WRITING_STAGE = /^(?:academic writing agent|writing agent|writing$)/i;
 
 function scrollParent(el: HTMLElement | null): HTMLElement | Window {
   for (let n = el?.parentElement; n; n = n.parentElement) {
@@ -78,6 +80,18 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
     if (s instanceof Window) window.scrollTo({ top: document.documentElement.scrollHeight });
     else s.scrollTop = s.scrollHeight;
   }, [text, hasText]);
+  // When writing ends but work continues (peer review, checks), return to the top so the progress stays visible.
+  const liveStageName = snapshot?.stage ?? "";
+  const lastStage = useRef(liveStageName);
+  useEffect(() => {
+    const wasWriting = WRITING_STAGE.test(lastStage.current);
+    lastStage.current = liveStageName;
+    if (!working || !wasWriting || WRITING_STAGE.test(liveStageName) || !root.current) return;
+    follow.current = false; setBehind(true);
+    const s = scrollParent(root.current);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    s.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  }, [liveStageName, working]);
   const jump = () => {
     follow.current = true; setBehind(false);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
