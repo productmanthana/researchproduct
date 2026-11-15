@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StudioItem } from "@workspace/api-client-react";
 import { ResearchTrace, traceOf } from "./research-trace";
 import { AlertTriangle, RotateCw } from "lucide-react";
@@ -12,6 +12,15 @@ import { studioWorkflow } from "@/lib/agent-workflow";
 export function GenerationStatus({ item, onRetry, inline = false }: { item: StudioItem; onRetry?: () => void; inline?: boolean }) {
   const working = item.status === "queued" || item.status === "running";
   const [section, setSection] = useState<string | null>(null);
+  // Once writing ends (peer review, checks, rewrites), bring the progress trace back into view.
+  const card = useRef<HTMLDivElement>(null);
+  const stage = String((item.metadata as { stage?: unknown } | null)?.stage ?? "");
+  const lastStage = useRef(stage);
+  useEffect(() => {
+    const wasWriting = /writing agent/i.test(lastStage.current);
+    lastStage.current = stage;
+    if (working && wasWriting && !/writing agent/i.test(stage)) card.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [stage, working]);
   const job = working ? studioWorkflow(item) : null;
   // The inline research trace shows progress on the page, so the shared window stays in the background.
   useAgentJob(inline || !job ? null : { ...job, quiet: true });
@@ -31,7 +40,7 @@ export function GenerationStatus({ item, onRetry, inline = false }: { item: Stud
   const queued = item.status === "queued";
   const trace = traceOf(item.metadata);
   return (
-    <div className="sx-card p-5" data-testid="status-generation-running">
+    <div ref={card} className="sx-card scroll-mt-4 p-5" data-testid="status-generation-running">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">
           <p className="sx-eyebrow">{queued ? "Waiting in queue" : "Working"} · {job?.workflow}</p>
