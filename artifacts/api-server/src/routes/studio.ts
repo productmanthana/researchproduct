@@ -190,7 +190,14 @@ router.post("/studio/items/:id/fix-wording",async(req,res)=>{
   const owner=uid(req),row=await ownedStudio(routeId(req),owner);
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish.");
   if(!row.metadata?.plagiarism?.sources?.length)throw new HttpError(400,"Run the plagiarism check first so there are matched passages to rewrite.");
-  if((await pool.query("SELECT id FROM research_studio_items WHERE parent_id=$1",[row.id])).rowCount)throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+  // A long rewrite can finish after the browser dropped the request; a retry returns that saved fix instead of failing.
+  const existingFix=async()=>{
+    const {rows}=await pool.query("SELECT * FROM research_studio_items WHERE parent_id=$1 AND owner_id=$2",[row.id,owner]);
+    if(!rows[0])return false;
+    if(rows[0].metadata?.wordingFixedFrom!==row.id)throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+    res.json(studioView(rows[0]));return true;
+  };
+  if(await existingFix())return;
   const {content,report,aiDetection}=await aiContext.run({owner,analysisId:`plagiarism:${row.id}`},async()=>{
     const corpus=await plagiarismCorpus({content:row.content,title:row.title,owner,project:asCandidates(await projectComparison(row,owner))});
     const fixed=await repairOriginality({content:row.content,corpus});
@@ -207,7 +214,7 @@ router.post("/studio/items/:id/fix-wording",async(req,res)=>{
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'completed') RETURNING *`,[randomUUID(),owner,row.project_id,row.kind,row.title,content,row.id,row.revision+1,JSON.stringify(metadata)]);
     res.json(studioView(rows[0]));
   }catch(e:any){
-    if(e.code==="23505")throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+    if(e.code==="23505"&&await existingFix())return;
     throw e;
   }
 });
