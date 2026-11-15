@@ -11,4 +11,5 @@ export type ExportStudioDocumentFormat = typeof ExportStudioDocumentFormat[keyof
 export const ExportStudioDocumentFormat = {
   pdf: 'pdf',
   docx: 'docx',
+  latex: 'latex',
 } as const;

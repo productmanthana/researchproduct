@@ -8,6 +8,7 @@ import "./live-generation.test";
 import "./parallel-evidence.test";
 import "./studio-generation-preferences.test";
 import "./studio.test";
+import "./studio-latex.test";
 import "./plagiarism-align.test";
 import "./idea-generation.test";
 import "./selected-idea.test";

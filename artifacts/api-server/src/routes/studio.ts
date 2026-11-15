@@ -7,7 +7,7 @@ import { requireUser, uid, routeId, usage, allowanceReached, HttpError } from ".
 import { studioView, ownedStudio, ownedStudioProject } from "../lib/studio-store";
 import { ownedDocument } from "../lib/documents";
 import { syncProjectItem, removeProjectVectors } from "../lib/studio-index";
-import { exportStudioFile } from "../lib/studio-exports";
+import { exportStudioFile, EXPORT_TYPES } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
 import { runPlagiarismCheck, plagiarismCorpus } from "../lib/plagiarism-check";
 import { repairOriginality } from "../lib/originality-guard";
@@ -169,8 +169,8 @@ router.get("/studio/items/:id/export",async(req,res)=>{
   if(blocked)throw new HttpError(409,blocked);
   const bytes=await exportStudioFile(row,format);
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}.${format}"`);
-  res.type(format==="pdf"?"application/pdf":"application/vnd.openxmlformats-officedocument.wordprocessingml.document").send(bytes);
+  res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}${format==="latex"?"-latex":""}.${EXPORT_TYPES[format].ext}"`);
+  res.type(EXPORT_TYPES[format].mime).send(bytes);
 });
 router.post("/studio/items/:id/check",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));

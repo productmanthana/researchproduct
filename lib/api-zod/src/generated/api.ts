@@ -952,6 +952,8 @@ export const generateStudioDocumentBodyDocumentDetailsYearMax = 40;
 
 export const generateStudioDocumentBodyDocumentDetailsStudentIdMax = 100;
 
+export const generateStudioDocumentBodyExperimentalResultsMax = 20000;
+
 
 
 export const GenerateStudioDocumentBody = zod.object({
@@ -997,7 +999,8 @@ export const GenerateStudioDocumentBody = zod.object({
   "department": zod.string().max(generateStudioDocumentBodyDocumentDetailsDepartmentMax).optional(),
   "year": zod.string().max(generateStudioDocumentBodyDocumentDetailsYearMax).optional(),
   "studentId": zod.string().max(generateStudioDocumentBodyDocumentDetailsStudentIdMax).optional()
-}).optional()
+}).optional(),
+  "experimentalResults": zod.string().max(generateStudioDocumentBodyExperimentalResultsMax).optional().describe('Author-supplied experiment logs and results (tables, numbers, observations). Reported as the authors\' actual data.')
 })
 
 export const GenerateStudioDocumentResponse = zod.object({
@@ -1021,7 +1024,7 @@ export const ExportStudioDocumentParams = zod.object({
 })
 
 export const ExportStudioDocumentQueryParams = zod.object({
-  "format": zod.enum(['pdf', 'docx'])
+  "format": zod.enum(['pdf', 'docx', 'latex'])
 })
 
 export const ExportStudioDocumentResponse = zod.unknown()

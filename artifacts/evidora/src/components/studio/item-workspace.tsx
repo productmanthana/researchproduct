@@ -7,7 +7,7 @@ import {
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, ClipboardCheck, SlidersHorizontal, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, SlidersHorizontal, Download, FileCode, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FigureView, MissingFigure } from "./figure-view";
 import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
@@ -19,7 +19,7 @@ import { CheckPanel } from "./check-panel";
 import { RequirementsCheck, requirementsCheckOf } from "./requirements-check";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
-import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, exportBlockReason, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
+import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, type StudioExportFormat, exportBlockReason, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
 import { savedReviewOf, aiDetectionOf } from "./check-panel";
@@ -49,9 +49,11 @@ function IndexChip({ status }: { status: string }) {
   return <span className={`sx-chip ${tone}`} data-testid="status-index">{label}</span>;
 }
 
+const LATEX_KINDS = new Set(["journal", "thesis", "literature", "synopsis"]);
+
 export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title" | "kind" | "metadata">; disabled?: boolean }) {
   const { toast } = useToast();
-  const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
+  const [busy, setBusy] = useState<StudioExportFormat | null>(null);
   const blocked = exportBlockReason(item);
   if (blocked) {
     const report = (item.metadata as Record<string, unknown> | null)?.plagiarism as { similarityPercent?: number; target?: number } | undefined;
@@ -61,7 +63,7 @@ export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" 
       : `Export locked · ${report.similarityPercent}% matched text (limit ${limit}%)`;
     return <span className="inline-flex items-center gap-1.5 text-xs text-vermilion" title={blocked} data-testid="status-export-blocked"><Download className="h-3.5 w-3.5" />{label}</span>;
   }
-  const run = async (f: "pdf" | "docx") => {
+  const run = async (f: StudioExportFormat) => {
     setBusy(f);
     try { await downloadStudioItem(item, f); }
     catch (e) { toast({ title: "Export failed", description: friendlyError(e), variant: "destructive" }); }
@@ -71,6 +73,7 @@ export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" 
     <>
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("pdf")} data-testid="button-export-pdf"><Download />{busy === "pdf" ? "Preparing..." : "PDF"}</button>
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("docx")} data-testid="button-export-docx"><FileText />{busy === "docx" ? "Preparing..." : "Word"}</button>
+      {LATEX_KINDS.has(item.kind) && <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("latex")} title="LaTeX source (.tex) with figure images, as a .zip" data-testid="button-export-latex"><FileCode />{busy === "latex" ? "Preparing..." : "LaTeX"}</button>}
     </>
   );
 }

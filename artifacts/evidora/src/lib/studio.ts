@@ -51,12 +51,13 @@ export function exportBlockReason(item: Pick<StudioItem, "kind" | "metadata">): 
   return r.similarityPercent > limit ? `Export blocked: ${r.similarityPercent}% matched text (limit ${limit}%). Rewrite or quote and cite the matched passages, then re-check.` : null;
 }
 
-export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">, format: "pdf" | "docx") {
+export type StudioExportFormat = "pdf" | "docx" | "latex";
+export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">, format: StudioExportFormat) {
   const blob = await exportStudioDocument(item.id, { format }, { responseType: "blob" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${(item.title || "evidora").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "evidora"}.${format}`;
+  a.download = `${(item.title || "evidora").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "evidora"}${format === "latex" ? "-latex.zip" : `.${format}`}`;
   document.body.appendChild(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
