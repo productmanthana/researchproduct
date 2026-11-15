@@ -214,7 +214,7 @@ export function IdeasChat({ itemId, onOpen, onNewTopic, onNavigate }: Props) {
       <JournalSetupDialog open={!!setupReq} topic={setupReq?.prompt.split("\n")[0].slice(0, 300) ?? ""}
         onCancel={() => { setupReq?.resolve(null); setSetupReq(null); }}
         onConfirm={s => { if (!setupReq) return; setupReq.resolve({ prompt: journalPromptWithLength(setupReq.prompt, s.length), extra: journalGenerationExtras(s) as Record<string, unknown> }); setSetupReq(null); }} />
-      {(parentForFollowUp || busy) && (
+      {parentForFollowUp && !busy && (
         <section aria-label="Follow up" className="sticky bottom-3 z-10 pt-2">
           <Composer key={`follow-${conv?.rootId ?? item.id}`} compact parentId={parentForFollowUp ?? undefined} label="Continue this conversation"
             projectId={item.projectId} kind="answer" defaultMode="combined" cta="Send"

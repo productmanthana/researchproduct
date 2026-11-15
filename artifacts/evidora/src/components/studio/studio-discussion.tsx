@@ -50,7 +50,7 @@ export function StudioDiscussion({ item, allItems, onOpen, hideDocument = false,
             onOpen={onOpen} onOpenSet={onOpen} onRetry={turn => void retryTurn(turn)}
             scrollTo={scrollTo} onScrolled={() => setScrollTo(null)} />
         : suppress ? emptySlot ?? null : <ItemWorkspace item={item} allItems={merged} onOpen={onOpen} presentation="reading" />}
-      {(parent || busy) && <section className="sticky bottom-3 z-10 pt-2" aria-label="Follow up about this work">
+      {parent && !busy && <section className="sticky bottom-3 z-10 pt-2" aria-label="Follow up about this work">
         <Composer key={`discussion-${conv?.rootId ?? item.id}`} compact
           parentId={parent ?? undefined} projectId={item.projectId} kind="answer" defaultMode="project"
           label="Ask a follow-up about this work" cta="Ask" attachSlot={attachSlot}
