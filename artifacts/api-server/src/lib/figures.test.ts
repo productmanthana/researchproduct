@@ -8,6 +8,13 @@ import { renderStudioPdf } from "./studio-pdf";
 import mammoth from "mammoth";
 import { routeDiagramEdge, crossesTextArea, nodeObstacle } from "./diagram-routing";
 
+test("illustration captions always carry the not-a-photograph disclosure once",()=>{
+  const add=validateFigure({title:"Plant",caption:"Cutaway of a gas turbine unit",kind:"illustration",prompt:"Textbook cutaway of a gas turbine generator unit"},[],"fig-a");
+  assert.match(add.caption,/^Cutaway of a gas turbine unit\. This AI-generated illustration is not a photograph/);
+  const kept=validateFigure({title:"Plant",caption:"AI-generated view; not a photograph of the site.",kind:"illustration",prompt:"Textbook cutaway of a gas turbine generator unit"},[],"fig-b");
+  assert.equal(kept.caption,"AI-generated view; not a photograph of the site.");
+});
+
 test("over-long planner text is shortened instead of dropping the figure",()=>{
   const p=FigureProposal.parse({title:"Plant",caption:"c ".repeat(800),kind:"illustration",prompt:"turbine hall ".repeat(150)});
   assert.ok(p.prompt!.length<=1200&&p.prompt!.length>900);

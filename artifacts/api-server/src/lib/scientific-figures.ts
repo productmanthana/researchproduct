@@ -73,6 +73,8 @@ export function evaluateFormula(expression:string,x:number):number {
   return result;
 }
 
+export const ILLUSTRATION_DISCLOSURE="This AI-generated illustration is not a photograph of a real installation or experiment.";
+
 /** Plot coordinates are copied/calculated by code, never supplied by the model. */
 export function validateFigure(input:unknown,sources:FigureSource[],id:string):ScientificFigure {
   const p=FigureProposal.parse(input);
@@ -94,7 +96,10 @@ export function validateFigure(input:unknown,sources:FigureSource[],id:string):S
     const source=p.sourceId?sources.find(s=>s.id===p.sourceId):undefined;
     if((p.sourceId||p.sourceQuote)&&(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote))))throw new Error("Exact source text for this figure was not found.");
     const callouts=[...new Set((p.callouts??[]).map(c=>c.trim()).filter(Boolean))];
-    return {...base,explanation:p.explanation,prompt:p.prompt.trim(),...(callouts.length?{callouts}:{}),
+    // The disclosure is required in the caption itself, so code guarantees it rather than trusting the planner.
+    const disclosed=/not (?:a |an )?photograph/i.test(p.caption);
+    const caption=disclosed?p.caption:`${p.caption.trim().replace(/[.\s]*$/,".")} ${ILLUSTRATION_DISCLOSURE}`;
+    return {...base,caption,explanation:p.explanation,prompt:p.prompt.trim(),...(callouts.length?{callouts}:{}),
       ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
       provenance:"AI-generated conceptual illustration, not a photograph, measured data or evidence of a completed experiment. Check your target journal's policy on AI-generated images before submission."+(source?` Related to supplied source: ${source.title}.`:"")};
   }
