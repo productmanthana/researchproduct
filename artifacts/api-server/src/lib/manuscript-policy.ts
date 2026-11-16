@@ -17,3 +17,17 @@ export const PROFESSIONAL_ACADEMIC_STYLE = `Write in the register of a senior pr
 State evidence limits once, concisely, in the Methods/Limitations sections. Do NOT repeat boilerplate hedges ("the supplied corpus does not establish...", "abstract-only", "not an exhaustive account") in every paragraph; each paragraph must advance a new point and must not restate earlier ones.
 Prioritise the newest and most influential evidence in the supplied sources (latest years first), synthesise across all supplied papers and patents, and cite patents as technology-landscape evidence in their own subsection when patent records are supplied. Group sources by theme rather than summarising them one by one.
 Formatting: plain Markdown only. Use # / ## / ### headings, paragraphs and pipe tables (| a | b |) for comparisons, with short cell text. NEVER output code fences (\`\`\`), ASCII-art boxes, arrows made of "+---+" or "v" characters, or text-drawn diagrams; diagrams are generated separately as figures. Do not repeat the manuscript title as a second heading.`;
+
+/** The manuscript is the authors' paper: no tool branding or notes about how the draft was produced. */
+export const SUBMISSION_VOICE = `Write the manuscript as its authors would submit it. Never mention Evidora, this tool, "the assistant", "supplied evidence", "supplied abstract/excerpt/material", "project files", "retrieved sources", "the corpus provided" or how the draft was prepared. Refer to literature the normal way ("Inuwa et al. [2] report…", "A recent review [5] finds…"). Do not add "Manuscript status", "working draft", "Author details" or similar notes; the app shows those separately. In Declarations, leave author-completed items as bracketed placeholders, including "AI-use statement: [Authors to complete as required by the target journal]".
+The priorArt field lists what existing studies, commercial tools and deployed systems already do. Never present any of it as new. In the Introduction or Related Work, name the closest existing work with its citation and state precisely what this paper adds beyond it, building the contribution around priorArt.contribution and priorArt.openGaps. Novelty is relative to the cited work, never a claim of global firsts.`;
+
+/** Strip tool branding and app-only notes the model may still add, so the export reads as a normal paper. */
+export function submissionReady(content: string) {
+  return content
+    .replace(/[ \t]*(?:\*\*)?\b(?:Manuscript status|Author details)(?:\*\*)?:[^\n]*?(?:\.(?=\s|$)|$)/gim, "")
+    .replace(/^\s*(?:\*\*)?Preparation disclosure(?:\*\*)?:.*$/gim, "AI-use statement: [Authors to complete as required by the target journal]")
+    .replace(/^.*\bEvidora\b.*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

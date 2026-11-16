@@ -90,7 +90,7 @@ const STUDIO_KIND: Record<string, { workflow: string; write: string; task: strin
 export function studioStageRole(stage?: string | null): string | null {
   const s = (stage ?? "").trim();
   if (s.startsWith("Literature Survey Agent")) return "survey";
-  if (s.startsWith("Evidence Reader")) return "evidence";
+  if (s.startsWith("Evidence Reader") || s.startsWith("Novelty Agent")) return "evidence";
   if (s.startsWith("Academic Writing Agent") || s.startsWith("Writing Agent")) return "write";
   if (s.startsWith("Simulated Peer Review Agent") || s.startsWith("Reviewer Agent")) return "peer";
   if (s.startsWith("Evidence Review Agent")) return "review";

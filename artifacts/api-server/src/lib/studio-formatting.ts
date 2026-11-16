@@ -1,5 +1,6 @@
 /** Layout values are export settings, not a claim of publisher certification. */
 import { savedCustomFormat } from "./custom-format";
+import { submissionReady } from "./manuscript-policy";
 export type Layout = {
   size:"LETTER"|"A4"; fontSize:number; lineSpacing:number; columns:number;
   margins:{top:number;bottom:number;left:number;right:number}; thesis:boolean;fontFamily?:"serif"|"sans";
@@ -76,7 +77,12 @@ export function formatIssues(row:any):string[]{
 }
 export type MarkdownBlock={kind:"heading";level:number;text:string}|{kind:"paragraph";text:string}|{kind:"table";rows:string[][]}|{kind:"figure";id:string};
 export const plainText=(s:string)=>s.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\[([^\][\n]+)\]\(([^)\n]+)\)/g,"$1 ($2)").replace(/`([^`]+)`/g,"$1");
+/** Export blocks: the app-only "Author review" note and tool branding never reach the submitted file. */
 export function documentBlocks(content:string):MarkdownBlock[]{
+  const all=markdownBlocks(submissionReady(content));let skip=false;
+  return all.filter(b=>{if(b.kind==="heading")skip=/^Author review$/i.test(b.text.trim());return !skip;});
+}
+function markdownBlocks(content:string):MarkdownBlock[]{
   const lines=content.split("\n"),blocks:MarkdownBlock[]=[];let paragraph:string[]=[];
   const flush=()=>{if(paragraph.length){blocks.push({kind:"paragraph",text:plainText(paragraph.join(" "))});paragraph=[];}};
   for(let i=0;i<lines.length;i++){

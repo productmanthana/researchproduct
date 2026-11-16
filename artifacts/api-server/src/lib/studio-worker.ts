@@ -26,7 +26,8 @@ import { generateDocumentReview } from "./document-review";
 import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
-import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE } from "./manuscript-policy";
+import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE, SUBMISSION_VOICE, submissionReady } from "./manuscript-policy";
+import { assessNovelty, noveltyNotice, noveltyTopic, priorArtSources, type NoveltyReport } from "./novelty-check";
 import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft, MAX_HUMANISE_PASSES } from "./human-authorship";
 import { reviewDocument } from "./studio-checks";
 import { plagiarismCorpus, type PlagiarismReport } from "./plagiarism-check";
@@ -138,11 +139,25 @@ async function generate(row:any) {
     for(const p of patents.patents.slice(0,15))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
   }
   // Preserve exact source identities, and report bounded processing rather than implying an exhaustive read.
-  sources=[...new Map(sources.map(s=>[s.id,s])).values()].slice(0,48);
+  sources=mergeSameTitle([...new Map(sources.map(s=>[s.id,s])).values()]).slice(0,48);
   if(["literature","journal"].includes(request.kind)&&!sources.length&&!figureOnly)
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
   const webEvidence=gathered.web.evidence;
   sources.push(...gathered.web.sources);
+  // Prior-art check: existing industry tools and studies the paper must position itself against.
+  let novelty:NoveltyReport|undefined;
+  if(!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind)){
+    await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Novelty Agent · checking existing tools and studies"})]);
+    const step=trace.start("Checking existing tools, products and studies");
+    try{
+      const topic=noveltyTopic(request.prompt);
+      const extra=await priorArtSources(topic,owner,request.evidenceMode!=="project",new Set(sources.map(s=>s.id)));
+      sources.push(...extra);
+      novelty=await assessNovelty(topic,request.prompt,sources,!!request.experimentalResults?.trim());
+      const notice=noveltyNotice(novelty);if(notice)warnings.push(notice);
+      step.done(`Found ${novelty.alreadyDone.length} existing studies or tools · contribution set`);
+    }catch(err){logger.warn({err},"Prior-art check failed");step.done("Prior-art check unavailable for this request");}
+  }
   trace.count({relevant:sources.length});
   readStep.done(`Kept ${sources.length} sources (${sources.length-gathered.web.sources.length} scholarly and project, ${gathered.web.sources.length} web)`);
   warnings.push(...gathered.web.notices);
@@ -168,7 +183,7 @@ Write natural, precise scholarly prose with developed paragraphs, analytical com
 The current request is the assignment. Project notes and earlier drafts are optional context, not a reason to change its topic. Ignore unrelated material rather than summarising it or adopting its subject. If supplied evidence does not address the current topic, state the evidence boundary briefly and develop clearly labelled proposals instead of claiming unrelated sources support them.
 The supplied conversation is the actual ordered dialogue in this chat. Use its earlier questions and replies to resolve follow-ups, choices and pronouns; do not treat unrelated project documents as messages from this conversation. Earlier assistant replies are context, NOT independent scientific evidence. Their citation numbers are local to those earlier replies: do not copy them into the new answer; use only the CURRENT evidence reference numbers. Answer the newest user question without unnecessarily rewriting the preceding conversation.
 ${instructions[request.kind]}
-${["journal","thesis","literature","synopsis","report"].includes(request.kind)?PROFESSIONAL_ACADEMIC_STYLE:""}
+${["journal","thesis","literature","synopsis","report"].includes(request.kind)?PROFESSIONAL_ACADEMIC_STYLE+"\n"+SUBMISSION_VOICE:""}
 ${["journal","thesis","literature","synopsis","report","answer"].includes(request.kind)?HUMAN_AUTHORSHIP_STYLE:""}
 ${scholarly?"Evidence items carry condensed fact notes, not the sources' own sentences. Build every sentence yourself from those facts; never try to reconstruct a source's phrasing. If a source's exact words are indispensable, put them in quotation marks with the citation.":""}
 Only empirical findings supported by supplied evidence may be asserted. Use exact numbered citations [1], [2] matching evidence reference numbers. Distinguish abstract-level evidence, accessible page excerpts, user data and patents. Lack of a result is not proof of novelty. Do not claim experiments were performed unless explicitly supplied as actual data, and attribute user-supplied data as such.
@@ -176,7 +191,7 @@ ${AUTHOR_RESULTS_RULE}
 For journal/thesis assignments, follow the supplied source-grounded officialRequirements rules wherever possible: include required sections and respect explicit abstract/keyword bounds. Preserve a useful complete draft; never invent signatures, ethics approvals, author details, declarations of facts or completed results to satisfy a requirement. Requirements that need author information must remain explicitly unfulfilled. Missing or unavailable official rules are not proof of compliance.
 Return JSON {"title":"...","content":"markdown body WITHOUT bibliography","ideas":[five objects with title,problem,question,method,feasibility only when generating ideas]}.
 Scientific figures are created in a separate evidence-checked step. Do not invent figure markers, pretend an image has been rendered, or promise a graph without data. Preserve existing [[figure:id]] markers verbatim when revising a source draft.
-Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. For journal or thesis formatting this is a working draft subject to author and institutional review. Never claim human authorship or a certified detector result; the author still reviews and owns the draft.`;
+Do not add a References section; it will be assembled from actual sources. Preserve user constraints. If key inputs are absent, say exactly what is required. Never claim human authorship or a certified detector result; the author still reviews and owns the draft.`;
   // Make retrieved source records available to the side panel before writing
   // completes. They are evidence inputs, not an approved answer or novelty claim.
   await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1 AND status='running'",[row.id,JSON.stringify({
@@ -192,6 +207,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
     writerEvidence=await trace.step(`Turning ${evidence.length} sources into research notes`,()=>evidenceNotes(evidence),()=>`Turned ${evidence.length} sources into research notes`);
   }
   const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,conversation:conversation.turns,project:{name:project.name,description:project.description},context:projectMaterial,...(parentRow?.kind==="ideas"?{selectedIdeaSet:parentRow.metadata?.ideas??[]}:{}),passages,template,officialRequirements:requirementPlan?{status:requirementPlan.source.status,sourceUrl:requirementPlan.source.sourceUrl,rules:requirementPlan.rules,layout:requirementPlan.layout}:undefined,documentDetails:request.documentDetails,...(results?{authorResults:results}:{}),evidence:writerEvidence,date:new Date().toISOString().slice(0,10)})}];
+  if(novelty)body.push({type:"text",text:JSON.stringify({priorArt:novelty})});
   const personalFormat=generationCustomFormat(request,parentRow??row,selectedTemplateId);
   const includeFigures=generationFiguresEnabled(request,parentRow);
   if(personalFormat)body.push({type:"text",text:JSON.stringify({personalFormattingPreferences:personalFormat,note:"These are the author's preferences/instructions, not verified scholarly evidence or official approval. Follow their headings/order and length limits without fabricating research, results or declarations."})});
@@ -303,7 +319,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
     const p=papers.find(p=>p.id===s.paperId);
     return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${s.title}. ${p?.venue??""} ${s.url}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
   }).join("\n\n");
-  let final=figureOnly?content:`${content}${references?`\n\n## References\n\n${references}`:""}\n\n## Author review\n\nAI-assisted working draft. Verify sources, actual research inputs and target submission requirements before use.`;
+  let final=figureOnly?content:`${scholarly?submissionReady(content):content}${references?`\n\n## References\n\n${references}`:""}`;
   // Final silent check across project material, scholarly indexes and the Internet;
   // remaining matches are rewritten and re-checked before the draft is shown.
   let plagiarism:PlagiarismReport|undefined;
@@ -337,6 +353,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   if(originality)Object.assign(metadata,{review:{...originality,profileName:studioTemplates.find(t=>t.id===selectedTemplateId)?.name??"General academic"},reviewedAt:originality.checkedAt});
   if(aiDetection)metadata.aiDetection=aiDetection;
   delete metadata.externalChecks;
+  if(novelty)metadata.novelty=novelty;
   if(plagiarism)metadata.plagiarism=plagiarism;else delete metadata.plagiarism;
   const formattedFinal=personalFormat?customFormatContent(final,personalFormat,draft.title):final;
   if(personalFormat)Object.assign(metadata,{customFormat:personalFormat,customFormatWarnings:customFormatWarnings({content:formattedFinal,metadata},personalFormat),customFormatStatus:"Customised — not verified"});
@@ -372,4 +389,17 @@ export async function processStudioJob() {
       await pool.query("UPDATE research_usage SET status='refunded' WHERE id=$1 AND status='reserved'",[row.id]);
     }
   }finally{if(heartbeat)clearInterval(heartbeat);if(row)await clearLive("studio",row.id).catch(()=>{});busy=false;}
+}
+
+/** One source per work: page excerpts or duplicate records with the same title share a reference number. */
+export function mergeSameTitle(list:EvidenceSource[]):EvidenceSource[]{
+  const key=(t:string)=>t.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const out:EvidenceSource[]=[];
+  for(const s of list){
+    const same=out.find(o=>key(o.title)===key(s.title));
+    if(!same){out.push(s);continue;}
+    if(s.text&&!same.text.includes(s.text.slice(0,200)))same.text=`${same.text}\n\n${s.text}`.slice(0,9000);
+    if(!same.url&&s.url)same.url=s.url;
+  }
+  return out;
 }
