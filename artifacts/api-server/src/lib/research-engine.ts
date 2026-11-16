@@ -59,7 +59,7 @@ export async function sourcesFor(job:any,notices:string[]=[],publicReader={getPa
       const full=Date.now()<retrievalDeadline?await publicReader.cachedFullText(p):{notice:"Automatic retrieval time budget reached for this batch. Using abstract if available; analyse this paper separately to retry full text.",pages:undefined};
       notices.push(`${p.title}: ${full.notice}`);
       if(full.pages) {
-        const selected=await publicReader.selectEvidencePages("public",p.id,full.pages,retrievalQuestion,8);
+        const selected=await publicReader.selectEvidencePages("public",p.id,full.pages,retrievalQuestion,job.input.pagesPerPaper??8);
         const visual=visualPagesRemaining>0 && full.bytes?await renderPdf(full.bytes,selected.slice(0,Math.min(1,visualPagesRemaining)).map(p=>p.page)):[];
         for(const image of visual) {image.image=await retainPageImage(`${p.id}:${digest(full.bytes!.toString("base64"))}:${image.page}`,image.image);visualPagesRemaining--;}
         for(const page of selected) if(page.text.trim()) sources.push({

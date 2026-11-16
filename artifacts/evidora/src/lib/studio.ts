@@ -159,6 +159,6 @@ export function missingRequirements(kind: string, title: string, d: DocumentDeta
   if (!title.trim()) out.push("Title is missing");
   if (!c.author) out.push("Author name is missing");
   if (kind !== "journal" && !c.degree) out.push("Degree is missing (shown on the title page)");
-  if (kind === "thesis" && !c.supervisor) out.push("Supervisor / guide is missing");
+  if ((kind === "thesis" || kind === "synopsis") && !c.supervisor) out.push("Supervisor / guide is missing");
   return out;
 }

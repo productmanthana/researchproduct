@@ -1,3 +1,4 @@
+import { synopsisTitleLines } from "./title-page";
 import PDFDocument from "pdfkit";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +53,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
         for(const line of lines){ensure(height);pdf.text(line,x(),y,{width:width(),lineBreak:false,align:center?"center":"left"});y+=height;}
         y+=size*0.6;
       };
-      const title=()=>{y+=id==="academic-report"?0:36;text(id==="stanford"?row.title.toUpperCase():row.title,id==="academic-report"?18:20,true,id!=="academic-report",1.2);y+=id==="academic-report"?6:20;if(["journal","synopsis","thesis"].includes(row.kind)||l.thesis){text(d.author||"[Author name required]",12,false,true);text(d.affiliation||"[Affiliation required]",12,false,true);}else if(d.author)text(d.author,12,false,true);};
+      const title=()=>{y+=id==="academic-report"?0:36;text(id==="stanford"?row.title.toUpperCase():row.title,id==="academic-report"?18:20,true,id!=="academic-report",1.2);y+=id==="academic-report"?6:20;if(["journal","synopsis","thesis"].includes(row.kind)||l.thesis){text(d.author||"[Author name required]",12,false,true);text(d.affiliation||"[Affiliation required]",12,false,true);if(!l.thesis)for(const line of synopsisTitleLines(row.kind,d))text(line,12,false,true);}else if(d.author)text(d.author,12,false,true);};
       let body=String(row.content).replace(/^\s*#\s+([^\n]+)\n/,"");
       let bodyStart=0,prelimStart=0,contentsPages:number[]=[];
       const toc:{title:string;page:number}[]=[];

@@ -1,3 +1,4 @@
+import { synopsisTitleLines } from "./title-page";
 import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun,ExternalHyperlink,TabStopType } from "docx";
 import { documentBlocks,documentLayoutFor,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
@@ -42,7 +43,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
   const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({children:[PageNumber.CURRENT]})]})]});
   const titleParagraphs=[
     new Paragraph({text:id==="stanford"?title.toUpperCase():title,heading:HeadingLevel.TITLE,alignment:id==="academic-report"?AlignmentType.LEFT:AlignmentType.CENTER,spacing:{before:id==="academic-report"?0:1440,after:id==="academic-report"?240:600}}),
-    ...(["journal","synopsis","thesis"].includes(row.kind)||l.thesis?[paragraph(d.author||"[Author name required]",true),paragraph(d.affiliation||"[Affiliation required]",true)]:d.author?[paragraph(d.author,true)]:[]),
+    ...(["journal","synopsis","thesis"].includes(row.kind)||l.thesis?[paragraph(d.author||"[Author name required]",true),paragraph(d.affiliation||"[Affiliation required]",true),...(l.thesis?[]:synopsisTitleLines(row.kind,d).map(line=>paragraph(line,true)))]:d.author?[paragraph(d.author,true)]:[]),
     ...(l.thesis?[paragraph(`Submitted in partial fulfillment of the requirements for ${d.degree||"[degree required]"}`,true),paragraph(d.department||"[Department required]",true),paragraph(`Supervisor/advisor: ${d.supervisor||"[name required]"}`,true),...(d.studentId?[paragraph(`Student ID: ${d.studentId}`,true)]:[]),paragraph(d.year||"[Submission date required]",true)]:[]),
   ];
   const sections:any[]=[];

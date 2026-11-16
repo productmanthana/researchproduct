@@ -7,7 +7,7 @@ import { withLiveGeneration, clearLive, publishLive } from "./live-generation";
 import { parallelEvidence } from "./parallel-evidence";
 import { generationCustomFormat, generationFiguresEnabled } from "./studio-generation-preferences";
 import { retrievalContext } from "./semantic-retrieval";
-import { discoverForQuestion } from "./ask-discovery";
+import { discoverForQuestion, LITERATURE_PAPERS } from "./ask-discovery";
 import { sourcesFor } from "./research-engine";
 import { type EvidenceSource } from "./evidence";
 import { getPaper } from "./catalogue";
@@ -38,6 +38,7 @@ export { mergeSameTitle };
 import { guardSections, repairOriginality } from "./originality-guard";
 import { createTrace } from "./studio-trace";
 import { peerReviewRevise, type ReviewRound } from "./peer-review-loop";
+import { SYNOPSIS_INSTRUCTIONS } from "./synopsis-policy";
 
 const AUTHOR_RESULTS_RULE="authorResults, when present, is the author's own experimental data and logs. Build the Results section from it, report its numbers exactly as given, describe them as the authors' results, and add no result it does not contain.";
 
@@ -46,7 +47,7 @@ const Generated=z.object({title:z.string().min(1).max(300),content:z.string().mi
 const instructions:Record<string,string>={
   ideas:IDEA_INSTRUCTIONS,
   literature:"Produce a developed academic literature survey with scope/search approach, introduction, thematic synthesis, comparison table of methods/settings/results/limitations, agreement and disagreement, possible gaps, and conclusion. Do not call this an exhaustive systematic review.",
-  synopsis:"Produce a research synopsis: background, problem, evidence-qualified gap, objectives, questions/hypotheses, proposed methods, data/ethics, timeline/resources, expected contribution and limitations. Label plans and expected outcomes as proposed.",
+  synopsis:SYNOPSIS_INSTRUCTIONS,
   journal:JOURNAL_DRAFT_INSTRUCTIONS,
   thesis:"Produce a substantial thesis working draft and chapter plan: front matter placeholders, abstract, introduction, literature review, proposed or supplied methodology, results (only if supplied), discussion, conclusion and appendices. Explicitly identify chapters needing actual data or supervisor input. Do not portray an outline as a completed thesis.",
   answer:"Respond professionally to the actual question using the selected project's idea and references. If asked for a survey, synopsis or manuscript, produce that structure. Ask a concise clarification if 'my idea' or 'my references' is ambiguous. Never invent scientific findings.",
@@ -86,7 +87,9 @@ async function generate(row:any) {
   const referencedPapers=request.evidenceMode==="discover"?[]:items.flatMap(i=>(i.metadata?.sources??[]).map((s:any)=>s.paperId).filter(Boolean));
   const savedPapers=request.evidenceMode==="discover"?[]:[...new Set([...(await pool.query("SELECT paper_id FROM research_library WHERE project_id=$1 AND owner_id=$2 ORDER BY created_at DESC LIMIT 20",[project.id,owner])).rows.map(p=>p.paper_id),...referencedPapers])];
   const documentIds=request.evidenceMode==="discover"?[]:[...new Set(items.map(i=>i.metadata?.documentId).filter(Boolean))].slice(0,5);
-  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard"}};
+  // Long-form scholarly drafts need a committee-level literature base (25–40 works), not a short answer's handful.
+  const deepLiterature=!figureOnly&&["literature","synopsis","thesis","journal"].includes(request.kind);
+  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard",deepLiterature,pagesPerPaper:deepLiterature?3:undefined}};
   if(request.evidenceMode!=="project"){
     await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Literature Survey Agent · finding relevant evidence"})]);
     const step=trace.start("Searching scholarly catalogues");
@@ -98,7 +101,7 @@ async function generate(row:any) {
     }
     catch(e){step.done("Scholarly search unavailable for this request");warnings.push(e instanceof HttpError?e.message:"Scholarly discovery is unavailable for this request.");}
   }
-  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:12);
+  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:deepLiterature?LITERATURE_PAPERS:12);
   const verifyStep=trace.start(`Verifying ${job.input.paperIds.length} candidate papers`);
   const papers=await Promise.all(job.input.paperIds.map(id=>getPaper(id)));
   const verification=await verifyCitations(papers);
@@ -141,11 +144,20 @@ async function generate(row:any) {
     for(const p of patents.patents.slice(0,15))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
   }
   // Preserve exact source identities, and report bounded processing rather than implying an exhaustive read.
-  sources=mergeSameTitle([...new Map(sources.map(s=>[s.id,s])).values()]).slice(0,48);
+  sources=mergeSameTitle([...new Map(sources.map(s=>[s.id,s])).values()]).slice(0,deepLiterature?90:48);
   if(["literature","journal"].includes(request.kind)&&!sources.length&&!figureOnly)
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
   const webEvidence=gathered.web.evidence;
   sources.push(...gathered.web.sources);
+  if(deepLiterature){
+    // Sources carried over from earlier project drafts need their catalogue record for a complete reference.
+    for(const id of new Set(sources.map(s=>s.paperId).filter((id):id is string=>!!id&&!papers.some(p=>p.id===id))))
+      try{papers.push(await getPaper(id));}catch{/* Unresolvable records are dropped below. */}
+    // A paper reference without year and venue is incomplete for submission; do not cite it.
+    const before=sources.length;
+    sources=sources.filter(s=>{if(!s.paperId)return true;const p=papers.find(p=>p.id===s.paperId);return !!(p?.year&&(p.venue||p.doi));});
+    if(sources.length<before)warnings.push(`${before-sources.length} evidence item${before-sources.length===1?"":"s"} without a publication year and venue were left out so every reference is complete.`);
+  }
   sources=mergeSameTitle(sources);
   // Prior-art check: existing industry tools and studies the paper must position itself against.
   let novelty:NoveltyReport|undefined;
@@ -172,7 +184,7 @@ async function generate(row:any) {
   const requirementPlan=!figureOnly&&["journal","thesis"].includes(request.kind)
     ?await prepareRequirements(selectedTemplateId??undefined):undefined;
   const projectMaterial=request.evidenceMode==="discover"?[]:[...(parentRow?[parentRow]:[]),...items.filter(i=>i.id!==parentRow?.id&&!["document","patent"].includes(i.kind))].slice(0,12).map(i=>({id:i.id,kind:i.kind,title:i.title,text:i.content.slice(0,6500)}));
-  const evidence=sources.map((s,i)=>({reference:i+1,title:s.title,text:s.text.slice(0,6500),level:s.evidenceLevel,page:s.page}));
+  const evidence=sources.map((s,i)=>({reference:i+1,title:s.title,text:s.text.slice(0,deepLiterature?2500:6500),level:s.evidenceLevel,page:s.page}));
   const scholarly=!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind);
   const results=figureOnly?undefined:request.experimentalResults?.trim()||undefined;
   // Text the draft must not reuse: this project's material and the evidence supplied to it.
@@ -346,7 +358,8 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const references=order.map((n,i)=>{
     const s=sources[n-1];
     const p=papers.find(p=>p.id===s.paperId);
-    return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${referenceTitle(s)}. ${p?.venue??""} ${s.url}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
+    // Web pages have no catalogue record: give the access date so the entry is still complete.
+    return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${referenceTitle(s)}. ${p?.venue??""} ${s.url}${!p&&s.url?` (accessed ${new Date().toISOString().slice(0,10)})`:""}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
   }).join("\n\n");
   let final=figureOnly?content:`${scholarly?submissionReady(content):content}${references?`\n\n## References\n\n${references}`:""}`;
   // Final silent check across project material, scholarly indexes and the Internet;

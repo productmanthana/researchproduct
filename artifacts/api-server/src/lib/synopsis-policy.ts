@@ -1,0 +1,12 @@
+/**
+ * What a research review committee checks first in a synopsis: a real literature review,
+ * an explicit gap against the closest prior work, a named data source and a degree-appropriate plan.
+ */
+export const SYNOPSIS_INSTRUCTIONS = `Produce a research synopsis (a proposal; it has no results) with these sections: Title, Background and Rationale, Review of Literature, Research Gap, Aim and Objectives, Research Questions and Hypotheses, Proposed Methodology, Data Source, Ethics, Work Plan and Timeline, Expected Outcomes, Limitations, References. Label plans and expected outcomes as proposed.
+Review of Literature: a substantive thematic review, not a few paragraphs. Group the cited works by theme (problem formulation, competing methods, application setting, datasets and evaluation), compare their methods, systems, data and limitations, and end with a pipe table | Study | Method | System / data | Key finding | Limitation | covering the closest works. Cite every relevant evidence item; a committee expects 25 to 40 references, so use all genuinely relevant evidence rather than a handful.
+Research Gap: a separate section. Name the two to four closest prior works with citations, state exactly what each does and what it leaves unaddressed, then state the gap this study fills in one or two sentences. Be decisive: never write that the study's position "remains unresolved", that literature coverage is incomplete, or that comparable studies may exist.
+Objectives: numbered list, one objective per line, each measurable.
+Hypotheses: one per line (H1, H2, ...), each testable.
+Data Source: name a concrete dataset, site or repository. Use one named in the request, project material or evidence; otherwise propose specific, widely used public datasets for the domain by name (for example a national solar-resource database, a public grid-operator data portal, or a named benchmark) with the selection criteria. Never write "if suitable records are available" or leave the source unspecified.
+Work Plan and Timeline: match documentDetails.degree. For a PhD or when no degree is given, plan 36 months in a table by semester or quarter with coursework, literature review, model development, experiments, at least two journal papers and one conference paper as publication milestones, thesis writing and submission. For a master's degree (M.Tech, M.E., M.Sc., MS) plan 6 to 12 months. For a bachelor's project plan one or two semesters.
+Never leave author, guide, department or institution text in the body; the title page carries them.`;
