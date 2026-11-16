@@ -75,9 +75,20 @@ export function evaluateFormula(expression:string,x:number):number {
 
 export const ILLUSTRATION_DISCLOSURE="This AI-generated illustration is not a photograph of a real installation or experiment.";
 
+/** Captions are read by journal readers: drop rendering notes and pipeline wording the planner echoes back. */
+export function readerFigureText(text:string){
+  return text
+    .replace(/\bsupplied (?:excerpts?|sources?|material|evidence|protocol)\b/gi,"the cited work")
+    .replace(/\bthe (?:reviewed )?draft['’]s\b/gi,"this paper's").replace(/\bthe (?:reviewed )?draft\b/gi,"this paper")
+    .split(/(?<=[.!?])\s+/)
+    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish/i.test(sentence))
+    .join(" ").trim();
+}
+
 /** Plot coordinates are copied/calculated by code, never supplied by the model. */
 export function validateFigure(input:unknown,sources:FigureSource[],id:string):ScientificFigure {
-  const p=FigureProposal.parse(input);
+  const parsed=FigureProposal.parse(input);
+  const p={...parsed,caption:readerFigureText(parsed.caption)||parsed.caption,...(parsed.explanation?{explanation:readerFigureText(parsed.explanation)||undefined}:{})};
   const base:ScientificFigure={id,title:p.title,caption:p.caption,kind:p.kind,provenance:"",...(p.replacesId?{replacesId:p.replacesId}:{})};
   if(p.kind==="diagram"){
     if(!p.nodes||!p.edges)throw new Error("Diagram requires nodes and connections.");

@@ -33,6 +33,8 @@ import { reviewDocument } from "./studio-checks";
 import { plagiarismCorpus, type PlagiarismReport } from "./plagiarism-check";
 import { evidenceNotes } from "./evidence-notes";
 import type { CandidateSource } from "./plagiarism-align";
+import { citationOrder, mergeSameTitle, referenceTitle, renumberCitations, stripProjectTitles, titleKey } from "./manuscript-references";
+export { mergeSameTitle };
 import { guardSections, repairOriginality } from "./originality-guard";
 import { createTrace } from "./studio-trace";
 import { peerReviewRevise, type ReviewRound } from "./peer-review-loop";
@@ -144,6 +146,7 @@ async function generate(row:any) {
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
   const webEvidence=gathered.web.evidence;
   sources.push(...gathered.web.sources);
+  sources=mergeSameTitle(sources);
   // Prior-art check: existing industry tools and studies the paper must position itself against.
   let novelty:NoveltyReport|undefined;
   if(!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind)){
@@ -151,7 +154,7 @@ async function generate(row:any) {
     const step=trace.start("Checking existing tools, products and studies");
     try{
       const topic=noveltyTopic(request.prompt);
-      const extra=await priorArtSources(topic,owner,request.evidenceMode!=="project",new Set(sources.map(s=>s.id)));
+      const extra=await priorArtSources(topic,owner,request.evidenceMode!=="project",new Set(sources.flatMap(s=>[s.id,titleKey(s.title)])));
       sources.push(...extra);
       const verified=await verifiedNovelty(topic,request.prompt,sources,!!request.experimentalResults?.trim(),owner,request.evidenceMode!=="project");
       novelty=verified.report;
@@ -209,6 +212,18 @@ Do not add a References section; it will be assembled from actual sources. Prese
   }
   const body:any[]=[{type:"text",text:JSON.stringify({request:request.prompt,conversation:conversation.turns,project:{name:project.name,description:project.description},context:projectMaterial,...(parentRow?.kind==="ideas"?{selectedIdeaSet:parentRow.metadata?.ideas??[]}:{}),passages,template,officialRequirements:requirementPlan?{status:requirementPlan.source.status,sourceUrl:requirementPlan.source.sourceUrl,rules:requirementPlan.rules,layout:requirementPlan.layout}:undefined,documentDetails:request.documentDetails,...(results?{authorResults:results}:{}),evidence:writerEvidence,date:new Date().toISOString().slice(0,10)})}];
   if(novelty)body.push({type:"text",text:JSON.stringify({priorArt:novelty})});
+  // The search that actually ran, so the Methods section reports it instead of "only the supplied evidence".
+  if(scholarly)body.push({type:"text",text:JSON.stringify({searchRecord:{
+    date:new Date().toISOString().slice(0,10),
+    databases:[...new Set(["OpenAlex","Crossref",...papers.flatMap(p=>p?.sources??[])])],
+    queries:(job.input as any).searchQueries??[],
+    recordsRetrieved:((job.input as any).discoveredPapers??[]).length,
+    papersRead:sources.filter(s=>s.paperId).length,
+    patentRecords:sources.filter(s=>/^Patent publication/.test(s.evidenceLevel)).length,
+    webRecords:sources.filter(s=>gathered.web.sources.some(w=>w.id===s.id)).length,
+    priorArtQueries:novelty?["commercial tools and deployments","comparative simulation studies","the proposed contribution itself"]:[],
+    selection:"Relevance-ranked records; open-access full text read where available, otherwise the abstract; web and vendor pages used only for deployment and industry context.",
+  }})});
   const personalFormat=generationCustomFormat(request,parentRow??row,selectedTemplateId);
   const includeFigures=generationFiguresEnabled(request,parentRow);
   if(personalFormat)body.push({type:"text",text:JSON.stringify({personalFormattingPreferences:personalFormat,note:"These are the author's preferences/instructions, not verified scholarly evidence or official approval. Follow their headings/order and length limits without fabricating research, results or declarations."})});
@@ -242,6 +257,8 @@ Do not add a References section; it will be assembled from actual sources. Prese
     draft.ideas=review.ideas;
   }
   let content=figureOnly?review.content:review.content.replace(/^#{1,3}\s+References[\s\S]*$/im,"").trim();
+  // Other drafts in this project are unpublished; the paper must not cite or name them.
+  if(scholarly)content=stripProjectTitles(content,items.filter(i=>i.id!==parentRow?.id).map(i=>i.title));
   const cited=[...content.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1]));
   trace.count({cited:new Set(cited).size});
   reviewStep?.done(`Claims checked · ${new Set(cited).size} sources cited`);
@@ -316,9 +333,20 @@ Do not add a References section; it will be assembled from actual sources. Prese
     const boundary=content.search(/^#{1,3}\s+(?:References|Author review)\s*$/im);
     content=boundary<0?content+figureSection:content.slice(0,boundary)+figureSection+content.slice(boundary);
   }
-  const references=sources.map((s,i)=>{
+  // Scholarly papers list only works they cite, numbered in order of first citation (text, then figures).
+  const figureText=(f:ScientificFigure)=>[f.caption,f.explanation??""];
+  const order=scholarly&&!figureOnly?citationOrder([content,...figures.flatMap(figureText)],sources.length):sources.map((_,i)=>i+1);
+  if(scholarly&&!figureOnly){
+    content=renumberCitations(content,order);
+    for(const f of figures){
+      f.caption=renumberCitations(f.caption,order);if(f.explanation)f.explanation=renumberCitations(f.explanation,order);
+      const n=f.sourceId?.match(/^evidence:(\d+)$/)?.[1];if(n&&order.includes(Number(n)))f.sourceId=`evidence:${order.indexOf(Number(n))+1}`;
+    }
+  }
+  const references=order.map((n,i)=>{
+    const s=sources[n-1];
     const p=papers.find(p=>p.id===s.paperId);
-    return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${s.title}. ${p?.venue??""} ${s.url}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
+    return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${referenceTitle(s)}. ${p?.venue??""} ${s.url}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
   }).join("\n\n");
   let final=figureOnly?content:`${scholarly?submissionReady(content):content}${references?`\n\n## References\n\n${references}`:""}`;
   // Final silent check across project material, scholarly indexes and the Internet;
@@ -347,7 +375,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const originality=scholarly?reviewDocument(final,comparison.map(c=>({title:c.title,content:c.text,url:c.url}))):undefined;
   if(originality&&originality.corpusSimilarityPercent>=15)
     warnings.push(`The originality screen finds ${originality.corpusSimilarityPercent}% shared wording with this project's sources. Review the overlapping passages before submission.`);
-  const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:sources.map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode,trace:{...trace.data,finishedAt:new Date().toISOString()}};
+  const metadata={...(figureOnly?parentRow.metadata:{}),...row.metadata,stage:"Completed",ideas:draft.ideas??[],sources:figureOnly?parentRow.metadata.sources??[]:order.map(n=>sources[n-1]).map(({image,...s})=>s),figures,figureNotices:planned.notices,generationModel:SCIENTIFIC_MODEL,warnings:[...new Set([...(figureOnly?parentRow.metadata.warnings??[]:[]),...warnings,...review.issues,...planned.notices])],templateId:request.templateId??parentRow?.metadata?.templateId??null,documentDetails:request.documentDetails??parentRow?.metadata?.documentDetails??{},checkedAt:new Date().toISOString(),evidenceMode:request.evidenceMode,trace:{...trace.data,finishedAt:new Date().toISOString()}};
   metadata.includeFigures=includeFigures;
   if(peerReview)metadata.peerReview=peerReview;else if(!figureOnly)delete metadata.peerReview;
   delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
@@ -393,14 +421,3 @@ export async function processStudioJob() {
 }
 
 /** One source per work: page excerpts or duplicate records with the same title share a reference number. */
-export function mergeSameTitle(list:EvidenceSource[]):EvidenceSource[]{
-  const key=(t:string)=>t.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
-  const out:EvidenceSource[]=[];
-  for(const s of list){
-    const same=out.find(o=>key(o.title)===key(s.title));
-    if(!same){out.push(s);continue;}
-    if(s.text&&!same.text.includes(s.text.slice(0,200)))same.text=`${same.text}\n\n${s.text}`.slice(0,9000);
-    if(!same.url&&s.url)same.url=s.url;
-  }
-  return out;
-}
