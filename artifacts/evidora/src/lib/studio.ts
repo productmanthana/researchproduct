@@ -42,13 +42,27 @@ export function friendlyError(e: unknown): string {
   return base;
 }
 
-/** Mirrors the server export gate: these drafts need a plagiarism report with at most 1% matched text. */
-export function exportBlockReason(item: Pick<StudioItem, "kind" | "metadata">): string | null {
+/** Mirrors the server export gate: journal-style limits of 10% total match and 3% from any single source. */
+export const EXPORT_LIMITS = { totalPercent: 10, singleSourcePercent: 3 };
+export type ExportLock = { reason: string; label: string };
+
+export function exportLock(item: Pick<StudioItem, "kind" | "metadata">): ExportLock | null {
   if (!["journal", "thesis", "literature", "synopsis", "report"].includes(item.kind)) return null;
   const r = (item.metadata as Record<string, any> | null)?.plagiarism;
-  if (!r || typeof r.similarityPercent !== "number") return "Run the plagiarism check on the Originality page before exporting.";
-  const limit = 100 - (r.target ?? 99);
-  return r.similarityPercent > limit ? `Export blocked: ${r.similarityPercent}% matched text (limit ${limit}%). Rewrite or quote and cite the matched passages, then re-check.` : null;
+  if (!r || typeof r.similarityPercent !== "number")
+    return { reason: "Run the plagiarism check on the Originality page before exporting.", label: "Export locked · run plagiarism check" };
+  const fix = "Rewrite or quote and cite the matched passages, then re-check.";
+  if (r.similarityPercent > EXPORT_LIMITS.totalPercent)
+    return { reason: `Export blocked: ${r.similarityPercent}% matched text (limit ${EXPORT_LIMITS.totalPercent}%). ${fix}`, label: `Export locked · ${r.similarityPercent}% matched text (limit ${EXPORT_LIMITS.totalPercent}%)` };
+  const top = (Array.isArray(r.sources) ? r.sources : [])
+    .reduce((a: any, s: any) => (typeof s?.percent === "number" && s.percent > (a?.percent ?? -1) ? s : a), null);
+  if (top && top.percent > EXPORT_LIMITS.singleSourcePercent)
+    return { reason: `Export blocked: ${top.percent}% matches one source, “${top.title}” (limit ${EXPORT_LIMITS.singleSourcePercent}% per source). ${fix}`, label: `Export locked · ${top.percent}% from one source (limit ${EXPORT_LIMITS.singleSourcePercent}%)` };
+  return null;
+}
+
+export function exportBlockReason(item: Pick<StudioItem, "kind" | "metadata">): string | null {
+  return exportLock(item)?.reason ?? null;
 }
 
 export type StudioExportFormat = "pdf" | "docx" | "latex";

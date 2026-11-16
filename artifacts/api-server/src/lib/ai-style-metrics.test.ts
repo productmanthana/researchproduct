@@ -21,9 +21,10 @@ test("style measures separate templated machine prose from varied human prose", 
   assert.equal(h.flagged.filter(f => f.reasons.some(r => r.startsWith("stock"))).length, 0);
 });
 
-test("scholarly drafts export only with a plagiarism report at or under 1% matched text", () => {
+test("scholarly drafts export only within journal-style limits (10% total, 3% per source)", () => {
   assert.equal(exportBlockReason({ kind: "note", metadata: {} }), null);
   assert.match(exportBlockReason({ kind: "journal", metadata: {} })!, /Run the plagiarism check/);
-  assert.match(exportBlockReason({ kind: "thesis", metadata: { plagiarism: { similarityPercent: 3.2 } } })!, /blocked: 3.2%/);
-  assert.equal(exportBlockReason({ kind: "journal", metadata: { plagiarism: { similarityPercent: 1 } } }), null);
+  assert.match(exportBlockReason({ kind: "thesis", metadata: { plagiarism: { similarityPercent: 10.4 } } })!, /blocked: 10.4%/);
+  assert.equal(exportBlockReason({ kind: "journal", metadata: { plagiarism: { similarityPercent: 1.8, sources: [{ title: "A", percent: 1.3 }, { title: "B", percent: 0.3 }] } } }), null);
+  assert.match(exportBlockReason({ kind: "journal", metadata: { plagiarism: { similarityPercent: 4, sources: [{ title: "Big", percent: 3.5 }] } } })!, /3.5% of this draft matches one source, “Big”/);
 });
