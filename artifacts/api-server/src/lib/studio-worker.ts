@@ -27,7 +27,7 @@ import { generatePaperReview } from "./paper-review";
 import { IDEA_INSTRUCTIONS, IDEA_REVIEW_INSTRUCTIONS, isFreshIdeaTopic, studioSearchQuestion, invalidIdeaCitations, initialIdeaEvidence } from "./idea-generation";
 import { loadStudioConversation } from "./studio-conversation";
 import { figureRevisionRequest, JOURNAL_DRAFT_INSTRUCTIONS, PROFESSIONAL_ACADEMIC_STYLE, SUBMISSION_VOICE, submissionReady } from "./manuscript-policy";
-import { assessNovelty, noveltyNotice, noveltyTopic, priorArtSources, type NoveltyReport } from "./novelty-check";
+import { verifiedNovelty, noveltyNotice, noveltyTopic, priorArtSources, type NoveltyReport } from "./novelty-check";
 import { HUMAN_AUTHORSHIP_STYLE, humaniseDraft, MAX_HUMANISE_PASSES } from "./human-authorship";
 import { reviewDocument } from "./studio-checks";
 import { plagiarismCorpus, type PlagiarismReport } from "./plagiarism-check";
@@ -153,9 +153,10 @@ async function generate(row:any) {
       const topic=noveltyTopic(request.prompt);
       const extra=await priorArtSources(topic,owner,request.evidenceMode!=="project",new Set(sources.map(s=>s.id)));
       sources.push(...extra);
-      novelty=await assessNovelty(topic,request.prompt,sources,!!request.experimentalResults?.trim());
+      const verified=await verifiedNovelty(topic,request.prompt,sources,!!request.experimentalResults?.trim(),owner,request.evidenceMode!=="project");
+      novelty=verified.report;
       const notice=noveltyNotice(novelty);if(notice)warnings.push(notice);
-      step.done(`Found ${novelty.alreadyDone.length} existing studies or tools · contribution set`);
+      step.done(`Found ${novelty.alreadyDone.length} existing studies or tools · ${verified.rejected.length?`${verified.rejected.length} contribution${verified.rejected.length===1?"":"s"} already done, replaced`:"contribution checked"}`);
     }catch(err){logger.warn({err},"Prior-art check failed");step.done("Prior-art check unavailable for this request");}
   }
   trace.count({relevant:sources.length});
