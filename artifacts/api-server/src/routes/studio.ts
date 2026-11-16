@@ -169,7 +169,7 @@ router.get("/studio/items/:id/export",async(req,res)=>{
   if(blocked)throw new HttpError(409,blocked);
   const bytes=await exportStudioFile(row,format);
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}${format==="latex"?"-latex":""}.${EXPORT_TYPES[format].ext}"`);
+  res.setHeader("Content-Disposition",`attachment; filename="${row.kind}-v${row.revision}${format==="latex"?"-latex":""}.${EXPORT_TYPES[format].ext}"`);
   res.type(EXPORT_TYPES[format].mime).send(bytes);
 });
 router.post("/studio/items/:id/check",async(req,res)=>{

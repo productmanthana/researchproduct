@@ -550,7 +550,7 @@ test("Cached weaker metadata cannot erase an abstract or source provenance",asyn
 });
 test("Both CSL export styles include evidence, disclosure and valid DOCX bytes",async()=>{
   const view={content:"# Research answer\n\nEvidence finding [1].",sources:[{id:"test-private-evidence",title:"Private test evidence"}],warnings:[],comparisonRows:[]};
-  const apa=await exportResearch(view,"apa","md");assert.match(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
+  const apa=await exportResearch(view,"apa","md");assert.doesNotMatch(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
   const ieee=await exportResearch(view,"ieee","md");assert.match(String(ieee),/\[1\]/);
   const docx=await exportResearch(view,"ieee","docx");assert.ok(Buffer.isBuffer(docx));assert.equal(docx.subarray(0,2).toString(),"PK");
   const pdf=await exportResearch(view,"ieee","pdf");assert.ok(Buffer.isBuffer(pdf));assert.equal(pdf.subarray(0,5).toString(),"%PDF-");

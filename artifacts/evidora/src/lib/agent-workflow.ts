@@ -128,7 +128,7 @@ export function studioWorkflow(item: { id: string; kind: string; status: string;
     skipped: {
       ...(projectOnly ? { survey: "Project sources only; no catalogue search" } : {}),
       ...(scholarly ? {} : { authorship: "Authorship rewriting runs on scholarly drafts only" }),
-      ...(["journal", "thesis", "literature", "synopsis"].includes(item.kind) ? {} : { peer: "Simulated peer review runs on journal, thesis, literature and synopsis drafts" }),
+      ...(scholarly ? {} : { peer: "Simulated peer review runs on journal, thesis, literature, synopsis and report drafts" }),
     },
     statusLine: queued ? "Queued · your request is saved and waiting for a writer slot" : active ? (detail ? detail[0].toUpperCase() + detail.slice(1) : roles.find(r => r.id === active)!.task) : "Working · stage not reported yet",
     note: figureRevision ? "Figure revision: the existing text is kept; figures are re-checked." : "You can leave this page; the result is saved to your project automatically.",

@@ -71,7 +71,7 @@ export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">,
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${(item.title || "evidora").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "evidora"}${format === "latex" ? "-latex.zip" : `.${format}`}`;
+  a.download = `${(item.title || "document").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "document"}${format === "latex" ? "-latex.zip" : `.${format}`}`;
   document.body.appendChild(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }

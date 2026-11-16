@@ -49,7 +49,7 @@ function IndexChip({ status }: { status: string }) {
   return <span className={`sx-chip ${tone}`} data-testid="status-index">{label}</span>;
 }
 
-const LATEX_KINDS = new Set(["journal", "thesis", "literature", "synopsis"]);
+const LATEX_KINDS = new Set(["journal", "thesis", "literature", "synopsis", "report"]);
 
 export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title" | "kind" | "metadata">; disabled?: boolean }) {
   const { toast } = useToast();
