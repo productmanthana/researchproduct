@@ -88,9 +88,11 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
     lastStage.current = liveStageName;
     if (!working || !wasWriting || WRITING_STAGE.test(liveStageName) || !root.current) return;
     follow.current = false; setBehind(true);
-    const s = scrollParent(root.current);
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    s.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    // Prefer the page's progress card (it may sit outside the text's own scroll box); else the box's top.
+    const anchor = root.current.closest<HTMLElement>("[data-live-progress-anchor]");
+    if (anchor) anchor.scrollIntoView({ block: "start", behavior });
+    else scrollParent(root.current).scrollTo({ top: 0, behavior });
   }, [liveStageName, working]);
   const jump = () => {
     follow.current = true; setBehind(false);

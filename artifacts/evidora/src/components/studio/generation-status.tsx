@@ -31,7 +31,7 @@ export function GenerationStatus({ item, onRetry, inline = false }: { item: Stud
   const queued = item.status === "queued";
   const trace = traceOf(item.metadata);
   return (
-    <div className="sx-card p-5" data-testid="status-generation-running">
+    <div className="sx-card scroll-mt-4 p-5" data-live-progress-anchor data-testid="status-generation-running">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="min-w-0 flex-1">
           <p className="sx-eyebrow">{queued ? "Waiting in queue" : "Working"} · {job?.workflow}</p>
