@@ -6,11 +6,12 @@ import { mergeSameTitle } from "./studio-worker";
 import { noveltyNotice, noveltyTopic } from "./novelty-check";
 
 test("exports drop tool branding, app notes and the Author review section", () => {
-  const md = `# T\n\nArticle type: Narrative review. Author details: Names remain to be supplied by the authors. Manuscript status: Working draft; requirements remain unconfirmed.\n\n## Declarations\n\nPreparation disclosure: Prepared with Evidora assistance.\n\n## References\n\n[1] A. Paper.\n\n## Author review\n\nAI-assisted working draft. Verify sources.`;
+  const md = `# T\n\nArticle type: Narrative review. Author details: Names remain to be supplied by the authors. Manuscript status: Working draft; requirements remain unconfirmed.\n\n## Declarations\n\nPreparation disclosure: Prepared with Evidora assistance.\n\n**AI-use statement:** [Authors to complete]\n\nFunding: None.\n\n## Declaration of generative AI in the writing process\n\nThe authors used a language model.\n\n## References\n\n[1] A. Paper.\n\n## Author review\n\nAI-assisted working draft. Verify sources.`;
   const clean = submissionReady(md);
   assert.doesNotMatch(clean, /Evidora|Manuscript status|Author details/);
   assert.match(clean, /Article type: Narrative review\./);
-  assert.match(clean, /AI-use statement: \[Authors to complete/);
+  assert.doesNotMatch(clean, /AI-use|generative AI|language model|Preparation disclosure/i);
+  assert.match(clean, /Funding: None\.[\s\S]*## References/);
   const text = JSON.stringify(documentBlocks(md));
   assert.doesNotMatch(text, /Author review|AI-assisted working draft|Evidora/);
   assert.match(text, /\[1\] A\. Paper\./);

@@ -59,7 +59,7 @@ export function formatIssues(row:any):string[]{
     if(!/conclusion/i.test(row.content))issues.push("A Conclusions chapter is missing.");
     if(id==="stanford"&&/^#{1,3}\s+(?:copyright|signature)(?: page)?\s*$/im.test(row.content))issues.push("Remove standalone copyright/signature pages from the Stanford submission; its system inserts them.");
     if(id==="harvard")issues.push("Author must supply the actual Thesis Acceptance Certificate for final Harvard submission; it is not fabricated or inserted by this exporter.");
-    if(id==="iit-bombay")issues.push("Review the July 2025 academic-integrity declaration and disclose AI assistance. Actual approval signatures must not be generated.");
+    if(id==="iit-bombay")issues.push("Review the July 2025 academic-integrity declaration. Actual approval signatures must not be generated.");
   }
   const abstract=sectionText(row.content,"Abstract");
   if(!abstract)issues.push("A separate Abstract heading and abstract are missing.");
@@ -68,7 +68,7 @@ export function formatIssues(row:any):string[]{
   if(id==="iit-bombay"&&words>500)issues.push(`Abstract is ${words} words; review IIT Bombay's 500-word abstract guidance.`);
   if(id==="jiei"&&row.content.split(/\s+/).length>3000)issues.push("Manuscript exceeds the 3,000-word research-paper limit; reviews have a different limit.");
   if(!thesis&&!/keywords|index terms/i.test(row.content))issues.push("Keywords/index terms are missing.");
-  if(id.startsWith("ieee-"))issues.push("Check the supplied IEEE official template, author biographies, ORCID and AI-use disclosure before submission. This is a two-column draft, not an IEEE-certified file.");
+  if(id.startsWith("ieee-"))issues.push("Check the supplied IEEE official template, author biographies and ORCID before submission. This is a two-column draft, not an IEEE-certified file.");
   if(id==="sadhana")issues.push("Verify the 20-page research/review limit, running title ≤60 characters and no more than six keywords.");
   if(["applied-energy","renewable-energy"].includes(id))issues.push("Prepare highlights and any required graphical abstract as separate submission files; review the journal's author guide.");
   if(!/funding/i.test(row.content)&&!thesis)issues.push("Funding declaration is missing; do not invent funding information.");

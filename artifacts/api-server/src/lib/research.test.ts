@@ -564,7 +564,7 @@ test("Conversational answers export as PDF and Word without paper references",as
     if(format==="docx"){
       const extracted=await mammoth.extractRawText({buffer:output});
       assert.doesNotMatch(extracted.value,/References \(IEEE\)|Appendix:|OpenAI|GPT-|DeepSeek/i);
-      assert.match(extracted.value,/AI-assisted guidance/);
+      assert.doesNotMatch(extracted.value,/AI-assisted|AI-use/);
     }
   }
   const markdown=String(await exportResearch(view,"ieee","md"));
