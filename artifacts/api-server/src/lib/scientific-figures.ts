@@ -80,8 +80,10 @@ export function readerFigureText(text:string){
   return text
     .replace(/\bsupplied (?:excerpts?|sources?|material|evidence|protocol)\b/gi,"the cited work")
     .replace(/\bthe (?:reviewed )?draft['’]s\b/gi,"this paper's").replace(/\bthe (?:reviewed )?draft\b/gi,"this paper")
+    // Defensive disclaimers ("this schematic is not a measured geometry…") read as machine-written; provenance is kept separately.
+    .replace(/;\s*this (?:schematic|diagram|figure|chart|process|framework) is (?:not|the author)[^.]*\./gi,".")
     .split(/(?<=[.!?])\s+/)
-    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish/i.test(sentence))
+    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish|^this (?:(?:schematic|diagram|figure|chart|process|framework) )?is (?:not|the author)/i.test(sentence))
     .join(" ").trim();
 }
 

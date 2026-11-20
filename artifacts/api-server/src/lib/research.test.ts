@@ -1,3 +1,4 @@
+import "./literature-survey.test";
 import "./watch.test";
 import "./figures.test";
 import "./submission-ready.test";

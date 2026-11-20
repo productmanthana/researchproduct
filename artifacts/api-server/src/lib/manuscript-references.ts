@@ -52,6 +52,15 @@ export function referenceTitle(s: { title: string; url: string }) {
   try { return `${s.title.replace(/[.\s]+$/, "")} (${new URL(s.url).hostname.replace(/^www\./, "")})`; } catch { return s.title; }
 }
 
+/**
+ * DOIs that encode a publication year (World Scientific "10.1142/S0219455428500988" → 2028) should not
+ * point years past the recorded publication; such a reference needs checking before submission.
+ */
+export function implausibleDoiYear(doi: string | undefined, year: number | undefined) {
+  const yy = doi?.match(/^(?:https?:\/\/doi\.org\/)?10\.1142\/s\d{4}-?\d{3}[\dx](\d{2})\d/i)?.[1];
+  return !!yy && !!year && 2000 + Number(yy) > year + 1;
+}
+
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** The author's other drafts are unpublished: remove parenthetical or quoted mentions of their titles. */

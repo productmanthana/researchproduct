@@ -33,12 +33,13 @@ import { reviewDocument } from "./studio-checks";
 import { plagiarismCorpus, type PlagiarismReport } from "./plagiarism-check";
 import { evidenceNotes } from "./evidence-notes";
 import type { CandidateSource } from "./plagiarism-align";
-import { citationOrder, mergeSameTitle, referenceTitle, renumberCitations, stripProjectTitles, titleKey } from "./manuscript-references";
+import { citationOrder, implausibleDoiYear, mergeSameTitle, referenceTitle, renumberCitations, stripProjectTitles, titleKey } from "./manuscript-references";
 export { mergeSameTitle };
 import { guardSections, repairOriginality } from "./originality-guard";
 import { createTrace } from "./studio-trace";
 import { peerReviewRevise, type ReviewRound } from "./peer-review-loop";
 import { SYNOPSIS_INSTRUCTIONS } from "./synopsis-policy";
+import { LITERATURE_SURVEY_INSTRUCTIONS, SURVEY_MIN_CITED, SURVEY_PAPERS } from "./literature-survey-policy";
 
 const AUTHOR_RESULTS_RULE="authorResults, when present, is the author's own experimental data and logs. Build the Results section from it, report its numbers exactly as given, describe them as the authors' results, and add no result it does not contain.";
 
@@ -46,7 +47,7 @@ const Idea=z.object({title:z.string().min(1),problem:z.string(),question:z.strin
 const Generated=z.object({title:z.string().min(1).max(300),content:z.string().min(1).max(100000),ideas:z.array(Idea).optional()});
 const instructions:Record<string,string>={
   ideas:IDEA_INSTRUCTIONS,
-  literature:"Produce a developed academic literature survey with scope/search approach, introduction, thematic synthesis, comparison table of methods/settings/results/limitations, agreement and disagreement, possible gaps, and conclusion. Do not call this an exhaustive systematic review.",
+  literature:LITERATURE_SURVEY_INSTRUCTIONS,
   synopsis:SYNOPSIS_INSTRUCTIONS,
   journal:JOURNAL_DRAFT_INSTRUCTIONS,
   thesis:"Produce a substantial thesis working draft and chapter plan: front matter placeholders, abstract, introduction, literature review, proposed or supplied methodology, results (only if supplied), discussion, conclusion and appendices. Explicitly identify chapters needing actual data or supervisor input. Do not portray an outline as a completed thesis.",
@@ -89,7 +90,9 @@ async function generate(row:any) {
   const documentIds=request.evidenceMode==="discover"?[]:[...new Set(items.map(i=>i.metadata?.documentId).filter(Boolean))].slice(0,5);
   // Long-form scholarly drafts need a committee-level literature base (25–40 works), not a short answer's handful.
   const deepLiterature=!figureOnly&&["literature","synopsis","thesis","journal"].includes(request.kind);
-  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard",deepLiterature,pagesPerPaper:deepLiterature?3:undefined}};
+  // A survey covers one focus in depth: 50–80 works, read more briefly each.
+  const surveyDepth=!figureOnly&&request.kind==="literature";
+  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard",deepLiterature,surveyDepth,pagesPerPaper:surveyDepth?2:deepLiterature?3:undefined}};
   if(request.evidenceMode!=="project"){
     await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Literature Survey Agent · finding relevant evidence"})]);
     const step=trace.start("Searching scholarly catalogues");
@@ -101,7 +104,7 @@ async function generate(row:any) {
     }
     catch(e){step.done("Scholarly search unavailable for this request");warnings.push(e instanceof HttpError?e.message:"Scholarly discovery is unavailable for this request.");}
   }
-  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:deepLiterature?LITERATURE_PAPERS:12);
+  job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:surveyDepth?SURVEY_PAPERS:deepLiterature?LITERATURE_PAPERS:12);
   const verifyStep=trace.start(`Verifying ${job.input.paperIds.length} candidate papers`);
   const papers=await Promise.all(job.input.paperIds.map(id=>getPaper(id)));
   const verification=await verifyCitations(papers);
@@ -144,7 +147,7 @@ async function generate(row:any) {
     for(const p of patents.patents.slice(0,15))sources.push({id:p.id,title:p.title,url:p.url,text:`Patent ${p.id}, ${p.country}, ${p.date}, ${p.applicant}\n${p.abstract}`,evidenceLevel:"Patent publication record, not scientific validation",page:null});
   }
   // Preserve exact source identities, and report bounded processing rather than implying an exhaustive read.
-  sources=mergeSameTitle([...new Map(sources.map(s=>[s.id,s])).values()]).slice(0,deepLiterature?90:48);
+  sources=mergeSameTitle([...new Map(sources.map(s=>[s.id,s])).values()]).slice(0,surveyDepth?110:deepLiterature?90:48);
   if(["literature","journal"].includes(request.kind)&&!sources.length&&!figureOnly)
     throw new HttpError(400,"No readable project or scholarly evidence was found. Attach references or a readable PDF, or enable additional research, then retry.");
   const webEvidence=gathered.web.evidence;
@@ -184,7 +187,7 @@ async function generate(row:any) {
   const requirementPlan=!figureOnly&&["journal","thesis"].includes(request.kind)
     ?await prepareRequirements(selectedTemplateId??undefined):undefined;
   const projectMaterial=request.evidenceMode==="discover"?[]:[...(parentRow?[parentRow]:[]),...items.filter(i=>i.id!==parentRow?.id&&!["document","patent"].includes(i.kind))].slice(0,12).map(i=>({id:i.id,kind:i.kind,title:i.title,text:i.content.slice(0,6500)}));
-  const evidence=sources.map((s,i)=>({reference:i+1,title:s.title,text:s.text.slice(0,deepLiterature?2500:6500),level:s.evidenceLevel,page:s.page}));
+  const evidence=sources.map((s,i)=>({reference:i+1,title:s.title,text:s.text.slice(0,surveyDepth?1800:deepLiterature?2500:6500),level:s.evidenceLevel,page:s.page}));
   const scholarly=!figureOnly&&["journal","thesis","literature","synopsis","report"].includes(request.kind);
   const results=figureOnly?undefined:request.experimentalResults?.trim()||undefined;
   // Text the draft must not reuse: this project's material and the evidence supplied to it.
@@ -230,6 +233,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
     databases:[...new Set(["OpenAlex","Crossref",...papers.flatMap(p=>p?.sources??[])])],
     queries:(job.input as any).searchQueries??[],
     recordsRetrieved:((job.input as any).discoveredPapers??[]).length,
+    ...(surveyDepth?{sortOrders:["most recent","most cited"],yearsCovered:(()=>{const y=papers.filter(p=>job.input.paperIds.includes(p.id)&&p.year).map(p=>p.year!);return y.length?`${Math.min(...y)}–${Math.max(...y)}`:undefined;})()}:{}),
     papersRead:sources.filter(s=>s.paperId).length,
     patentRecords:sources.filter(s=>/^Patent publication/.test(s.evidenceLevel)).length,
     webRecords:sources.filter(s=>gathered.web.sources.some(w=>w.id===s.id)).length,
@@ -274,6 +278,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const cited=[...content.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1]));
   trace.count({cited:new Set(cited).size});
   reviewStep?.done(`Claims checked · ${new Set(cited).size} sources cited`);
+  if(surveyDepth&&new Set(cited).size<SURVEY_MIN_CITED)warnings.push(`This survey cites ${new Set(cited).size} works; reviewers usually expect 50 or more. Narrow the topic or ask for additional studies on its main methods, then regenerate.`);
   if(!figureOnly&&cited.some(n=>n<1||n>sources.length))throw new HttpError(503,"The draft contained an invalid citation and was not saved. Please retry.");
   // Every generated paper is screened for machine-written style and, if needed,
   // rewritten once in human academic prose before figures and references are added.
@@ -354,6 +359,10 @@ Do not add a References section; it will be assembled from actual sources. Prese
       f.caption=renumberCitations(f.caption,order);if(f.explanation)f.explanation=renumberCitations(f.explanation,order);
       const n=f.sourceId?.match(/^evidence:(\d+)$/)?.[1];if(n&&order.includes(Number(n)))f.sourceId=`evidence:${order.indexOf(Number(n))+1}`;
     }
+  }
+  for(const n of order){
+    const p=papers.find(p=>p.id===sources[n-1]?.paperId);
+    if(p&&implausibleDoiYear(p.doi,p.year))warnings.push(`Check the DOI of “${p.title}”: ${p.doi} encodes a later year than its ${p.year} publication date.`);
   }
   const references=order.map((n,i)=>{
     const s=sources[n-1];
