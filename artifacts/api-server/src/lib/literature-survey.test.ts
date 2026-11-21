@@ -21,3 +21,9 @@ test("survey instructions demand one focus, deep coverage and a reported search"
   assert.match(LITERATURE_SURVEY_INSTRUCTIONS, /at least 50 distinct/);
   assert.match(LITERATURE_SURVEY_INSTRUCTIONS, /inclusion and exclusion criteria/);
 });
+
+test("surveys require a measures section, stay on focus and do not propose a study", () => {
+  assert.match(LITERATURE_SURVEY_INSTRUCTIONS, /metrics, indices and evaluation measures/);
+  assert.match(LITERATURE_SURVEY_INSTRUCTIONS, /leave out evidence items that are not about the focus/);
+  assert.match(LITERATURE_SURVEY_INSTRUCTIONS, /does not design a new study/);
+});
