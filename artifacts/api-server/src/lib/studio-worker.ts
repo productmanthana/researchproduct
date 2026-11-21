@@ -371,7 +371,9 @@ Do not add a References section; it will be assembled from actual sources. Prese
     const s=sources[n-1];
     const p=papers.find(p=>p.id===s.paperId);
     // Web pages have no catalogue record: give the access date so the entry is still complete.
-    return `[${i+1}] ${p?.authors?.join(", ")||""}${p?.year?` (${p.year}).`:""} ${referenceTitle(s)}. ${p?.venue??""} ${s.url}${!p&&s.url?` (accessed ${new Date().toISOString().slice(0,10)})`:""}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
+    // No authors: the title leads, as journals print anonymous works (never a bare "(2026).").
+    const authors=p?.authors?.join(", ")||"",year=p?.year?` (${p.year}).`:"",venue=(p?.venue??"").replace(/[.\s]+$/,"");
+    return `[${i+1}] ${authors?`${authors}${year} ${referenceTitle(s)}.`:`${referenceTitle(s)}${year||"."}`} ${venue}${venue?".":""} ${s.url}${!p&&s.url?` (accessed ${new Date().toISOString().slice(0,10)})`:""}\nEvidence: ${s.evidenceLevel}${s.page?`; page ${s.page}`:""}`;
   }).join("\n\n");
   let final=figureOnly?content:`${scholarly?submissionReady(content):content}${references?`\n\n## References\n\n${references}`:""}`;
   // Final silent check across project material, scholarly indexes and the Internet;

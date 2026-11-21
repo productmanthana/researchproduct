@@ -36,10 +36,31 @@ function icon(type:string,x:number,y:number,color:string){
     compare:'<path d="M0 -28v56M-27 -13h54M-20 -13l-13 25h26zM20 -13L7 12h26zM-15 29h30"/>',
     target:'<circle r="28"/><circle r="18"/><circle r="7"/><path d="M0 0l26 -27m-8 0h8v8"/>',
     knowledge:'<path d="M0 -20q-15 -13-31-5v47q16-7 31 5 15-12 31-5v-47q-16-8-31 5v47M-23 -13l15 4M-23 -3l15 4M8 -9l15-4M8 1l15-4"/>',
+    solar:'<path d="M-28 12l8-34h40l8 34zM-24 -5h48M-14 -22l-4 34M0 -22v34M14 -22l4 34M0 12v18M-12 30h24"/>',
+    wind:'<path d="M0 -6v38M-8 32h16M0 -6l-4-28q4-4 8 0zM0 -6l26 12q0 6-6 6zM0 -6l-24 14q-4-4 0-8z"/><circle cy="-6" r="3"/>',
+    battery:'<rect x="-26" y="-16" width="48" height="32" rx="4"/><path d="M22 -6h6v12h-6M-17 0h10M-12 -5v10M6 0h10"/>',
+    grid:'<path d="M0 -30l-14 60M0 -30l14 60M-20 -16h40M-16 0h32M-10 -16l20 16M10 -16l-20 16M-30 -16v8M30 -16v8"/>',
+    load:'<path d="M-26 -2l26-24 26 24M-19 -8v34h38v-34M-6 26v-16h12v16"/>',
     network:'<path d="M-25 -21L0 -13l25-8M-25 0L0 -13M-25 21L0 -13M-25 -21L0 13M-25 0L0 13M-25 21L0 13M0 -13L25 0M0 13L25 0M0 13l25 8"/>'+[[-25,-21],[-25,0],[-25,21],[0,-13],[0,13],[25,-21],[25,0],[25,21]].map(([cx,cy])=>`<circle cx="${cx}" cy="${cy}" r="5" fill="white"/>`).join(""),
   };
   return `<g transform="translate(${x} ${y})" stroke="${color}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">${paths[type]??paths.compute}</g>`;
 }
+/** The planner's icon is a hint; a stage named after a physical component gets that component's pictogram. */
+const ICON_WORDS:[RegExp,string][]=[
+  [/\b(?:photovoltaic|pv|solar)\b(?!.*\b(?:inverter|converter)\b)/i,"solar"],
+  [/\b(?:wind|turbine|rotor)\b/i,"wind"],
+  [/\b(?:battery|storage|bess)\b/i,"battery"],
+  [/\b(?:grid|network|bus|substation|feeder|transmission)\b/i,"grid"],
+  [/\b(?:loads?|demand|household|residential|consumers?)\b/i,"load"],
+  [/\b(?:meters?|sensors?|measurement|monitoring)\b/i,"sensor"],
+  [/\b(?:inverter|converter|controller)\b/i,"compute"],
+];
+export function diagramIcon(label:string,given?:string){
+  const match=ICON_WORDS.find(([re])=>re.test(label))?.[1];
+  if(match)return match;
+  return given==="experiment"&&!/\b(?:experiment|test|trial|laboratory|lab)\b/i.test(label)?undefined:given;
+}
+const short=(s:string,max=30)=>s.length>max?`${s.slice(0,max-1).replace(/\s+\S*$/,"")}…`:s;
 export function illustratedDiagramSvg(f:ScientificFigure){
   const {width,height}=diagramSize(f),nodes=f.nodes??[],edges=f.edges??[],layout=f.layout??"process";
   const out=[`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><title>${esc(f.title)}</title><desc>${esc(f.explanation??f.caption)}</desc><rect width="100%" height="100%" fill="#fff"/>`];
@@ -66,7 +87,7 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   }
   const obstacles:DiagramObstacle[]=nodes.map(n=>nodeObstacle(positions.get(n.id)!,!!n.description));
   const routeBottom=Math.max(...obstacles.map(r=>r.bottom),400)+28;
-  const edgeLabels:{letter:string;from:number;to:number;label:string}[]=[];
+  const edgeLabels:{letter:string;from:string;to:string;label:string}[]=[];
   for(const e of edges){
     const a=positions.get(e.from),b=positions.get(e.to);if(!a||!b)continue;
     const feedback=e.role==="feedback",tone=tones[feedback?"feedback":b.role];
@@ -79,7 +100,7 @@ export function illustratedDiagramSvg(f:ScientificFigure){
     if(e.role!=="association")out.push(`<polygon points="${end.x},${end.y} ${end.x-14*ux+5*uy},${end.y-14*uy-5*ux} ${end.x-14*ux-5*uy},${end.y-14*uy+5*ux}" fill="${tone.ink}"/>`);
     if(e.label){
       const letter=String.fromCharCode(97+edgeLabels.length);
-      edgeLabels.push({letter,from:nodes.findIndex(n=>n.id===e.from)+1,to:nodes.findIndex(n=>n.id===e.to)+1,label:e.label});
+      edgeLabels.push({letter,from:nodes.find(n=>n.id===e.from)!.label,to:nodes.find(n=>n.id===e.to)!.label,label:e.label});
       const segments=points.slice(1).map((p,i)=>({p,q:points[i],length:Math.abs(p.x-points[i].x)+Math.abs(p.y-points[i].y)})).sort((x,y)=>y.length-x.length);
       const segment=segments[0],lx=(segment.p.x+segment.q.x)/2,ly=(segment.p.y+segment.q.y)/2;
       out.push(`<circle cx="${lx}" cy="${ly}" r="13" fill="white" stroke="${tone.ink}" stroke-width="1.2"/>`);
@@ -93,7 +114,7 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   nodes.forEach((n,i)=>{
     const p=positions.get(n.id)!,tone=tones[p.role],cy=medallionY(p);
     out.push(`<circle cx="${p.x}" cy="${cy}" r="44" fill="${tone.fill}" stroke="${tone.ink}" stroke-width="2"/>`);
-    out.push(icon(n.icon??(layout==="neural"&&p.role==="process"?"network":p.role==="input"?"data":p.role==="output"?"target":p.role==="evidence"?"knowledge":"compute"),p.x,cy,tone.ink));
+    out.push(icon(diagramIcon(n.label,n.icon)??(layout==="neural"&&p.role==="process"?"network":p.role==="input"?"data":p.role==="output"?"target":p.role==="evidence"?"knowledge":"compute"),p.x,cy,tone.ink));
     out.push(`<circle cx="${p.x-34}" cy="${cy-34}" r="15" fill="${tone.ink}"/>`);
     text(p.x-34,cy-29,String(i+1),15,"white","middle",600);
     const lines=wrap(n.label,30).slice(0,3);
@@ -102,12 +123,12 @@ export function illustratedDiagramSvg(f:ScientificFigure){
   });
   edgeLabels.forEach((e,i)=>{
     const x=90+(i%2)*760,y=routeBottom+42+Math.floor(i/2)*64;
-    wrap(`${e.letter} · Stage ${e.from} to ${e.to}: ${e.label}`,78).slice(0,2).forEach((line,j)=>text(x,y+j*20,line,16,"#52665f"));
+    wrap(`${e.letter} · ${short(e.from)} → ${short(e.to)}: ${e.label}`,78).slice(0,2).forEach((line,j)=>text(x,y+j*20,line,16,"#52665f"));
   });
   const legendY=height-82,roles=[...new Set([...positions.values()].map(p=>p.role))];
   if(edges.some(e=>e.role==="feedback")&&!roles.includes("feedback"))roles.push("feedback");
   const legendWidth=roles.length*258;
   roles.forEach((role,i)=>{const x=(width-legendWidth)/2+i*258;out.push(`<circle cx="${x+9}" cy="${legendY}" r="7" fill="${tones[role].ink}"/>`);text(x+26,legendY+5,tones[role].label,15,"#52665f");});
-  text(width/2,height-30,edges.every(e=>e.role==="association")?"Undirected lines show relationships, not causal or power-flow direction. No measured results are implied.":"Colours identify functional roles; arrows show direction and plain lines show associations. No measured results are implied.",14,"#65766e","middle");
+  text(width/2,height-30,edges.every(e=>e.role==="association")?"Lines show relationships, not power-flow direction.":"Arrows show direction; plain lines show associations.",14,"#65766e","middle");
   out.push("</svg>");return out.join("");
 }

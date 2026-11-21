@@ -9,7 +9,7 @@ export function figureRevisionRequest(prompt: string, kind: string, parentKind?:
 
 export const JOURNAL_DRAFT_INSTRUCTIONS = `Produce the actual developed journal manuscript, not an outline, writing advice or instructions such as "consider", "contextualize", "discuss" or "summarize" addressed to the author.
 Use the requested journal profile when supplied; otherwise use a conventional academic article structure without claiming a particular journal's approval. Include a specific title, abstract, keywords, introduction, related work, methodology or review approach, substantive findings/synthesis, discussion, limitations, conclusion and applicable declarations. Write analytical paragraphs, not a list of section descriptions. Aim for a substantive draft (approximately 1800–2500 words unless the user specifies another length), but never pad unsupported claims to meet a target.
-Choose and explicitly label the article type from the supplied inputs. Without actual original experimental methods and results, develop a literature-based narrative review or a proposed-study manuscript. Do not claim a systematic review without a documented protocol. A review's findings are synthesis of cited studies, not new experiments. For a proposed empirical study, label the methodology as proposed and results as "Research input required", with specific missing inputs. Do not fabricate measurements, participants, validation, statistical significance, authors, affiliations or ethics approvals.
+Choose and explicitly label the article type from the supplied inputs. Without actual original experimental methods and results, develop a literature-based narrative review or a proposed-study manuscript. Do not claim a systematic review without a documented protocol. A review article answers one focused question in depth: leave out evidence on separate subfields (for example hydrogen trade, floating PV siting or vendor announcements in a review on forecasting and delivery) rather than giving each a section. A review's findings are synthesis of cited studies, not new experiments. For a proposed empirical study, label the methodology as proposed and results as "Research input required", with specific missing inputs. Do not fabricate measurements, participants, validation, statistical significance, authors, affiliations or ethics approvals.
 The next figure step will create appropriate source-grounded schematics and charts with captions; never substitute "use diagrams" advice for the actual manuscript. Numerical charts require real supplied or cited data. Leave unknown author and submission details for author completion, not invention.`;
 
 /** Register and formatting rules for every scholarly draft (journal, thesis, literature survey, synopsis). */
@@ -24,11 +24,14 @@ The priorArt field lists what existing studies, commercial tools and deployed sy
 Engage with priorArt.foundations in Related Work, citing the evidence that covers them; never cite a concept without a supporting reference.
 In the review approach or Methods section, report the literature search exactly as given in searchRecord: databases, search date, query strings, records retrieved, records read and the selection rule. Never write that the paper uses "only the supplied evidence", that "no additional search" was done, or that sources were "supplied"; do not call the search systematic unless a PRISMA protocol is given.
 Earlier drafts in this project (context) are unpublished work by the same authors: never cite, name or quote them, and never reuse their sentences, examples or paragraph structure. Write every passage fresh.
-Cite news, vendor and press pages only for industry deployment facts, naming them as company or news reports; scientific claims need peer-reviewed sources.`;
+Cite news, vendor and press pages only for industry deployment facts, naming them as company or news reports; scientific claims need peer-reviewed sources.
+Never describe how each source was accessed or read: no "abstract-based accounts", "publication extracts", "search excerpts", "selected pages", "not independently read/verified", "evidence base comprising abstracts", and never mention a project synopsis, project documents or where citation numbers come from. Report what the cited authors found ("Calladine et al. [8] project…"). Limitations discuss the scope of the review and gaps in the literature, never access to texts. State a limitation once; do not repeat that a proposal "has not been empirically validated".`;
+
+import { stripProcessNotes } from "./process-notes";
 
 /** Strip tool branding and app-only notes the model may still add, so the export reads as a normal paper. */
 export function submissionReady(content: string) {
-  return content
+  return stripProcessNotes(content)
     .replace(/[ \t]*(?:\*\*)?\b(?:Manuscript status|Author details)(?:\*\*)?:[^\n]*?(?:\.(?=\s|$)|$)/gim, "")
     // No AI-use statements: drop such headings with their paragraph, and labelled declaration lines.
     .replace(/^#{1,6}\s*(?:AI[- ]use|AI[- ]assist\w*|(?:Declaration of )?(?:use of )?generative AI)[^\n]*\n+(?:(?!#)[^\n]+\n?)*/gim, "")

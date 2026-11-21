@@ -49,7 +49,7 @@ export async function renderStudioLatex(row: any): Promise<Buffer> {
   }
   close();
   const pt = (n: number) => `${Math.round(n)}pt`;
-  const author = [d.author || "[Author name required]", d.affiliation, ...(l.thesis ? [] : synopsisTitleLines(row.kind, d))].filter(Boolean).map((s: string) => latexEscape(s)).join(" \\\\ ");
+  const author = [d.author, d.affiliation, ...(l.thesis ? [] : synopsisTitleLines(row.kind, d))].filter(Boolean).map((s: string) => latexEscape(s)).join(" \\\\ ");
   const tex = [
     "% Compile with pdflatex, xelatex or lualatex.",
     `\\documentclass[${l.fontSize >= 12 ? "12pt" : l.fontSize >= 11 ? "11pt" : "10pt"},${l.size === "A4" ? "a4paper" : "letterpaper"}${l.columns === 2 ? ",twocolumn" : ""}]{${l.thesis ? "report" : "article"}}`,

@@ -48,8 +48,9 @@ export function renumberCitations(text: string, order: number[]) {
 
 /** Web pages titled only "News" or "Findings from the Pilot Project" need their site to be identifiable. */
 export function referenceTitle(s: { title: string; url: string }) {
-  if (!s.url || s.title.split(/\s+/).length > 4) return s.title;
-  try { return `${s.title.replace(/[.\s]+$/, "")} (${new URL(s.url).hostname.replace(/^www\./, "")})`; } catch { return s.title; }
+  const title = cleanReferenceTitle(s.title);
+  if (!s.url || title.split(/\s+/).length > 4) return title;
+  try { return `${title} (${new URL(s.url).hostname.replace(/^www\./, "")})`; } catch { return title; }
 }
 
 /**
@@ -59,6 +60,24 @@ export function referenceTitle(s: { title: string; url: string }) {
 export function implausibleDoiYear(doi: string | undefined, year: number | undefined) {
   const yy = doi?.match(/^(?:https?:\/\/doi\.org\/)?10\.1142\/s\d{4}-?\d{3}[\dx](\d{2})\d/i)?.[1];
   return !!yy && !!year && 2000 + Number(yy) > year + 1;
+}
+
+const SMALL = new Set(["a","an","and","as","at","by","for","from","in","into","of","on","or","the","to","under","using","via","with","without"]);
+
+/** Catalogue titles arrive as "R$^2$Energy", "FRAMEWORK FOR …" or "Framework.." — print them as a journal would. */
+export function cleanReferenceTitle(title: string) {
+  const sup: Record<string, string> = { "0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹" };
+  let t = title
+    .replace(/\$\^\{?(\d)\}?\$/g, (_, d: string) => sup[d])
+    .replace(/\$_\{?(\d)\}?\$/g, (_, d: string) => "₀₁₂₃₄₅₆₇₈₉"[Number(d)])
+    .replace(/\$([^$]*)\$/g, "$1")
+    .replace(/[.\s]+$/, "").trim();
+  // All-capitals titles: sentence case, keeping acronyms without vowels (CNN, PV, LSTM) in capitals.
+  if (t.length > 20 && !/[a-z]/.test(t)) {
+    t = t.replace(/[A-Z]+/g, w => (w.length <= 2 && !SMALL.has(w.toLowerCase())) || !/[AEIOUY]/.test(w) ? w : w.toLowerCase());
+    t = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  return t;
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

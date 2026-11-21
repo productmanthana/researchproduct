@@ -81,9 +81,9 @@ export function readerFigureText(text:string){
     .replace(/\bsupplied (?:excerpts?|sources?|material|evidence|protocol)\b/gi,"the cited work")
     .replace(/\bthe (?:reviewed )?draft['’]s\b/gi,"this paper's").replace(/\bthe (?:reviewed )?draft\b/gi,"this paper")
     // Defensive disclaimers ("this schematic is not a measured geometry…") read as machine-written; provenance is kept separately.
-    .replace(/;\s*this (?:schematic|diagram|figure|chart|process|framework) is (?:not|the author)[^.]*\./gi,".")
+    .replace(/;\s*this (?:[a-z-]+ ){0,3}(?:schematic|diagram|figure|chart|process|framework|sequence) (?:is not|does not|has not|is the author)[^.]*\./gi,".")
     .split(/(?<=[.!?])\s+/)
-    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish|^this (?:(?:schematic|diagram|figure|chart|process|framework) )?is (?:not|the author)/i.test(sentence))
+    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish|^this (?:[a-z-]+ ){0,3}(?:(?:schematic|diagram|figure|chart|process|framework|sequence) )?(?:is not|does not|has not|is the author)/i.test(sentence))
     .join(" ").trim();
 }
 
