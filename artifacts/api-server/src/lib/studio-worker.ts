@@ -105,7 +105,7 @@ async function generate(row:any) {
       trace.count({found});
       step.done(`Searched scholarly catalogues · ${found.toLocaleString("en")} found`);
     }
-    catch(e){step.done("Scholarly search unavailable for this request");warnings.push(e instanceof HttpError?e.message:"Scholarly discovery is unavailable for this request.");}
+    catch(e){logger.warn({err:e},"Scholarly discovery failed");step.done("Scholarly search unavailable for this request");warnings.push(e instanceof HttpError?e.message:"Scholarly discovery is unavailable for this request.");}
   }
   job.input.paperIds=[...new Set([...job.input.paperIds,...savedPapers])].slice(0,initialIdeas?6:surveyDepth?SURVEY_PAPERS:deepLiterature?LITERATURE_PAPERS:12);
   const verifyStep=trace.start(`Verifying ${job.input.paperIds.length} candidate papers`);
