@@ -51,6 +51,8 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
 
   const root = useRef<HTMLElement>(null);
   const follow = useRef(true);
+  // Set once writing ends: the view stays on the progress card instead of following the still-typing text.
+  const pinnedTop = useRef(false);
   const [behind, setBehind] = useState(false);
   // Rewriting stages (authorship) send no tokens; count the elapsed time so the pause reads as work in progress.
   const liveProgress = snapshot?.progress ?? null;
@@ -65,17 +67,17 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const text = stabilizeLiveMarkdown(typed);
   const hasText = !!text;
 
-  useLayoutEffect(() => { follow.current = true; setBehind(false); }, [id]);
+  useLayoutEffect(() => { follow.current = true; pinnedTop.current = false; setBehind(false); }, [id]);
   useEffect(() => {
     if (!working || !root.current) return;
     const s = scrollParent(root.current);
-    const on = () => { const near = metrics(s).gap < 120; follow.current = near; setBehind(!near); };
+    const on = () => { if (pinnedTop.current) return; const near = metrics(s).gap < 120; follow.current = near; setBehind(!near); };
     on();
     s.addEventListener("scroll", on, { passive: true });
     return () => s.removeEventListener("scroll", on);
   }, [working, id]);
   useLayoutEffect(() => {
-    if (!hasText || !follow.current || !root.current) return;
+    if (!hasText || !follow.current || pinnedTop.current || !root.current) return;
     const s = scrollParent(root.current);
     if (s instanceof Window) window.scrollTo({ top: document.documentElement.scrollHeight });
     else s.scrollTop = s.scrollHeight;
@@ -87,7 +89,7 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
     const wasWriting = WRITING_STAGE.test(lastStage.current);
     lastStage.current = liveStageName;
     if (!working || !wasWriting || WRITING_STAGE.test(liveStageName) || !root.current) return;
-    follow.current = false; setBehind(true);
+    follow.current = false; pinnedTop.current = true; setBehind(true);
     const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     // Prefer the page's progress card (it may sit outside the text's own scroll box); else the box's top.
     const anchor = root.current.closest<HTMLElement>("[data-live-progress-anchor]");
@@ -95,7 +97,7 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
     else scrollParent(root.current).scrollTo({ top: 0, behavior });
   }, [liveStageName, working]);
   const jump = () => {
-    follow.current = true; setBehind(false);
+    follow.current = true; pinnedTop.current = false; setBehind(false);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     root.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
   };
