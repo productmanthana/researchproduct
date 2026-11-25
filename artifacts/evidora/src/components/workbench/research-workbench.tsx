@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 import { sourceKindCounts, type ProvenancedSource, type SourceKind } from "@/lib/source-provenance";
 import "./workbench.css";
@@ -29,6 +29,13 @@ export function PanelTabs<T extends string>({ tabs, value, onChange, idBase, lab
   </div>;
 }
 
+const SPLIT_KEY = "evidora.wb-split";
+const DEFAULT_SPLIT = 75, MIN_SPLIT = 35, MAX_SPLIT = 85;
+const clampSplit = (v: number) => Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, v));
+function readSplit() {
+  try { const v = Number(localStorage.getItem(SPLIT_KEY)); return v ? clampSplit(v) : DEFAULT_SPLIT; } catch { return DEFAULT_SPLIT; }
+}
+
 /**
  * Conversation (each question followed by its full response, editor and follow-ups) in the main pane;
  * Sources in a secondary pane. Both stay mounted, so toggling sources on mobile never resets edits or live writing.
@@ -37,12 +44,29 @@ export function ResearchWorkbench({ conversation, sources, sourceCount, label = 
   conversation: ReactNode; sources: ReactNode; sourceCount?: number; label?: string; idBase?: string;
 }) {
   const [mobile, setMobile] = useState<"conversation" | "sources">("conversation");
-  return <div className="wb rise" data-mobile={mobile} aria-label={label} data-testid="research-workbench">
+  const [split, setSplit] = useState(readSplit);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const applySplit = (v: number) => { const n = clampSplit(v); setSplit(n); try { localStorage.setItem(SPLIT_KEY, String(n)); } catch { /* storage unavailable */ } };
+  const onDrag = (e: PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const r = rootRef.current?.getBoundingClientRect();
+    if (r && r.width) applySplit(((e.clientX - r.left) / r.width) * 100);
+  };
+  const onHandleKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowLeft" ? -2 : e.key === "ArrowRight" ? 2 : 0;
+    if (e.key === "Home") { e.preventDefault(); applySplit(DEFAULT_SPLIT); } else if (step) { e.preventDefault(); applySplit(split + step); }
+  };
+  const style = { "--wb-l": `${split}fr`, "--wb-r": `${100 - split}fr` } as CSSProperties;
+  return <div ref={rootRef} className="wb rise" style={style} data-mobile={mobile} aria-label={label} data-testid="research-workbench">
     <div className="wb-mobile-switch" role="group" aria-label="Show">
       <button type="button" aria-pressed={mobile === "conversation"} onClick={() => setMobile("conversation")} data-testid="button-mobile-conversation">Conversation</button>
       <button type="button" aria-pressed={mobile === "sources"} onClick={() => setMobile("sources")} data-testid="button-mobile-sources">Sources{typeof sourceCount === "number" ? ` (${sourceCount})` : ""}</button>
     </div>
     <section className="wb-pane wb-left" aria-label="Conversation">{conversation}</section>
+    <div className="wb-resizer" role="separator" aria-orientation="vertical" aria-label="Resize sources panel" aria-valuemin={MIN_SPLIT} aria-valuemax={MAX_SPLIT} aria-valuenow={Math.round(split)} tabIndex={0}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={e => { e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId); }} onPointerMove={onDrag}
+      onDoubleClick={() => applySplit(DEFAULT_SPLIT)} onKeyDown={onHandleKey} data-testid="handle-workbench-resize" />
     <section className="wb-pane wb-right" aria-label="Sources" id={`${idBase}-sources`}>
       <div className="wb-right-body">{sources}</div>
     </section>
@@ -57,18 +81,26 @@ const KIND_META: Record<SourceKind, { label: string; tone: string }> = {
 };
 
 /** Saved sources with provenance and original links. Empty states say exactly what is (not) there. */
-export function SourcesList({ sources, pending, retrieved, title = "Sources", note, emptyBody, extra }: {
-  sources: ProvenancedSource[]; pending?: boolean; retrieved?: boolean; title?: string; note?: ReactNode; emptyBody?: ReactNode; extra?: ReactNode;
+export function SourcesList({ sources, pending, title = "Sources", note, emptyBody, extra }: {
+  sources: ProvenancedSource[]; pending?: boolean; title?: string; note?: ReactNode; emptyBody?: ReactNode; extra?: ReactNode;
 }) {
   const [kind, setKind] = useState<SourceKind | "all">("all");
   const [q, setQ] = useState("");
   const counts = useMemo(() => sourceKindCounts(sources), [sources]);
   const shown = sources.filter(s => (kind === "all" || s.kind === kind) && `${s.title} ${s.excerpt}`.toLowerCase().includes(q.trim().toLowerCase()));
   const abstractOnly = sources.some(s => s.abstractOnly);
+  // Sources that arrive after the panel opened get a brief "new" highlight, staggered so they land one by one.
+  const seen = useRef<Set<string> | null>(null);
+  if (!seen.current) seen.current = new Set(sources.map(s => s.key));
+  const fresh = sources.filter(s => !seen.current!.has(s.key)).map(s => s.key);
+  useEffect(() => {
+    if (!fresh.length) return;
+    const t = window.setTimeout(() => fresh.forEach(k => seen.current!.add(k)), 4000);
+    return () => window.clearTimeout(t);
+  }, [fresh.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div className="wb-src" data-testid="panel-sources">
     <div className="wb-src-head"><h2>{title}</h2><span className="wb-count" data-testid="text-source-count">{sources.length}</span></div>
-    <p className="wb-src-note">{note ?? "Sources saved with this work. Type labels are inferred from each link; open the original to confirm."}</p>
-    {retrieved && sources.length > 0 && <p className="wb-empty mt-3" role="status" data-testid="status-sources-retrieved"><b>Retrieved evidence</b>Available inputs for this request. Writing and source checks are not complete; the final list replaces this when the response finishes.</p>}
+    {note && <p className="wb-src-note">{note}</p>}
     {extra}
     {sources.length === 0 ? <div className="wb-empty mt-3" data-testid="status-sources-empty">
       <b>{pending ? "Still gathering" : "No sources saved"}</b>
@@ -81,8 +113,8 @@ export function SourcesList({ sources, pending, retrieved, title = "Sources", no
       {sources.length > 6 && <input className="wb-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Search source titles and excerpts" aria-label="Search sources" data-testid="input-source-search" />}
       {abstractOnly && <p className="wb-src-note">Some entries rest on abstract metadata only. An abstract is not full-text evidence and does not establish novelty.</p>}
       <ol className="wb-src-list">
-        {shown.map((s, i) => <li key={s.key} className="wb-src-card" style={{ ["--wb-tone" as string]: KIND_META[s.kind].tone }} data-testid={`card-source-${i}`}>
-          <p className="wb-src-kind">{KIND_META[s.kind].label}{s.abstractOnly ? " · abstract only" : ""}</p>
+        {shown.map((s, i) => { const f = fresh.indexOf(s.key); return <li key={s.key} className={`wb-src-card${f >= 0 ? " wb-src-new" : ""}`} style={{ ["--wb-tone" as string]: KIND_META[s.kind].tone, ...(f >= 0 ? { animationDelay: `${Math.min(f, 16) * 120}ms` } : {}) }} data-testid={`card-source-${i}`}>
+          <p className="wb-src-kind">{KIND_META[s.kind].label}{s.abstractOnly ? " · abstract only" : ""}{f >= 0 && <span className="wb-src-badge">New</span>}</p>
           <p className="wb-src-title">{s.title}</p>
           {s.excerpt && <p className="wb-src-excerpt">{s.excerpt}</p>}
           <div className="wb-src-meta">
@@ -90,7 +122,7 @@ export function SourcesList({ sources, pending, retrieved, title = "Sources", no
             <span>From {s.origins.join("; ")}</span>
             {s.url ? <a className="wb-src-link" href={s.url} target="_blank" rel="noopener noreferrer" data-testid={`link-source-original-${i}`}>Open original<ExternalLink /></a> : <span>No public link (project material)</span>}
           </div>
-        </li>)}
+        </li>; })}
       </ol>
       {!shown.length && <p className="wb-src-note">No sources match this filter.</p>}
     </>}

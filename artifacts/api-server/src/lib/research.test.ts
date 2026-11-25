@@ -1,5 +1,11 @@
+import "./manuscript-cleanup.test";
+import "./evidence-assets.test";
+import "./thesis.test";
+import "./literature-survey.test";
 import "./watch.test";
 import "./figures.test";
+import "./submission-ready.test";
+import "./labelled-illustration.test";
 import "./document-review.test";
 import "./paper-review.test";
 import "./custom-format.test";
@@ -8,12 +14,17 @@ import "./live-generation.test";
 import "./parallel-evidence.test";
 import "./studio-generation-preferences.test";
 import "./studio.test";
+import "./studio-latex.test";
+import "./plagiarism-align.test";
 import "./idea-generation.test";
 import "./selected-idea.test";
 import "./studio-conversation.test";
 import "./manuscript-policy.test";
+import "./human-authorship.test";
+import "./ai-style-metrics.test";
 import "./export-references.test";
 import "./submission-requirements.test";
+import "./journal-review.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { pool } from "@workspace/db";
@@ -544,7 +555,7 @@ test("Cached weaker metadata cannot erase an abstract or source provenance",asyn
 });
 test("Both CSL export styles include evidence, disclosure and valid DOCX bytes",async()=>{
   const view={content:"# Research answer\n\nEvidence finding [1].",sources:[{id:"test-private-evidence",title:"Private test evidence"}],warnings:[],comparisonRows:[]};
-  const apa=await exportResearch(view,"apa","md");assert.match(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
+  const apa=await exportResearch(view,"apa","md");assert.doesNotMatch(String(apa),/AI-use disclosure/);assert.doesNotMatch(String(apa),/Evidence finding \[1\]/);
   const ieee=await exportResearch(view,"ieee","md");assert.match(String(ieee),/\[1\]/);
   const docx=await exportResearch(view,"ieee","docx");assert.ok(Buffer.isBuffer(docx));assert.equal(docx.subarray(0,2).toString(),"PK");
   const pdf=await exportResearch(view,"ieee","pdf");assert.ok(Buffer.isBuffer(pdf));assert.equal(pdf.subarray(0,5).toString(),"%PDF-");
@@ -558,7 +569,7 @@ test("Conversational answers export as PDF and Word without paper references",as
     if(format==="docx"){
       const extracted=await mammoth.extractRawText({buffer:output});
       assert.doesNotMatch(extracted.value,/References \(IEEE\)|Appendix:|OpenAI|GPT-|DeepSeek/i);
-      assert.match(extracted.value,/AI-assisted guidance/);
+      assert.doesNotMatch(extracted.value,/AI-assisted|AI-use/);
     }
   }
   const markdown=String(await exportResearch(view,"ieee","md"));

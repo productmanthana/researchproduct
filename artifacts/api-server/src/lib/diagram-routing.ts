@@ -1,6 +1,10 @@
 export type Point = { x: number; y: number };
 export type DiagramObstacle = { left: number; right: number; top: number; bottom: number };
 
+/** Footprint actually occupied by a stage: medallion, label and description. */
+export const nodeObstacle = (p: Point, hasDescription = false): DiagramObstacle =>
+  ({ left: p.x - 165, right: p.x + 165, top: p.y - 72, bottom: p.y + (hasDescription ? 170 : 110) });
+
 export function crossesTextArea(a: Point, b: Point, box: DiagramObstacle): boolean {
   if (a.x === b.x) return a.x > box.left && a.x < box.right && Math.max(a.y, b.y) > box.top && Math.min(a.y, b.y) < box.bottom;
   if (a.y === b.y) return a.y > box.top && a.y < box.bottom && Math.max(a.x, b.x) > box.left && Math.min(a.x, b.x) < box.right;
@@ -9,10 +13,12 @@ export function crossesTextArea(a: Point, b: Point, box: DiagramObstacle): boole
 
 /** Orthogonal visibility-grid routing; node labels AND their external descriptions are obstacles. */
 export function routeDiagramEdge(a: Point, b: Point, boxes: DiagramObstacle[], width: number, bottom: number): Point[] {
+  // Ports sit at the edge of a node's text block and reach the stage medallion,
+  // so connectors meet the icon instead of stopping short in empty space.
   const ports = (p: Point) => [
-    { x: p.x - 194, y: p.y, tip: { x: p.x - 167, y: p.y } },
-    { x: p.x + 194, y: p.y, tip: { x: p.x + 167, y: p.y } },
-    { x: p.x, y: p.y - 114, tip: { x: p.x, y: p.y - 85 } },
+    { x: p.x - 172, y: p.y - 26, tip: { x: p.x - 66, y: p.y - 26 } },
+    { x: p.x + 172, y: p.y - 26, tip: { x: p.x + 66, y: p.y - 26 } },
+    { x: p.x, y: p.y - 92, tip: { x: p.x, y: p.y - 74 } },
   ];
   const clear = (p: Point, q: Point) => !boxes.some(box => crossesTextArea(p, q, box));
   const clearStub = (p: Point, q: Point, owner: Point) => !boxes.some(box =>

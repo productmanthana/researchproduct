@@ -7,8 +7,14 @@ import { requireUser, uid, routeId, usage, allowanceReached, HttpError } from ".
 import { studioView, ownedStudio, ownedStudioProject } from "../lib/studio-store";
 import { ownedDocument } from "../lib/documents";
 import { syncProjectItem, removeProjectVectors } from "../lib/studio-index";
-import { exportStudioFile } from "../lib/studio-exports";
+import { exportStudioFile, EXPORT_TYPES } from "../lib/studio-exports";
 import { reviewDocument } from "../lib/studio-checks";
+import { runPlagiarismCheck, plagiarismCorpus } from "../lib/plagiarism-check";
+import { repairOriginality } from "../lib/originality-guard";
+import { projectComparison, asCandidates } from "../lib/studio-comparison";
+import { screenAuthorship } from "../lib/human-authorship";
+import { exportBlockReason } from "../lib/export-gate";
+import { aiContext } from "../lib/ai-budget";
 import { studioTemplates } from "../lib/studio-templates";
 import { formatIssues } from "../lib/studio-formatting";
 import { invalidateRequirementsCheck } from "../lib/submission-requirements";
@@ -46,6 +52,8 @@ router.post("/studio/items",async(req,res)=>{
     metadata={...parent.metadata,edited:true};
     delete metadata.pdfExport;delete metadata.docxExport;
     delete metadata.review;delete metadata.reviewedAt;
+    // Checks describe the parent's text; an edited revision must be checked again.
+    if(b.content!==parent.content){delete metadata.plagiarism;delete metadata.aiDetection;}
   }
   if(b.templateId){
     if(!studioTemplates.some(t=>t.id===b.templateId&&t.kind===b.kind))throw new HttpError(400,"Choose a profile matching this document type.");
@@ -91,6 +99,19 @@ router.post("/studio/items",async(req,res)=>{
     if(e.code==="23505")throw new HttpError(409,"A newer revision already exists. Open it before saving again; your current text has not been overwritten.");
     throw e;
   }
+});
+// "Save as": a named copy of a finished document in any of the user's project folders, with figures, sources and checks.
+router.post("/studio/items/:id/copy",async(req,res)=>{
+  const owner=uid(req),b=z.object({projectId:z.string().min(1).max(100),title:z.string().trim().min(1).max(300)}).parse(req.body);
+  const source=await ownedStudio(routeId(req),owner);
+  await ownedStudioProject(b.projectId,owner);
+  if(source.status!=="completed")throw new HttpError(400,"Wait for the document to finish before saving a copy.");
+  const metadata={...source.metadata,copiedFrom:source.id};
+  delete metadata.pdfExport;delete metadata.docxExport;
+  const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)
+    VALUES($1,$2,$3,$4,$5,$6,NULL,1,$7) RETURNING *`,[randomUUID(),owner,b.projectId,source.kind,b.title,source.content,JSON.stringify(metadata)]);
+  void syncProjectItem(rows[0].id,owner).catch(()=>{});
+  res.json(studioView(rows[0]));
 });
 router.post("/studio/generate",async(req,res)=>{
   const b=GenerateStudioDocumentBody.parse(req.body),owner=uid(req);
@@ -140,6 +161,7 @@ router.get("/studio/items/:id/figures/:figureId",async(req,res)=>{
   const {format}=DownloadStudioFigureQueryParams.parse(req.query);
   const figure=(row.metadata?.figures??[]).find((f:ScientificFigure)=>f.id===req.params.figureId) as ScientificFigure|undefined;
   if(row.status!=="completed"||!figure)throw new HttpError(404,"Figure not found.");
+  if(figure.kind==="illustration"&&format!=="png")throw new HttpError(400,"AI illustrations are available as PNG only.");
   if(figure.kind==="original"&&format!=="png")throw new HttpError(400,"Original image previews are available as PNG only; the original uploaded file is preserved separately.");
   let bytes:Buffer,mime:string;
   if(format==="png"){bytes=await figurePng(figure);mime="image/png";}
@@ -156,28 +178,58 @@ router.get("/studio/items/:id/figures/:figureId",async(req,res)=>{
 router.get("/studio/items/:id/export",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req)),{format}=ExportStudioDocumentQueryParams.parse(req.query);
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish before exporting.");
+  const blocked=exportBlockReason(row);
+  if(blocked)throw new HttpError(409,blocked);
   const bytes=await exportStudioFile(row,format);
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}.${format}"`);
-  res.type(format==="pdf"?"application/pdf":"application/vnd.openxmlformats-officedocument.wordprocessingml.document").send(bytes);
+  res.setHeader("Content-Disposition",`attachment; filename="${row.kind}-v${row.revision}${format==="latex"?"-latex":""}.${EXPORT_TYPES[format].ext}"`);
+  res.type(EXPORT_TYPES[format].mime).send(bytes);
 });
 router.post("/studio/items/:id/check",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish.");
-  const {rows}=await pool.query(`WITH RECURSIVE family AS (
-    SELECT id,parent_id FROM research_studio_items WHERE id=$3 AND owner_id=$1
-    UNION ALL SELECT s.id,s.parent_id FROM research_studio_items s JOIN family f ON f.parent_id=s.id WHERE s.owner_id=$1
-  ), descendants AS (
-    SELECT id FROM research_studio_items WHERE id=$3 AND owner_id=$1
-    UNION ALL SELECT s.id FROM research_studio_items s JOIN descendants d ON s.parent_id=d.id WHERE s.owner_id=$1
-  ) SELECT s.title,s.content FROM research_studio_items s WHERE s.owner_id=$1 AND s.project_id=$2
-    AND s.id NOT IN(SELECT id FROM family UNION SELECT id FROM descendants) AND s.status='completed'
-    AND NOT EXISTS(SELECT 1 FROM research_studio_items c WHERE c.parent_id=s.id) LIMIT 100`,[uid(req),row.project_id,row.id]);
-  const references=await pool.query("SELECT p.data FROM research_library l JOIN research_papers p ON p.id=l.paper_id WHERE l.owner_id=$1 AND l.project_id=$2",[uid(req),row.project_id]);
-  const sourceEvidence=(row.metadata?.sources??[]).filter((s:any)=>s.text).map((s:any)=>({title:s.title,content:s.text,url:s.url}));
-  const result={...reviewDocument(row.content,[...rows,...references.rows.map(r=>({title:r.data.title,content:r.data.abstract??"",url:r.data.doi?`https://doi.org/${r.data.doi}`:undefined})),...sourceEvidence]),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
-  await pool.query("UPDATE research_studio_items SET metadata=metadata||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString()})]);
+  const comparison=await projectComparison(row,uid(req));
+  const result={...reviewDocument(row.content,comparison),formatIssues:formatIssues(row),profileName:studioTemplates.find(t=>t.id===row.metadata?.templateId)?.name??"General academic"};
+  // Re-run both independent checks on the current text: plagiarism and AI-writing.
+  const [plagiarism,aiDetection]=await aiContext.run({owner:uid(req),analysisId:`plagiarism:${row.id}`},()=>Promise.all([
+    runPlagiarismCheck({content:row.content,title:row.title,owner:uid(req),project:asCandidates(comparison)}),
+    screenAuthorship(row.content,row.metadata?.aiDetection?.passes??0).catch(()=>undefined),
+  ]));
+  await pool.query("UPDATE research_studio_items SET metadata=(metadata-'externalChecks')||$3::jsonb WHERE id=$1 AND owner_id=$2",[row.id,uid(req),JSON.stringify({review:result,reviewedAt:new Date().toISOString(),plagiarism,...(aiDetection?{aiDetection}:{})})]);
   res.json(result);
+});
+// Rewrites only the sentences the plagiarism check matched, re-checks them and saves the result as a new revision.
+router.post("/studio/items/:id/fix-wording",async(req,res)=>{
+  const owner=uid(req),row=await ownedStudio(routeId(req),owner);
+  if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish.");
+  if(!row.metadata?.plagiarism?.sources?.length)throw new HttpError(400,"Run the plagiarism check first so there are matched passages to rewrite.");
+  // A long rewrite can finish after the browser dropped the request; a retry returns that saved fix instead of failing.
+  const existingFix=async()=>{
+    const {rows}=await pool.query("SELECT * FROM research_studio_items WHERE parent_id=$1 AND owner_id=$2",[row.id,owner]);
+    if(!rows[0])return false;
+    if(rows[0].metadata?.wordingFixedFrom!==row.id)throw new HttpError(409,"A newer revision already exists. Open the newest version first.");
+    res.json(studioView(rows[0]));return true;
+  };
+  if(await existingFix())return;
+  const {content,report,aiDetection}=await aiContext.run({owner,analysisId:`plagiarism:${row.id}`},async()=>{
+    const corpus=await plagiarismCorpus({content:row.content,title:row.title,owner,project:asCandidates(await projectComparison(row,owner))});
+    const fixed=await repairOriginality({content:row.content,corpus});
+    const aiDetection=fixed.content===row.content?undefined:await screenAuthorship(fixed.content,row.metadata?.aiDetection?.passes??0).catch(()=>undefined);
+    return {...fixed,aiDetection};
+  });
+  if(content===row.content)throw new HttpError(422,"The matched wording couldn't be rewritten automatically. Quote and cite those passages, or edit them by hand.");
+  const metadata:Record<string,any>={...row.metadata,plagiarism:report,wordingFixedFrom:row.id};
+  delete metadata.pdfExport;delete metadata.docxExport;delete metadata.review;delete metadata.reviewedAt;
+  if(aiDetection)metadata.aiDetection=aiDetection;else delete metadata.aiDetection;
+  invalidateRequirementsCheck(metadata);
+  try{
+    const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata,status)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'completed') RETURNING *`,[randomUUID(),owner,row.project_id,row.kind,row.title,content,row.id,row.revision+1,JSON.stringify(metadata)]);
+    res.json(studioView(rows[0]));
+  }catch(e:any){
+    if(e.code==="23505"&&await existingFix())return;
+    throw e;
+  }
 });
 router.post("/studio/items/:id/sync",async(req,res)=>{
   const row=await ownedStudio(routeId(req),uid(req));

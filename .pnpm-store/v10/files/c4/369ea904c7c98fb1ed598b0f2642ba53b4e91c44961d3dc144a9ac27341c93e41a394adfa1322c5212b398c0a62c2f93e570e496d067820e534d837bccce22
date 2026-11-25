@@ -1,0 +1,128 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.connectToCustom = connectToCustom;
+exports.connectToLocal = connectToLocal;
+exports.connectToWCD = connectToWCD;
+exports.connectToWCS = connectToWCS;
+exports.connectToWeaviateCloud = connectToWeaviateCloud;
+const core_1 = __importStar(require("@weaviate/core"));
+const http_1 = require("http");
+const https_1 = require("https");
+const base64_js_1 = require("./base64.js");
+const transports_js_1 = require("./transports.js");
+const context = {
+    transportsFactory: transports_js_1.transportsFactory,
+    toBase64FromMedia: base64_js_1.toBase64FromMedia,
+    agentMaker: (secure) => (secure ? new https_1.Agent({ keepAlive: true }) : new http_1.Agent({ keepAlive: true })),
+};
+/**
+ * Connect to a custom Weaviate deployment, e.g. your own self-hosted Kubernetes cluster.
+ *
+ * @param {ConnectToCustomOptions} options Options for the connection.
+ * @returns {Promise<WeaviateClient>} A Promise that resolves to a client connected to your custom Weaviate deployment.
+ */
+function connectToCustom(options) {
+    return core_1.helpers.connectToCustom(core_1.default, context, options);
+}
+/**
+ * Connect to a locally-deployed Weaviate instance, e.g. as a Docker compose stack.
+ *
+ * @param {ConnectToLocalOptions} [options] Options for the connection.
+ * @returns {Promise<WeaviateClient>} A Promise that resolves to a client connected to your local Weaviate instance.
+ */
+function connectToLocal(options) {
+    return core_1.helpers.connectToLocal(core_1.default, context, options);
+}
+/**
+ * Connect to your own Weaviate Cloud (WCD) instance.
+ *
+ * @deprecated Use `connectToWeaviateCloud` instead.
+ *
+ * @param {string} clusterURL The URL of your WCD instance. E.g., `https://example.weaviate.network`.
+ * @param {ConnectToWCDOptions} [options] Additional options for the connection.
+ * @returns {Promise<WeaviateClient>} A Promise that resolves to a client connected to your WCD instance.
+ */
+function connectToWCD(clusterURL, options) {
+    console.warn('The `connectToWCD` method is deprecated. Please use `connectToWeaviateCloud` instead. This method will be removed in a future release.');
+    return core_1.helpers.connectToWeaviateCloud(clusterURL, core_1.default, context, options);
+}
+/**
+ * Connect to your own Weaviate Cloud Service (WCS) instance.
+ *
+ * @deprecated Use `connectToWeaviateCloud` instead.
+ *
+ * @param {string} clusterURL The URL of your WCD instance. E.g., `https://example.weaviate.network`.
+ * @param {ConnectToWCSOptions} [options] Additional options for the connection.
+ * @returns {Promise<WeaviateClient>} A Promise that resolves to a client connected to your WCS instance.
+ */
+function connectToWCS(clusterURL, options) {
+    console.warn('The `connectToWCS` method is deprecated. Please use `connectToWeaviateCloud` instead. This method will be removed in a future release.');
+    return core_1.helpers.connectToWeaviateCloud(clusterURL, core_1.default, context, options);
+}
+/**
+ * Connect to your own Weaviate Cloud (WCD) instance.
+ *
+ * @param {string} clusterURL The URL of your WCD instance. E.g., `https://example.weaviate.network`.
+ * @param {ConnectToWeaviateCloudOptions} [options] Additional options for the connection.
+ * @returns {Promise<WeaviateClient>} A Promise that resolves to a client connected to your WCD instance.
+ */
+function connectToWeaviateCloud(clusterURL, options) {
+    return core_1.helpers.connectToWeaviateCloud(clusterURL, core_1.default, context, options);
+}
+const app = {
+    connectToCustom,
+    connectToLocal,
+    connectToWCD,
+    connectToWCS,
+    connectToWeaviateCloud,
+    client: (params) => (0, core_1.default)(context, params),
+    ApiKey: core_1.ApiKey,
+    AuthUserPasswordCredentials: core_1.AuthUserPasswordCredentials,
+    AuthAccessTokenCredentials: core_1.AuthAccessTokenCredentials,
+    AuthClientCredentials: core_1.AuthClientCredentials,
+    configure: core_1.configure,
+    configGuards: core_1.configGuards,
+    filter: (0, core_1.filter)(),
+    reconfigure: core_1.reconfigure,
+    permissions: core_1.permissions,
+    query: core_1.queryFactory,
+};
+exports.default = app;
+__exportStar(require("@weaviate/core"), exports);
+__exportStar(require("./base64.js"), exports);

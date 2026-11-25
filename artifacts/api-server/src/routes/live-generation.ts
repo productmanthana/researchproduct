@@ -13,7 +13,7 @@ router.get("/live/:kind/:id",requireUser,async(req,res)=>{
     if(!row)return null;
     const active=["queued","running"].includes(row.status);
     const live=active?(await pool.query("SELECT data FROM research_search_cache WHERE key=$1 AND expires_at>now()",[liveKey(kind,id)])).rows[0]?.data:null;
-    return {id,status:row.status,stage:row.details?.stage??row.status,draft:live?.draft??"",updatedAt:live?.updatedAt??null};
+    return {id,status:row.status,stage:row.details?.stage??row.status,draft:live?.draft??"",updatedAt:live?.updatedAt??null,progress:live?.progress??null};
   };
   let snapshot=await read();if(!snapshot){res.status(404).json({error:"Generation not found"});return;}
   if((connections.get(owner)??0)>=8){res.status(429).json({error:"Too many live views. Close another view and retry."});return;}

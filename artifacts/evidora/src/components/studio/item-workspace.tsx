@@ -7,7 +7,7 @@ import {
   StudioItemInputKind, type StudioItem, type DocumentDetails, type StudioTemplate,
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Check, ClipboardCheck, SlidersHorizontal, Download, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, SlidersHorizontal, Download, FileCode, FileText, History, LineChart, PanelRight, RefreshCw, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { FigureView, MissingFigure } from "./figure-view";
 import { figureNoticesOf, figuresOf, markerOrder, FIGURE_GUARD } from "@/lib/figures";
@@ -19,15 +19,20 @@ import { CheckPanel } from "./check-panel";
 import { RequirementsCheck, requirementsCheckOf } from "./requirements-check";
 import { useToast } from "@/hooks/use-toast";
 import { useUnsavedGuard } from "@/lib/unsaved";
-import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
+import { cleanDetails, DETAIL_KINDS, detailsOf, downloadStudioItem, type StudioExportFormat, exportBlockReason, exportLock, friendlyError, hasDetails, isWorking, KIND_LABEL, lineageOf, meta, missingRequirements, sameDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
 import { TemplatePicker } from "./template-picker";
-import { savedReviewOf } from "./check-panel";
+import { savedReviewOf, aiDetectionOf } from "./check-panel";
+import { PlagiarismReportPanel, plagiarismOf } from "./plagiarism-report";
+import { OriginalityCertificate } from "./originality-certificate";
+import { FixWordingButton } from "./fix-wording-button";
+import { ResearchTrace, traceOf } from "./research-trace";
 import { ago } from "@/lib/format";
 import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
 import { CustomFormatBanner, CustomFormatDialog } from "./custom-format-dialog";
+import { SaveAsMenu } from "./save-as-menu";
 
 const GENERATABLE = new Set<string>(Object.values(StudioGenerationInputKind));
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
@@ -45,10 +50,14 @@ function IndexChip({ status }: { status: string }) {
   return <span className={`sx-chip ${tone}`} data-testid="status-index">{label}</span>;
 }
 
-export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title">; disabled?: boolean }) {
+const LATEX_KINDS = new Set(["journal", "thesis", "literature", "synopsis", "report"]);
+
+export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" | "title" | "kind" | "metadata">; disabled?: boolean }) {
   const { toast } = useToast();
-  const [busy, setBusy] = useState<"pdf" | "docx" | null>(null);
-  const run = async (f: "pdf" | "docx") => {
+  const [busy, setBusy] = useState<StudioExportFormat | null>(null);
+  const lock = exportLock(item);
+  if (lock) return <span className="inline-flex items-center gap-1.5 text-xs text-vermilion" title={lock.reason} data-testid="status-export-blocked"><Download className="h-3.5 w-3.5" />{lock.label}</span>;
+  const run = async (f: StudioExportFormat) => {
     setBusy(f);
     try { await downloadStudioItem(item, f); }
     catch (e) { toast({ title: "Export failed", description: friendlyError(e), variant: "destructive" }); }
@@ -58,6 +67,8 @@ export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" 
     <>
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("pdf")} data-testid="button-export-pdf"><Download />{busy === "pdf" ? "Preparing..." : "PDF"}</button>
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("docx")} data-testid="button-export-docx"><FileText />{busy === "docx" ? "Preparing..." : "Word"}</button>
+      {LATEX_KINDS.has(item.kind) && <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("latex")} title="LaTeX source (.tex) with figure images, as a .zip" data-testid="button-export-latex"><FileCode />{busy === "latex" ? "Preparing..." : "LaTeX"}</button>}
+      <SaveAsMenu item={item} disabled={disabled || !!busy} latex={LATEX_KINDS.has(item.kind)} />
     </>
   );
 }
@@ -201,7 +212,10 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
     onOpen(id);
   };
 
+  const aiWriting = aiDetectionOf(item);
+
   if (working || item.status === "failed") return <GenerationStatus item={item} onRetry={onRetry} inline={inlineProgress} />;
+  const trace = traceOf(item.metadata);
 
   return (
     <div className={reading ? "rise" : "rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]"} data-testid={`workspace-item-${item.id}`}>
@@ -210,16 +224,22 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           <span className="sx-chip">{KIND_LABEL[item.kind] ?? item.kind}</span>
           <span className="sx-chip" data-testid="text-revision">rev {item.revision}</span>
           <IndexChip status={item.indexStatus} />
+          <OriginalityCertificate item={item} />
+          {aiWriting && typeof aiWriting.humanScore === "number" && aiWriting.humanScore < (aiWriting.threshold ?? 99) && (
+            <span className="sx-chip bad" title={`AI-writing screen: ${aiWriting.humanScore}% estimated human writing, below the ${aiWriting.threshold ?? 99}% target. This is a separate check from plagiarism.`} data-testid="status-ai-writing">AI-writing · {Math.round(aiWriting.humanScore)}% human</span>
+          )}
           <div className="ml-auto flex flex-wrap gap-1.5">
             {canSave && <button className="sx-btn" onClick={() => setMode(mode === "edit" ? "read" : "edit")} data-testid="button-toggle-edit">{mode === "edit" ? "Preview" : "Edit"}</button>}
             {reading && <button className="sx-btn" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" data-testid="button-open-tools"><PanelRight />Versions and checks</button>}
             {canSave && dirty && <button className="sx-btn sx-primary" disabled={save.isPending || !title.trim()} onClick={() => void doSave()} data-testid="button-save-version-toolbar"><Check />{save.isPending ? "Saving…" : "Save new version"}</button>}
             {item.status === "completed" && item.kind !== "document-review" && !(item.metadata as Record<string, unknown> | null | undefined)?.paperReview && <Link href={`/paper-review?source=${item.id}`} className="sx-btn" data-testid="link-review-this-document"><ClipboardCheck />Check requirements &amp; research</Link>}
             {canCustomFormat && <button className="sx-btn" disabled={dirty} title={dirty ? "Save your edits first, then customise the format" : "Choose your own layout for a new revision"} onClick={() => setFmtOpen(true)} aria-haspopup="dialog" data-testid="button-open-custom-format"><SlidersHorizontal />Custom format</button>}
+            <FixWordingButton item={item} disabled={dirty} onOpen={onOpen} />
             <span title={dirty ? "Save this revision before exporting" : undefined} className="inline-flex gap-1.5"><ExportButtons item={item} disabled={dirty} /></span>
           </div>
         </div>
         <div className={reading ? "mx-auto max-w-[760px] px-5 py-6 md:px-10 md:py-10" : "px-5 py-5 md:px-9 md:py-8"}>
+          {trace && <div className="mb-5"><ResearchTrace trace={trace} working={false} exportLocked={!!exportBlockReason(item)} /></div>}
           {(item.kind === "journal" || item.kind === "thesis") && <CustomFormatBanner item={item} />}
           {dirty && canCustomFormat && <p className="mb-1 text-xs text-vermilion" data-testid="text-custom-format-blocked">Save your edits first to use Custom format.</p>}
           {dirty && <p className="mb-3 text-xs text-vermilion" role="status" data-testid="text-export-blocked">Save your changes before downloading. PDF and Word files use the last saved version{detailsDirty || profileDirty ? ", including your name, institution and chosen format" : ""}.</p>}
@@ -292,7 +312,8 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
           </div>
         )}
         {docKind && <RequirementsCheck compact data={requirementsCheckOf(item)} emptyHint={item.status === "completed" ? "No requirements check is saved with this version yet. Use Check requirements & research to compare this draft with the official instructions for your journal or university, and with relevant papers and patents." : undefined} />}
-        <CheckPanel key={item.id} saved={savedReviewOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
+        {plagiarismOf(item) && <PlagiarismReportPanel data={plagiarismOf(item)!} />}
+        <CheckPanel key={item.id} saved={savedReviewOf(item)} aiDetection={aiDetectionOf(item)} itemId={item.id} disabled={dirty} missing={missing} projectId={item.projectId} draftTitle={item.title} />
         {figNotices.length > 0 && <div className="sx-card p-4 text-sm" data-testid="panel-figure-notices"><p className="sx-eyebrow mb-1">Figure notes</p><ul className="list-disc space-y-1 pl-5 text-muted-foreground">{figNotices.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
         {(m.sources.length > 0 || m.warnings.length > 0) && (
           <div className="sx-card p-4 text-sm">

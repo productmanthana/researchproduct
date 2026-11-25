@@ -1,5 +1,6 @@
 /** Layout values are export settings, not a claim of publisher certification. */
 import { savedCustomFormat } from "./custom-format";
+import { submissionReady } from "./manuscript-policy";
 export type Layout = {
   size:"LETTER"|"A4"; fontSize:number; lineSpacing:number; columns:number;
   margins:{top:number;bottom:number;left:number;right:number}; thesis:boolean;fontFamily?:"serif"|"sans";
@@ -58,7 +59,7 @@ export function formatIssues(row:any):string[]{
     if(!/conclusion/i.test(row.content))issues.push("A Conclusions chapter is missing.");
     if(id==="stanford"&&/^#{1,3}\s+(?:copyright|signature)(?: page)?\s*$/im.test(row.content))issues.push("Remove standalone copyright/signature pages from the Stanford submission; its system inserts them.");
     if(id==="harvard")issues.push("Author must supply the actual Thesis Acceptance Certificate for final Harvard submission; it is not fabricated or inserted by this exporter.");
-    if(id==="iit-bombay")issues.push("Review the July 2025 academic-integrity declaration and disclose AI assistance. Actual approval signatures must not be generated.");
+    if(id==="iit-bombay")issues.push("Review the July 2025 academic-integrity declaration. Actual approval signatures must not be generated.");
   }
   const abstract=sectionText(row.content,"Abstract");
   if(!abstract)issues.push("A separate Abstract heading and abstract are missing.");
@@ -67,7 +68,7 @@ export function formatIssues(row:any):string[]{
   if(id==="iit-bombay"&&words>500)issues.push(`Abstract is ${words} words; review IIT Bombay's 500-word abstract guidance.`);
   if(id==="jiei"&&row.content.split(/\s+/).length>3000)issues.push("Manuscript exceeds the 3,000-word research-paper limit; reviews have a different limit.");
   if(!thesis&&!/keywords|index terms/i.test(row.content))issues.push("Keywords/index terms are missing.");
-  if(id.startsWith("ieee-"))issues.push("Check the supplied IEEE official template, author biographies, ORCID and AI-use disclosure before submission. This is a two-column draft, not an IEEE-certified file.");
+  if(id.startsWith("ieee-"))issues.push("Check the supplied IEEE official template, author biographies and ORCID before submission. This is a two-column draft, not an IEEE-certified file.");
   if(id==="sadhana")issues.push("Verify the 20-page research/review limit, running title ≤60 characters and no more than six keywords.");
   if(["applied-energy","renewable-energy"].includes(id))issues.push("Prepare highlights and any required graphical abstract as separate submission files; review the journal's author guide.");
   if(!/funding/i.test(row.content)&&!thesis)issues.push("Funding declaration is missing; do not invent funding information.");
@@ -76,13 +77,19 @@ export function formatIssues(row:any):string[]{
 }
 export type MarkdownBlock={kind:"heading";level:number;text:string}|{kind:"paragraph";text:string}|{kind:"table";rows:string[][]}|{kind:"figure";id:string};
 export const plainText=(s:string)=>s.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\[([^\][\n]+)\]\(([^)\n]+)\)/g,"$1 ($2)").replace(/`([^`]+)`/g,"$1");
+/** Export blocks: the app-only "Author review" note and tool branding never reach the submitted file. */
 export function documentBlocks(content:string):MarkdownBlock[]{
+  const all=markdownBlocks(submissionReady(content));let skip=false;
+  return all.filter(b=>{if(b.kind==="heading")skip=/^Author review$/i.test(b.text.trim());return !skip;});
+}
+function markdownBlocks(content:string):MarkdownBlock[]{
   const lines=content.split("\n"),blocks:MarkdownBlock[]=[];let paragraph:string[]=[];
   const flush=()=>{if(paragraph.length){blocks.push({kind:"paragraph",text:plainText(paragraph.join(" "))});paragraph=[];}};
   for(let i=0;i<lines.length;i++){
     const line=lines[i],heading=/^(#{1,3})\s+(.+)$/.exec(line);
     const figure=/^\s*\[\[figure:([a-zA-Z0-9_-]+)\]\]\s*$/.exec(line);
-    if(figure){flush();blocks.push({kind:"figure",id:figure[1]});}
+    if(/^\s*(```|~~~)/.test(line)){flush();i++;while(i<lines.length&&!/^\s*(```|~~~)/.test(lines[i]))i++;}
+    else if(figure){flush();blocks.push({kind:"figure",id:figure[1]});}
     else if(heading){flush();blocks.push({kind:"heading",level:heading[1].length,text:plainText(heading[2])});}
     else if(line.trim().startsWith("|")){
       flush();const rows:string[][]=[];

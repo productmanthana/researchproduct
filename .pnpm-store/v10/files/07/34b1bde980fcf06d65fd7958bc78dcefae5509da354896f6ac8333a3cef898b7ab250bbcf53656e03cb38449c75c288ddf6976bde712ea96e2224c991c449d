@@ -1,0 +1,16 @@
+import { backup } from './client.js';
+export const backupCollection = (connection, name, dbVersionSupport) => {
+    const handler = backup(connection, dbVersionSupport);
+    return {
+        create: (args) => handler.create({
+            ...args,
+            includeCollections: [name],
+        }),
+        getCreateStatus: handler.getCreateStatus,
+        getRestoreStatus: handler.getRestoreStatus,
+        restore: (args) => handler.restore({
+            ...args,
+            includeCollections: [name],
+        }),
+    };
+};

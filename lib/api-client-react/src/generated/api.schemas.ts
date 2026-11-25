@@ -377,6 +377,11 @@ export interface StudioGenerationInput {
   includeFigures?: boolean;
   customFormat?: CustomFormat;
   documentDetails?: DocumentDetails;
+  /**
+     * Author-supplied experiment logs and results (tables, numbers, observations). Reported as the authors' actual data.
+     * @maxLength 20000
+     */
+  experimentalResults?: string;
 }
 
 export type StudioCheckMatchesItem = {
@@ -965,6 +970,7 @@ export type ExportStudioDocumentFormat = typeof ExportStudioDocumentFormat[keyof
 export const ExportStudioDocumentFormat = {
   pdf: 'pdf',
   docx: 'docx',
+  latex: 'latex',
 } as const;
 
 export type SearchStudioPatentsParams = {

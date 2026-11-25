@@ -127,7 +127,7 @@ router.get("/analyses/:id/export",requireUser,async(req,res)=>{
   const view=analysisView(row);
   const output=await exportResearch(view,style,format);
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",`attachment; filename="evidora-research.${format}"`);
+  res.setHeader("Content-Disposition",`attachment; filename="research.${format}"`);
   if(format==="docx") {
     res.type("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.send(output);

@@ -1,16 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { evaluateFormula,validateFigure,figureCsv,referencedFigures } from "./scientific-figures";
+import { evaluateFormula,validateFigure,figureCsv,referencedFigures,FigureProposal } from "./scientific-figures";
 import { figureSvg,figurePng } from "./figure-renderer";
 import { documentBlocks } from "./studio-formatting";
 import { renderStudioWord } from "./studio-docx";
 import { renderStudioPdf } from "./studio-pdf";
 import mammoth from "mammoth";
-import { routeDiagramEdge, crossesTextArea } from "./diagram-routing";
+import { routeDiagramEdge, crossesTextArea, nodeObstacle } from "./diagram-routing";
+
+test("illustration captions always carry the not-a-photograph disclosure once",()=>{
+  const add=validateFigure({title:"Plant",caption:"Cutaway of a gas turbine unit",kind:"illustration",prompt:"Textbook cutaway of a gas turbine generator unit"},[],"fig-a");
+  assert.match(add.caption,/^Cutaway of a gas turbine unit\. This AI-generated illustration is not a photograph/);
+  const kept=validateFigure({title:"Plant",caption:"AI-generated view; not a photograph of the site.",kind:"illustration",prompt:"Textbook cutaway of a gas turbine generator unit"},[],"fig-b");
+  assert.equal(kept.caption,"AI-generated view; not a photograph of the site.");
+});
+
+test("over-long planner text is shortened instead of dropping the figure",()=>{
+  const p=FigureProposal.parse({title:"Plant",caption:"c ".repeat(800),kind:"illustration",prompt:"turbine hall ".repeat(150)});
+  assert.ok(p.prompt!.length<=1200&&p.prompt!.length>900);
+  assert.ok(p.caption.length<=1200);
+  assert.equal(FigureProposal.parse({title:"T",caption:"c",kind:"diagram"}).prompt,undefined);
+  assert.throws(()=>FigureProposal.parse({title:"T",caption:"c",kind:"illustration",prompt:"short"}));
+});
 
 test("diagram connectors avoid descriptions and intermediate node text rather than cutting diagonally across them",()=>{
   const points=[{x:340,y:280},{x:810,y:280},{x:1280,y:280},{x:575,y:620},{x:1045,y:620}];
-  const boxes=points.map(p=>({left:p.x-180,right:p.x+180,top:p.y-100,bottom:p.y+166}));
+  const boxes=points.map(p=>nodeObstacle(p,true));
   for(const [from,to] of [[2,3],[0,2],[4,0],[3,4],[1,4]]){
     const path=routeDiagramEdge(points[from],points[to],boxes,1620,814);
     assert.ok(path.length>=2);

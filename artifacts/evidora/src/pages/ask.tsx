@@ -36,7 +36,7 @@ import { IdeasChat } from "@/components/studio/ideas-chat";
 import { ideasIntent, CHAT_KINDS } from "@/lib/ideas-chat";
 import { buildConversations, conversationFor } from "@/lib/conversation";
 import { SourcesList } from "@/components/workbench/research-workbench";
-import { studioItemSources, sourcesRetrievedOnly } from "@/lib/source-provenance";
+import { studioItemSources } from "@/lib/source-provenance";
 import { useStudioItem } from "@/components/studio/use-studio";
 import { KIND_LABEL } from "@/lib/studio";
 import type { ProjectIntent } from "@/lib/studio";
@@ -146,7 +146,7 @@ function AskInner() {
   const sourceAnalysis = evidenceTurns.find(t => t.id === sourceAnalysisId) ?? evidenceTurns.at(-1);
   const hasDirtyDraft = Object.values(draftBuffers).some(value => value.dirty);
   useUnsavedGuard("ask-draft", hasDirtyDraft, "You have unsaved draft changes in AI Chat.");
-  const { project: activeProject, select: selectProject } = useActiveProject();
+  const { project: activeProject, projects, select: selectProject } = useActiveProject();
   const chatContext = currentThread.filter(t => t.status === "completed").map(t => ({ question: t.question, answer: t.content }));
   const baseIntent = projectIntent(question, chatContext);
   // Explicit idea requests run the structured five-idea generator, never a generic guided answer.
@@ -173,7 +173,6 @@ function AskInner() {
   }, [itemQ.data, reviewsQ.data]);
   const itemSources = useMemo(() => studioItemSources(itemConvItems, k => KIND_LABEL[k] ?? k), [itemConvItems]);
   const itemWriting = itemConvItems.some(x => isWorking(x.status));
-  const itemRetrieved = itemConvItems.some(sourcesRetrievedOnly);
   const isPdf = !!attached && (attached.contentType === "application/pdf" || /\.pdf$/i.test(attached.name));
   const pageParse = isPdf ? parsePages(pagesText) : {};
   const sendLimit = intent ? usageLimitMessage(usageData, intent.kind === "literature" ? "review" : "answer") : limitMessage;
@@ -306,7 +305,9 @@ function AskInner() {
       try {
         let project = activeProject;
         if (!project) {
-          project = await createProject.mutateAsync({ data: { name: ideaAsk ? `Ideas: ${(ideaAsk.topic ?? "research").slice(0, 80)}` : `${intent.kind === "journal" ? "Journal" : intent.kind} research`, description: "Research document started from AI Chat." } });
+          // Reuse an auto-named folder from an earlier chat instead of creating a second one with the same name.
+          const autoName = ideaAsk ? `Ideas: ${(ideaAsk.topic ?? "research").slice(0, 80)}` : `${intent.kind === "journal" ? "Journal" : intent.kind} research`;
+          project = projects.find(p => p.name === autoName) ?? await createProject.mutateAsync({ data: { name: autoName, description: "Research document started from AI Chat." } });
           await qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
           selectProject(project.id, { skipGuard: true });
         }
@@ -420,7 +421,7 @@ function AskInner() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `evidora-answer.${format}`;
+      anchor.download = `research-answer.${format}`;
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch (error) {
@@ -431,7 +432,7 @@ function AskInner() {
     if (!editor) return;
     const url = URL.createObjectURL(new Blob([editor.content], { type: "text/markdown" }));
     const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = "evidora-working-draft.md"; anchor.click();
+    anchor.href = url; anchor.download = "working-draft.md"; anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const handleEvidenceSelect = (analysis: Analysis, id: string) => {
@@ -472,7 +473,7 @@ function AskInner() {
         <aside className={`es-panel es-persist ${panel ? "is-open" : ""}`} aria-label="Sources" data-testid="panel-ask-right">
           <div className="es-panel-header">{sourcesHead(itemSources.length)}<button className="es-icon wb-mobile-only" aria-label="Back to conversation" onClick={closePanel}><X /></button></div>
           <div className="wb-scroll" style={{ flex: 1, minHeight: 0 }} id="ask-panel-sources">
-            <SourcesList sources={itemSources} pending={itemWriting} retrieved={itemRetrieved} />
+            <SourcesList sources={itemSources} pending={itemWriting} />
           </div>
         </aside></div> :
       <div className="es-workspace">
@@ -524,7 +525,8 @@ function AskInner() {
             </div>)}
           </div></div>
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
-          <div className="es-composer-wrap">{!attached && intent && (ideaAsk && !activeProject && !ideaAsk.own ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas in a new project, keeping this conversation above them.</p> : ideaAsk && activeProject ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas{ideaAsk.own ? <> from project <b>{activeProject.name}</b></> : <> in project <b>{activeProject.name}</b></>}, keeping this conversation above them.</p> : <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
+          {ownActive && threadId && <p className="es-local-note" role="status" data-testid="status-ask-working">Working on this answer. You can send a follow-up when it finishes.</p>}
+          <div className="es-composer-wrap" style={ownActive && threadId ? { display: "none" } : undefined}>{!attached && intent && (ideaAsk && !activeProject && !ideaAsk.own ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas in a new project, keeping this conversation above them.</p> : ideaAsk && activeProject ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas{ideaAsk.own ? <> from project <b>{activeProject.name}</b></> : <> in project <b>{activeProject.name}</b></>}, keeping this conversation above them.</p> : <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
             ? intent.figure
               ? <>Sending will build this figure from project <b>{activeProject.name}</b> and open the result. To add it to an existing draft, name that draft (or say &ldquo;my latest draft&rdquo;); Evidora writes a new revision and asks you to choose if more than one draft matches. Otherwise it opens as a new {intent.kind === "answer" ? "project answer" : `${intent.kind} draft`}. Include table data with a header row, or an equation; Evidora will ask for missing data rather than invent values. You can also open a draft and use <i>Add or revise a figure</i>.</>
               : <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>

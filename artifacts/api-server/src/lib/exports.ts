@@ -7,6 +7,7 @@ import { comparisonFields } from "./comparison";
 import { renderStudioPdf } from "./studio-pdf";
 import { renderStudioWord } from "./studio-docx";
 import { academicTitle } from "./academic-style";
+import { submissionReady } from "./manuscript-policy";
 plugins.config.get("@csl").styles.add("ieee",ieeeStyle);
 
 export async function exportResearch(view:any,style:"apa"|"ieee",format:"md"|"docx"|"pdf") {
@@ -37,13 +38,11 @@ export async function exportResearch(view:any,style:"apa"|"ieee",format:"md"|"do
   const rows=view.comparisonRows??[];
   const mark=(cell:any)=>`${cell.text}${cell.status==="edited"?" [USER EDIT — NOT VERIFIED]":""}${(cell.evidence??[]).map((e:any)=>{const i=references.findIndex(r=>r.id===e.sourceId);return i<0?"":` ${style==="apa"?references[i].inline:`[${numbers.get(i+1)}]`}`;}).join("")}`;
   const bibliography=style==="apa"?[...unique].sort((a,b)=>a.reference.localeCompare(b.reference)).map(r=>r.reference):unique.map((r,i)=>`[${i+1}] ${r.reference}`);
-  const disclosure=view.responseMode==="guidance"||!view.sources.length
-    ?"AI-assisted guidance. This response is not a verified literature review. Check sources and conclusions before academic use."
-    :"AI-assisted draft based on selected evidence. The researcher is responsible for checking sources, quotations, figures and conclusions. Automated verification is not a guarantee of accuracy.";
   const table=rows.length?`\n\n## Literature comparison\n\n| Paper | ${comparisonFields.join(" | ")} |\n| --- | ${comparisonFields.map(()=>"---").join(" | ")} |\n${rows.map((r:any)=>`| ${[r.title,...comparisonFields.map(f=>mark(r[f]))].map(c=>String(c).replace(/\|/g,"\\|").replace(/\n/g," ")).join(" | ")} |`).join("\n")}`:"";
   const cleaned=content.replace(/^# (?:Research synthesis|Literature synthesis|Visual evidence analysis)\s*\n+/,"")
     .replace(/^Evidence currency \([^\n]+\n+/m,"");
-  const text=`${cleaned}${table}${bibliography.length?`\n\n## References (${style.toUpperCase()})\n\n${bibliography.join("\n\n")}`:""}\n\n## AI-use disclosure\n\n${disclosure}`;
+  // Same submission rules as studio drafts: no tool branding or AI-use statements in the exported file.
+  const text=`${submissionReady(cleaned)}${table}${bibliography.length?`\n\n## References (${style.toUpperCase()})\n\n${bibliography.join("\n\n")}`:""}`;
   if(format==="md") return text;
   const report={title:view.reportTitle||academicTitle(view.question||"Research answer"),kind:"answer",content:text,metadata:{figures:view.figures??[],templateId:"academic-report"}};
   if(format==="pdf") return renderStudioPdf(report);

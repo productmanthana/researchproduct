@@ -1,6 +1,6 @@
 import type { StudioItem } from "@workspace/api-client-react";
 
-export type FigureKind = "diagram" | "line" | "bar" | "scatter" | "theory" | "original";
+export type FigureKind = "diagram" | "line" | "bar" | "scatter" | "theory" | "original" | "illustration";
 export type StudioFigure = {
   id: string; title: string; caption: string; kind: FigureKind; provenance: string;
   layout?: "process" | "neural" | "cycle" | "system" | "taxonomy"; explanation?: string;
@@ -14,7 +14,7 @@ export type StudioFigure = {
 
 export const FIGURE_MARKER = /^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/;
 export const FIGURE_KIND_LABEL: Record<FigureKind, string> = {
-  diagram: "Diagram", line: "Line graph", bar: "Bar chart", scatter: "Scatter plot", theory: "Theoretical curve", original: "Original visual",
+  diagram: "Diagram", line: "Line graph", bar: "Bar chart", scatter: "Scatter plot", theory: "Theoretical curve", original: "Original visual", illustration: "AI illustration",
 };
 
 export function figuresOf(item?: StudioItem | null): StudioFigure[] {
@@ -38,8 +38,8 @@ export function markerOrder(content: string): string[] {
   return out;
 }
 
-export const isOriginalFigure = (f: StudioFigure) => f.kind === "original";
-export const isNumericFigure = (f: StudioFigure) => f.kind !== "diagram" && f.kind !== "original" && (!!f.series?.length || f.kind === "theory");
+export const isOriginalFigure = (f: StudioFigure) => f.kind === "original" || f.kind === "illustration";
+export const isNumericFigure = (f: StudioFigure) => f.kind !== "diagram" && f.kind !== "original" && f.kind !== "illustration" && (!!f.series?.length || f.kind === "theory");
 
 const FIGURE_WORDS = /\b(add|create|insert|put|make|draw|generate|include|plot|build|show)\b[^.?!]{0,60}\b(diagram|graph|chart|figure|plot|flow ?chart|schematic|theoretical curve|curve)s?\b|\bplot (of|for|showing)\b|\btheoretical curve\b/;
 export const isFigureRequest = (text: string) => FIGURE_WORDS.test(text.toLowerCase());

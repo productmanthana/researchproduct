@@ -59,7 +59,7 @@ export async function sourcesFor(job:any,notices:string[]=[],publicReader={getPa
       const full=Date.now()<retrievalDeadline?await publicReader.cachedFullText(p):{notice:"Automatic retrieval time budget reached for this batch. Using abstract if available; analyse this paper separately to retry full text.",pages:undefined};
       notices.push(`${p.title}: ${full.notice}`);
       if(full.pages) {
-        const selected=await publicReader.selectEvidencePages("public",p.id,full.pages,retrievalQuestion,8);
+        const selected=await publicReader.selectEvidencePages("public",p.id,full.pages,retrievalQuestion,job.input.pagesPerPaper??8);
         const visual=visualPagesRemaining>0 && full.bytes?await renderPdf(full.bytes,selected.slice(0,Math.min(1,visualPagesRemaining)).map(p=>p.page)):[];
         for(const image of visual) {image.image=await retainPageImage(`${p.id}:${digest(full.bytes!.toString("base64"))}:${image.page}`,image.image);visualPagesRemaining--;}
         for(const page of selected) if(page.text.trim()) sources.push({
@@ -199,7 +199,7 @@ export async function processNextAnalysis() {
   let heartbeat:ReturnType<typeof setInterval>|undefined;
   try {
     // A crashed worker releases reservations after its lease expires.
-    await pool.query(`WITH expired AS (UPDATE research_analyses SET status='failed',error='Analysis interrupted. Your allowance was restored; please retry.' WHERE status='running' AND started_at<now()-interval '15 minutes' RETURNING id)
+    await pool.query(`WITH expired AS (UPDATE research_analyses SET status='failed',error='Analysis interrupted. Your allowance was restored; please retry.' WHERE status='running' AND started_at<now()-interval '3 minutes' RETURNING id)
       UPDATE research_usage SET status='refunded' WHERE id IN (SELECT id FROM expired) AND status='reserved'`);
     const {rows}=await pool.query(`UPDATE research_analyses SET status='running',started_at=now() WHERE id=(SELECT id FROM research_analyses WHERE status='queued' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1) RETURNING *`);
     job=rows[0]; if(!job) return;

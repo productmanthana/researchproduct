@@ -952,6 +952,8 @@ export const generateStudioDocumentBodyDocumentDetailsYearMax = 40;
 
 export const generateStudioDocumentBodyDocumentDetailsStudentIdMax = 100;
 
+export const generateStudioDocumentBodyExperimentalResultsMax = 20000;
+
 
 
 export const GenerateStudioDocumentBody = zod.object({
@@ -997,7 +999,8 @@ export const GenerateStudioDocumentBody = zod.object({
   "department": zod.string().max(generateStudioDocumentBodyDocumentDetailsDepartmentMax).optional(),
   "year": zod.string().max(generateStudioDocumentBodyDocumentDetailsYearMax).optional(),
   "studentId": zod.string().max(generateStudioDocumentBodyDocumentDetailsStudentIdMax).optional()
-}).optional()
+}).optional(),
+  "experimentalResults": zod.string().max(generateStudioDocumentBodyExperimentalResultsMax).optional().describe('Author-supplied experiment logs and results (tables, numbers, observations). Reported as the authors\' actual data.')
 })
 
 export const GenerateStudioDocumentResponse = zod.object({
@@ -1021,7 +1024,7 @@ export const ExportStudioDocumentParams = zod.object({
 })
 
 export const ExportStudioDocumentQueryParams = zod.object({
-  "format": zod.enum(['pdf', 'docx'])
+  "format": zod.enum(['pdf', 'docx', 'latex'])
 })
 
 export const ExportStudioDocumentResponse = zod.unknown()
@@ -1050,6 +1053,26 @@ export const CheckStudioDocumentResponse = zod.object({
   "excludedWords": zod.number().int().optional(),
   "formatIssues": zod.array(zod.string()).optional(),
   "profileName": zod.string().optional()
+})
+
+
+export const FixStudioWordingParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const FixStudioWordingResponse = zod.object({
+  "id": zod.string(),
+  "projectId": zod.string(),
+  "kind": zod.string(),
+  "title": zod.string(),
+  "content": zod.string(),
+  "status": zod.string(),
+  "error": zod.string(),
+  "revision": zod.number().int(),
+  "parentId": zod.string().nullable(),
+  "metadata": zod.record(zod.string(), zod.unknown()),
+  "indexStatus": zod.string(),
+  "createdAt": zod.string()
 })
 
 

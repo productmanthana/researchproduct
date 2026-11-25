@@ -1,0 +1,25 @@
+import { isObjectLike } from '@scalar/helpers/object/is-object';
+/**
+ * Recursively traverses the content and applies the transform function to each node.
+ */
+export function traverse(content, transform, path = []) {
+    const result = {};
+    for (const [key, value] of Object.entries(content)) {
+        const currentPath = [...path, key];
+        if (Array.isArray(value)) {
+            result[key] = value.map((item, index) => {
+                if (typeof item === 'object' && !Array.isArray(item) && item !== null) {
+                    return traverse(item, transform, [...currentPath, index.toString()]);
+                }
+                return item;
+            });
+            continue;
+        }
+        if (isObjectLike(value)) {
+            result[key] = traverse(value, transform, currentPath);
+            continue;
+        }
+        result[key] = value;
+    }
+    return transform(result, path);
+}

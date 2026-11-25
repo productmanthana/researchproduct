@@ -50,7 +50,7 @@ export function StudioTurn({initial,onRetry,retryDisabled,chatMode=false,onSourc
     ["Research Synthesis Agent",d.status==="completed"?"Answer generated from retrieved evidence.":"Drafting follows evidence retrieval."],
     ["Citation Review Agent",d.status==="completed"?"Evidence checks finished; this does not guarantee correctness.":"Claim checking follows drafting."],
   ];
-  return <li className={`ev-columns ev-live-turn ${chatMode?"ev-chat-turn es-chat-turn":""}`} data-testid={`turn-${d.id}`}>
+  return <li className={`ev-columns ev-live-turn scroll-mt-4 ${chatMode?"ev-chat-turn es-chat-turn":""}`} data-live-progress-anchor data-testid={`turn-${d.id}`}>
     <section className="ev-main">
       {!chatMode&&<div className="ev-question"><div className="ev-section-label"><span className="ev-number">01</span><span className="ev-micro">The question</span></div><h2>{d.question}</h2><p className="ev-question-foot" data-testid={`status-turn-${d.id}`}>{d.status==="running"?processingLabel(d.stage):d.status==="queued"?"Queued · waiting for a research worker":d.status}</p></div>}
       <div className="ev-answer">

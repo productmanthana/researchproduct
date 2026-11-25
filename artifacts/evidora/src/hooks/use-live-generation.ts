@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useQueryClient, type QueryKey } from "@tanstack/react-query";
+import type { LiveProgress } from "@/lib/live-markdown";
 
 export type LiveKind = "analysis" | "studio";
-export type LiveSnapshot = { id: string; status: string; stage: string; draft: string; updatedAt: string | null };
+export type LiveSnapshot = { id: string; status: string; stage: string; draft: string; updatedAt: string | null; progress: LiveProgress | null };
 export type LiveConnection = "idle" | "connecting" | "live" | "reconnecting" | "unavailable" | "done";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -19,6 +20,7 @@ function parseSnapshot(raw: string): LiveSnapshot | null {
     return {
       id: String(v.id ?? ""), status: String(v.status ?? ""), stage: String(v.stage ?? ""),
       draft: typeof v.draft === "string" ? v.draft : "", updatedAt: typeof v.updatedAt === "string" ? v.updatedAt : null,
+      progress: v.progress && typeof v.progress === "object" ? (v.progress as LiveProgress) : null,
     };
   } catch { return null; }
 }
@@ -58,7 +60,7 @@ export function useLiveGeneration(kind: LiveKind, id: string | null | undefined,
         setConnection("done");
         for (const key of invalidateRef.current ?? []) void qc.invalidateQueries({ queryKey: key });
       } else if (event === "snapshot") {
-        setSnapshot(prev => (prev && prev.draft === snap.draft && prev.stage === snap.stage && prev.status === snap.status ? prev : snap));
+        setSnapshot(prev => (prev && prev.draft === snap.draft && prev.stage === snap.stage && prev.status === snap.status && JSON.stringify(prev.progress) === JSON.stringify(snap.progress) ? prev : snap));
         setConnection("live");
       }
     };

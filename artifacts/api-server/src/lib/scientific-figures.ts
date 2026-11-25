@@ -1,13 +1,19 @@
 import { z } from "zod";
 
 const short=z.string().min(1).max(180);
+/** Over-long free text from the planner is shortened at a word boundary, never a reason to drop the figure. */
+const clipped=(max:number)=>z.preprocess(v=>{
+  if(typeof v!=="string"||v.length<=max)return v;
+  const cut=v.slice(0,max);const space=cut.lastIndexOf(" ");
+  return (space>max*0.8?cut.slice(0,space):cut).trim();
+},z.string().max(max));
 const diagramRole=z.enum(["input","process","output","feedback","evidence"]);
 const diagramIcon=z.enum(["data","document","sensor","network","compute","experiment","compare","target","knowledge"]);
 const diagramNode=z.object({id:z.string().regex(/^[a-zA-Z0-9_-]{1,30}$/),label:short,
-  role:diagramRole.optional(),icon:diagramIcon.optional(),description:z.string().max(120).optional()});
+  role:diagramRole.optional(),icon:diagramIcon.optional(),description:clipped(120).optional()});
 export const FigureProposal=z.object({
-  title:short,caption:z.string().min(1).max(1200),
-  kind:z.enum(["diagram","line","bar","scatter","theory"]),
+  title:short,caption:clipped(1200).pipe(z.string().min(1)),
+  kind:z.enum(["diagram","line","bar","scatter","theory","illustration"]),
   replacesId:z.string().regex(/^fig-[a-zA-Z0-9_-]+$/).optional(),
   sourceId:z.string().max(150).optional(),sourceQuote:z.string().max(20000).optional(),
   xLabel:short.optional(),yLabel:short.optional(),
@@ -17,7 +23,9 @@ export const FigureProposal=z.object({
   expression:z.string().min(1).max(300).optional(),
   range:z.object({min:z.number().finite(),max:z.number().finite()}).optional(),
   layout:z.enum(["process","neural","cycle","system","taxonomy"]).optional(),
-  explanation:z.string().max(1800).optional(),
+  explanation:clipped(1800).optional(),
+  prompt:clipped(1200).pipe(z.string().min(20)).optional(),
+  callouts:z.array(z.string().min(1).max(40)).max(10).optional(),
   nodes:z.array(diagramNode).min(2).max(9).optional(),
   edges:z.array(z.object({from:z.string(),to:z.string(),label:z.string().max(50).optional(),role:z.enum(["flow","feedback","association"]).optional()})).max(16).optional(),
 });
@@ -25,6 +33,9 @@ export type FigureProposalType=z.infer<typeof FigureProposal>;
 export type FigureSource={id:string;title:string;text:string};
 export type ScientificFigure={
   id:string;title:string;caption:string;kind:FigureProposalType["kind"]|"original";provenance:string;
+  prompt?:string;
+  /** Component names drawn as labels with leader lines on an illustration; positions are located after the image is generated. */
+  callouts?:string[];labels?:{label:string;x:number;y:number}[];
   sourceId?:string;sourceQuote?:string;xLabel?:string;yLabel?:string;
   series?:{name:string;points:{x:number|string;y:number}[]}[];
   expression?:string;range?:{min:number;max:number};
@@ -62,9 +73,26 @@ export function evaluateFormula(expression:string,x:number):number {
   return result;
 }
 
+export const ILLUSTRATION_DISCLOSURE="This AI-generated illustration is not a photograph of a real installation or experiment.";
+
+/** Captions are read by journal readers: drop rendering notes and pipeline wording the planner echoes back. */
+export function readerFigureText(text:string){
+  return text
+    .replace(/\bsupplied (?:excerpts?|sources?|material|evidence|protocol)\b/gi,"the cited work")
+    .replace(/\bthe (?:reviewed )?draft['’]s\b/gi,"this paper's").replace(/\bthe (?:reviewed )?draft\b/gi,"this paper")
+    // A caption is the authors' text: never "the user's proposed protocol".
+    .replace(/\b(?:the )?user['’]s\b/gi,"the")
+    // Defensive disclaimers ("this schematic is not a measured geometry…") read as machine-written; provenance is kept separately.
+    .replace(/;\s*this (?:[a-z-]+ ){0,3}(?:schematic|diagram|figure|chart|process|framework|sequence) (?:is not|does not|has not|is the author)[^.]*\./gi,".")
+    .split(/(?<=[.!?])\s+/)
+    .filter(sentence=>!/pictogram|role[- ]colou?r|legend|numbered (?:stages?|components?|identifiers?)|project['’]s scope|should distinguish|^this (?:[a-z-]+ ){0,3}(?:(?:schematic|diagram|figure|chart|process|framework|sequence) )?(?:is not|does not|has not|is the author)/i.test(sentence))
+    .join(" ").trim();
+}
+
 /** Plot coordinates are copied/calculated by code, never supplied by the model. */
 export function validateFigure(input:unknown,sources:FigureSource[],id:string):ScientificFigure {
-  const p=FigureProposal.parse(input);
+  const parsed=FigureProposal.parse(input);
+  const p={...parsed,caption:readerFigureText(parsed.caption)||parsed.caption,...(parsed.explanation?{explanation:readerFigureText(parsed.explanation)||undefined}:{})};
   const base:ScientificFigure={id,title:p.title,caption:p.caption,kind:p.kind,provenance:"",...(p.replacesId?{replacesId:p.replacesId}:{})};
   if(p.kind==="diagram"){
     if(!p.nodes||!p.edges)throw new Error("Diagram requires nodes and connections.");
@@ -77,6 +105,18 @@ export function validateFigure(input:unknown,sources:FigureSource[],id:string):S
     return {...base,layout:p.layout??"process",explanation:p.explanation,nodes:p.nodes,edges:p.edges,
       ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
       provenance:"Conceptual / proposed schematic — not an experimental observation."+(source?` Based on supplied source: ${source.title}.`:"")};
+  }
+  if(p.kind==="illustration"){
+    if(!p.prompt||p.prompt.trim().length<20)throw new Error("An illustration requires a detailed image prompt.");
+    const source=p.sourceId?sources.find(s=>s.id===p.sourceId):undefined;
+    if((p.sourceId||p.sourceQuote)&&(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote))))throw new Error("Exact source text for this figure was not found.");
+    const callouts=[...new Set((p.callouts??[]).map(c=>c.trim()).filter(Boolean))];
+    // The disclosure is required in the caption itself, so code guarantees it rather than trusting the planner.
+    const disclosed=/not (?:a |an )?photograph/i.test(p.caption);
+    const caption=disclosed?p.caption:`${p.caption.trim().replace(/[.\s]*$/,".")} ${ILLUSTRATION_DISCLOSURE}`;
+    return {...base,caption,explanation:p.explanation,prompt:p.prompt.trim(),...(callouts.length?{callouts}:{}),
+      ...(source?{sourceId:source.id,sourceQuote:p.sourceQuote}:{}),
+      provenance:"AI-generated conceptual illustration, not a photograph, measured data or evidence of a completed experiment. Check your target journal's policy on AI-generated images before submission."+(source?` Related to supplied source: ${source.title}.`:"")};
   }
   const source=sources.find(s=>s.id===p.sourceId);
   if(!source||!p.sourceQuote||!normal(source.text).includes(normal(p.sourceQuote)))throw new Error("Exact source text for this figure was not found.");

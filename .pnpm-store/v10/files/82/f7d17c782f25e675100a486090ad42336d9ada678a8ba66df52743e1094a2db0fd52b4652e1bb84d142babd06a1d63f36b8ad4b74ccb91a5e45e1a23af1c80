@@ -1,0 +1,52 @@
+{
+  "name": "@citation-js/plugin-csl",
+  "version": "0.9.0",
+  "description": "Plugin for CSL output for Citation.js",
+  "keywords": [
+    "citation-js",
+    "csl",
+    "citeproc"
+  ],
+  "author": "Lars Willighagen <lars.willighagen@gmail.com>",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "module": "lib-mjs/index.js",
+  "types": "index.d.ts",
+  "directories": {
+    "lib": "src",
+    "test": "__tests__"
+  },
+  "homepage": "https://citation.js.org/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/citation-js/citation-js.git",
+    "directory": "packages/plugin-csl"
+  },
+  "bugs": {
+    "url": "https://github.com/citation-js/citation-js/issues"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "lib",
+    "lib-mjs",
+    "index.d.ts"
+  ],
+  "scripts": {
+    "test": "mocha -c -R dot -r @babel/register test/*.spec.js",
+    "test:live": "TEST_MOCK_HTTP=false npm test",
+    "coverage": "BABEL_ENV=coverage nyc npm test && nyc report --reporter=text-lcov > coverage.lcov"
+  },
+  "dependencies": {
+    "@citation-js/date": "^0.5.0",
+    "citeproc": "^2.4.6"
+  },
+  "devDependencies": {
+    "@citation-js/core": "^0.9.0"
+  },
+  "peerDependencies": {
+    "@citation-js/core": "^0.9.0"
+  },
+  "gitHead": "51a37ce28fd3508e5cc2957b7d17794cdbad8ed0"
+}

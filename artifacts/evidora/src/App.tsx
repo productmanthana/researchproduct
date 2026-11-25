@@ -31,6 +31,7 @@ import Patents from "@/pages/patents";
 import MyLibrary from "@/pages/my-library";
 import ResearchUpdates from "@/pages/research-updates";
 import { ActiveProjectProvider } from "@/lib/active-project";
+import { ApiAuthBridge } from "@/lib/api-auth";
 import { AgentProgressProvider } from "@/components/agent-progress/provider";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: {
@@ -238,6 +239,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <ApiAuthBridge />
         <TooltipProvider>
           <ActiveProjectProvider>
             <AgentProgressProvider>

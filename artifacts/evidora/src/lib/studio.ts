@@ -42,12 +42,36 @@ export function friendlyError(e: unknown): string {
   return base;
 }
 
-export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">, format: "pdf" | "docx") {
+/** Mirrors the server export gate: journal-style limits of 10% total match and 3% from any single source. */
+export const EXPORT_LIMITS = { totalPercent: 10, singleSourcePercent: 3 };
+export type ExportLock = { reason: string; label: string };
+
+export function exportLock(item: Pick<StudioItem, "kind" | "metadata">): ExportLock | null {
+  if (!["journal", "thesis", "literature", "synopsis", "report"].includes(item.kind)) return null;
+  const r = (item.metadata as Record<string, any> | null)?.plagiarism;
+  if (!r || typeof r.similarityPercent !== "number")
+    return { reason: "Run the plagiarism check on the Originality page before exporting.", label: "Export locked · run plagiarism check" };
+  const fix = "Rewrite or quote and cite the matched passages, then re-check.";
+  if (r.similarityPercent > EXPORT_LIMITS.totalPercent)
+    return { reason: `Export blocked: ${r.similarityPercent}% matched text (limit ${EXPORT_LIMITS.totalPercent}%). ${fix}`, label: `Export locked · ${r.similarityPercent}% matched text (limit ${EXPORT_LIMITS.totalPercent}%)` };
+  const top = (Array.isArray(r.sources) ? r.sources : [])
+    .reduce((a: any, s: any) => (typeof s?.percent === "number" && s.percent > (a?.percent ?? -1) ? s : a), null);
+  if (top && top.percent > EXPORT_LIMITS.singleSourcePercent)
+    return { reason: `Export blocked: ${top.percent}% matches one source, “${top.title}” (limit ${EXPORT_LIMITS.singleSourcePercent}% per source). ${fix}`, label: `Export locked · ${top.percent}% from one source (limit ${EXPORT_LIMITS.singleSourcePercent}%)` };
+  return null;
+}
+
+export function exportBlockReason(item: Pick<StudioItem, "kind" | "metadata">): string | null {
+  return exportLock(item)?.reason ?? null;
+}
+
+export type StudioExportFormat = "pdf" | "docx" | "latex";
+export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">, format: StudioExportFormat) {
   const blob = await exportStudioDocument(item.id, { format }, { responseType: "blob" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${(item.title || "evidora").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "evidora"}.${format}`;
+  a.download = `${(item.title || "document").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "document"}${format === "latex" ? "-latex.zip" : `.${format}`}`;
   document.body.appendChild(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
@@ -135,6 +159,6 @@ export function missingRequirements(kind: string, title: string, d: DocumentDeta
   if (!title.trim()) out.push("Title is missing");
   if (!c.author) out.push("Author name is missing");
   if (kind !== "journal" && !c.degree) out.push("Degree is missing (shown on the title page)");
-  if (kind === "thesis" && !c.supervisor) out.push("Supervisor / guide is missing");
+  if ((kind === "thesis" || kind === "synopsis") && !c.supervisor) out.push("Supervisor / guide is missing");
   return out;
 }

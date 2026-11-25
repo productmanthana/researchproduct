@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useAgentProgressContext } from "@/components/agent-progress/provider";
 import type { QueryKey } from "@tanstack/react-query";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { useLiveGeneration, type LiveKind, type LiveConnection } from "@/hooks/use-live-generation";
 import "./live-draft.css";
 import { AcademicAnswer } from "@/components/academic-answer";
-import { liveStage, liveStatusLabel, stabilizeLiveMarkdown } from "@/lib/live-markdown";
+import { authorshipStatusLine, liveStage, liveStatusLabel, stabilizeLiveMarkdown } from "@/lib/live-markdown";
 
 const CONN_LABEL: Record<LiveConnection, string> = {
   idle: "", connecting: "Connecting to live draft", live: "Live", reconnecting: "Reconnecting; progress still refreshes",
@@ -12,6 +13,8 @@ const CONN_LABEL: Record<LiveConnection, string> = {
 };
 
 const plain = (value: string) => value;
+/** Stages that stream draft text; leaving one means later checks are running. */
+const WRITING_STAGE = /^(?:academic writing agent|writing agent|writing$)/i;
 
 function scrollParent(el: HTMLElement | null): HTMLElement | Window {
   for (let n = el?.parentElement; n; n = n.parentElement) {
@@ -28,9 +31,11 @@ const metrics = (s: HTMLElement | Window) => s instanceof Window
  * Renders the server's partial draft inline, formatted progressively from real SSE snapshots.
  * Before text arrives, `fallback` (honest progress) is shown. No actions are offered on partial text.
  */
-export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation = "panel" }: {
+export function LiveDraft({ kind, id, working, fallback, invalidate, testId, progressKey, presentation = "panel", onSection }: {
   kind: LiveKind; id: string; working: boolean; fallback: ReactNode; invalidate?: QueryKey[]; testId?: string;
   presentation?: "panel" | "chat";
+  /** Reports the section heading currently being streamed, e.g. "Writing section 4 · Methodology". */
+  onSection?: (line: string | null) => void;
   /** Shared progress popup job key; the streamed text is mirrored there as an optional preview. */
   progressKey?: string;
 }) {
@@ -40,29 +45,59 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   const registered = !!(progressKey && progress?.jobs[progressKey]);
   useEffect(() => { if (progressKey && registered && setPreview && working) setPreview(progressKey, draft, CONN_LABEL[connection]); }, [progressKey, registered, setPreview, working, draft, connection]);
 
+  const headings = [...draft.matchAll(/^#{2,3}\s+(.+)$/gm)];
+  const sectionLine = headings.length ? `Writing section ${headings.length} · ${headings[headings.length - 1][1].replace(/[*_`#]/g, "").trim()}` : null;
+  useEffect(() => { onSection?.(sectionLine); }, [sectionLine, onSection]);
+
   const root = useRef<HTMLElement>(null);
   const follow = useRef(true);
+  // Set once writing ends: the view stays on the progress card instead of following the still-typing text.
+  const pinnedTop = useRef(false);
   const [behind, setBehind] = useState(false);
-  const text = stabilizeLiveMarkdown(draft);
+  // Rewriting stages (authorship) send no tokens; count the elapsed time so the pause reads as work in progress.
+  const liveProgress = snapshot?.progress ?? null;
+  const authorship = working && liveProgress && /authorship/i.test(snapshot?.stage ?? "") ? liveProgress : null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!authorship) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [authorship?.since, !!authorship]);
+  const typed = useTypewriter(draft, working);
+  const text = stabilizeLiveMarkdown(typed);
   const hasText = !!text;
 
-  useLayoutEffect(() => { follow.current = true; setBehind(false); }, [id]);
+  useLayoutEffect(() => { follow.current = true; pinnedTop.current = false; setBehind(false); }, [id]);
   useEffect(() => {
     if (!working || !root.current) return;
     const s = scrollParent(root.current);
-    const on = () => { const near = metrics(s).gap < 120; follow.current = near; setBehind(!near); };
+    const on = () => { if (pinnedTop.current) return; const near = metrics(s).gap < 120; follow.current = near; setBehind(!near); };
     on();
     s.addEventListener("scroll", on, { passive: true });
     return () => s.removeEventListener("scroll", on);
   }, [working, id]);
   useLayoutEffect(() => {
-    if (!hasText || !follow.current || !root.current) return;
+    if (!hasText || !follow.current || pinnedTop.current || !root.current) return;
     const s = scrollParent(root.current);
     if (s instanceof Window) window.scrollTo({ top: document.documentElement.scrollHeight });
     else s.scrollTop = s.scrollHeight;
   }, [text, hasText]);
+  // When writing ends but work continues (peer review, checks), return to the top so the progress stays visible.
+  const liveStageName = snapshot?.stage ?? "";
+  const lastStage = useRef(liveStageName);
+  useEffect(() => {
+    const wasWriting = WRITING_STAGE.test(lastStage.current);
+    lastStage.current = liveStageName;
+    if (!working || !wasWriting || WRITING_STAGE.test(liveStageName) || !root.current) return;
+    follow.current = false; pinnedTop.current = true; setBehind(true);
+    const behavior = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    // Prefer the page's progress card (it may sit outside the text's own scroll box); else the box's top.
+    const anchor = root.current.closest<HTMLElement>("[data-live-progress-anchor]");
+    if (anchor) anchor.scrollIntoView({ block: "start", behavior });
+    else scrollParent(root.current).scrollTo({ top: 0, behavior });
+  }, [liveStageName, working]);
   const jump = () => {
-    follow.current = true; setBehind(false);
+    follow.current = true; pinnedTop.current = false; setBehind(false);
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     root.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
   };
@@ -70,15 +105,14 @@ export function LiveDraft({ kind, id, working, fallback, invalidate, testId, pro
   if (!working) return null;
   const stage = snapshot?.stage ?? "";
   const phase = liveStage(stage, connection, hasText);
-  const label = liveStatusLabel(phase, stage, connection);
+  const label = authorship ? authorshipStatusLine(authorship, now) : liveStatusLabel(phase, stage, connection);
   const research = kind === "studio" || !["", "queued", "running", "planning"].includes(stage);
   const statusLine = <p className={`ld-status is-${phase}`} role="status" aria-live="polite" data-testid={`status-live-${id}`}><i aria-hidden />{label}</p>;
 
   return <section ref={root} className={`ld-live ld-${presentation}`} aria-label="Live draft, not yet checked" aria-busy="true" data-testid={testId ?? `panel-live-draft-${id}`}>
     {!hasText ? <>{fallback}{(presentation==="chat"||connection==="reconnecting"||connection==="unavailable")&&statusLine}</> : <>{statusLine}
-    <div className="ld-body" aria-live="off" data-testid={`text-live-draft-${id}`}>
+    <div className={`ld-body${phase === "writing" ? " is-writing" : ""}`} aria-live="off" data-testid={`text-live-draft-${id}`}>
       <AcademicAnswer content={text} inline={plain} />
-      {phase === "writing" && <span className="ld-caret" aria-hidden />}
     </div>
     {research && <p className="ld-note" data-testid={`text-live-note-${id}`}>Provisional. Claims and citations may change once checked against your sources.</p>}
     {behind && <button type="button" className="ld-jump" onClick={jump} data-testid={`button-live-jump-${id}`}>Jump to latest</button>}</>}

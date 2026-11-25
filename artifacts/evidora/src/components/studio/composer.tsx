@@ -9,6 +9,7 @@ import { BookmarkPlus, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cleanDetails, DETAIL_KINDS, detailsOf, friendlyError, hasDetails, statusOf } from "@/lib/studio";
 import { DocumentDetailsFields } from "./document-details";
+import { ResultsField, RESULTS_KINDS } from "./results-field";
 import { setUnsaved, useUnsavedGuard } from "@/lib/unsaved";
 import { AttachmentBusyContext } from "./attachment-context";
 import { ProjectAttachMenu } from "./project-attach";
@@ -82,11 +83,15 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
     if (src) { setDetails(detailsOf(src)); setInherited(src.title); }
     touched.current = true;
   }, [withDetails, projectItems.data]);
+  const [results, setResults] = useState("");
+  const withResults = RESULTS_KINDS.has(kind);
+  const resultsField = withResults ? <ResultsField value={results} onChange={setResults} /> : null;
   const detailPayload = withDetails && hasDetails(details) ? { documentDetails: cleanDetails(details) } : {};
+  const resultsPayload = withResults && results.trim() ? { experimentalResults: results.trim() } : {};
   const trimmed = prompt.trim();
   const problem = attachmentBusy ? "Wait for your file to finish processing and attach to the project." : trimmed.length < 5 ? "Write at least 5 characters." : trimmed.length > 5000 ? "Keep it under 5,000 characters." : null;
 
-  useUnsavedGuard(`composer-${guardId}`, (trimmed.length > 0 || detailsDirty) && !gen.isPending && !save.isPending, compact ? "Your follow-up message has not been sent." : "Your topic or document details have not been saved.");
+  useUnsavedGuard(`composer-${guardId}`, (trimmed.length > 0 || detailsDirty || results.trim().length > 0) && !gen.isPending && !save.isPending, compact ? "Your follow-up message has not been sent." : "Your topic or document details have not been saved.");
   const finish = (item: StudioItem) => {
     setUnsaved(`composer-${guardId}`, null);
     setDetailsDirty(false);
@@ -119,7 +124,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
       more = { ...more, ...(prep.extra ?? {}) };
     }
     try {
-      const item = await gen.mutateAsync({ data: { projectId, kind: reqKind, prompt: reqPrompt, ...(parentId ? { parentId } : {}), evidenceMode: over?.evidenceMode ?? mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload, ...more } });
+      const item = await gen.mutateAsync({ data: { projectId, kind: reqKind, prompt: reqPrompt, ...(parentId ? { parentId } : {}), evidenceMode: over?.evidenceMode ?? mode, includePatents: patents, ...(templateId ? { templateId } : {}), ...detailPayload, ...(reqKind === kind ? resultsPayload : {}), ...more } });
       void qc.invalidateQueries({ queryKey: getGetUsageQueryKey() });
       finish(item);
     } catch (e) {
@@ -194,6 +199,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
           {templateSlot}
           {withDetails && <DocumentDetailsFields kind={kind} value={details} onChange={d => { touched.current = true; setDetailsDirty(true); setInherited(null); setDetails(d); }}
             note={inherited ? `Filled from "${inherited}". Edit freely; leave blank to skip.` : undefined} />}
+          {resultsField}
           {limitError && <div className="rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-3 text-sm" role="alert" data-testid="status-limit">{limitError} <Link href="/plans" className="font-medium underline">Plans &amp; usage</Link></div>}
           <div className="flex flex-wrap items-center gap-2">
             {attachmentControl}
@@ -224,6 +230,7 @@ export function Composer({ projectId, kind, saveKind, placeholder, cta, template
       {templateSlot}
       {withDetails && <DocumentDetailsFields kind={kind} value={details} onChange={d => { touched.current = true; setDetailsDirty(true); setInherited(null); setDetails(d); }}
         note={inherited ? `Filled from "${inherited}". Edit freely; leave blank to skip.` : undefined} />}
+      {resultsField}
       {limitError && <div className="rounded-md border border-[hsl(var(--vermilion)/0.35)] bg-[hsl(var(--vermilion)/0.05)] p-3 text-sm" role="alert" data-testid="status-limit">{limitError} <Link href="/plans" className="font-medium underline">Plans &amp; usage</Link></div>}
       <div className="flex flex-wrap gap-2">
         {attachmentControl}

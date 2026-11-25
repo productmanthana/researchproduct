@@ -1,0 +1,24 @@
+.rt { border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(52 30% 98%); overflow: hidden; }
+.rt-counters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-bottom: 1px solid hsl(var(--border)); }
+.rt-counter { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-left: 1px solid hsl(var(--border)); }
+.rt-counter:first-child { border-left: 0; }
+.rt-num { font-size: 20px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; animation: rt-tick .4s ease-out; }
+.rt-num.ok { color: hsl(158 45% 30%); }
+.rt-num.bad { color: hsl(var(--vermilion)); }
+.rt-label { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.rt-head { display: flex; width: 100%; align-items: center; gap: 8px; padding: 10px 14px; text-align: left; font-size: 14px; font-weight: 500; color: hsl(var(--vermilion)); }
+.rt-finished .rt-head { color: hsl(158 45% 28%); }
+.rt-head:hover { background: hsl(66 20% 95%); }
+.rt-working { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-steps { display: grid; gap: 2px; padding: 0 14px 12px; }
+.rt-step { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; font-size: 13.5px; animation: rt-in .35s ease-out; }
+.rt-icon { width: 16px; height: 16px; margin-top: 2px; flex: none; color: hsl(158 45% 32%); }
+.rt-step.active .rt-icon { color: hsl(var(--teal)); }
+.rt-step.active .rt-text { font-weight: 500; }
+.rt-text { min-width: 0; flex: 1; }
+.rt-detail { color: hsl(var(--muted-foreground)); font-weight: 400; }
+.rt-time { margin-left: auto; flex: none; font-family: ui-monospace, monospace; font-size: 11.5px; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+@keyframes rt-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rt-tick { from { opacity: .3; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (max-width: 640px) { .rt-counters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rt-counter:nth-child(4) { border-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .rt-step, .rt-num { animation: none; } }

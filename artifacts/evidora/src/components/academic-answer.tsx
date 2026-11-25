@@ -2,6 +2,7 @@ import { Fragment, useId, type ReactNode } from "react";
 import { isolateMarkers } from "@/lib/figures";
 import { parseReferences, referenceSections, type ReferenceSection, type ReferenceSource } from "@/lib/references";
 import { AcademicReferences, referenceInline } from "./academic-references";
+import { MathTex, displayMath, inlineMath, splitDisplayMath } from "./math";
 
 /** Small, escaped Markdown subset: no raw HTML or untrusted HTML injection. */
 const cells=(row:string)=>row.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
@@ -23,7 +24,7 @@ export function AcademicAnswer({content,inline:baseInline,className="",renderFig
     const number=/^\[(\d+)\]$/.exec(part);
     return number&&numbers.has(Number(number[1]))?<a key={i} className="academic-source-link" href={`#${referenceId}-${number[1]}`} aria-label={`Go to reference ${number[1]}`}>{part}</a>:<Fragment key={i}>{baseInline(part)}</Fragment>;
   });
-  const inline=(text:string)=>withBold(text,part=>referenceInline(part,citeInline));
+  const inline=(text:string)=>inlineMath(text,segment=>withBold(segment,part=>referenceInline(part,citeInline)));
   const blocks=sections.flatMap<ReferenceSection>(section=>section.kind==="references"?[section]:section.content.trim().split(/\n\s*\n/).filter(Boolean).map(block=>({kind:"prose" as const,content:block})));
   return <div className={`ev-reading academic-reading ${className}`}>
     {blocks.map((section,i)=>{
@@ -31,6 +32,8 @@ export function AcademicAnswer({content,inline:baseInline,className="",renderFig
       const block=section.content;
       const fig=/^\s*\[\[figure:([A-Za-z0-9_-]+)\]\]\s*$/.exec(block);
       if(fig&&renderFigure)return <Fragment key={i}>{renderFigure(fig[1])}</Fragment>;
+      const equation=displayMath(block);
+      if(equation)return <MathTex key={i} tex={equation} display/>;
       const heading=/^(#{1,3})\s+(.+)$/.exec(block);
       if(heading){
         if(heading[1].length===1)return <h2 className="academic-title mb-5 text-3xl font-semibold leading-tight" key={i}>{inline(heading[2])}</h2>;
@@ -51,6 +54,10 @@ export function AcademicAnswer({content,inline:baseInline,className="",renderFig
       if(lines.every(line=>/^[-*]\s+/.test(line)))return <ul key={i} className="mb-4 list-disc space-y-2 pl-5">{lines.map((line,n)=><li key={n}>{inline(line.replace(/^[-*]\s+/,""))}</li>)}</ul>;
       if(lines.every(line=>/^\d+[.)]\s+/.test(line)))return <ol key={i} className="mb-4 list-decimal space-y-2 pl-5">{lines.map((line,n)=><li key={n}>{inline(line.replace(/^\d+[.)]\s+/,""))}</li>)}</ol>;
       if(lines.every(line=>/^>\s?/.test(line)))return <blockquote className="my-4 border-l-2 pl-4 italic" key={i}>{inline(lines.map(line=>line.replace(/^>\s?/,"")).join(" "))}</blockquote>;
+      const parts=splitDisplayMath(block);
+      if(parts.length>1)return <Fragment key={i}>{parts.map((part,j)=>part.tex!==undefined
+        ?<MathTex key={j} tex={part.tex} display/>
+        :<p className="mb-4 text-[15px] leading-[1.85]" key={j}>{inline((part.text??"").replace(/\n/g," "))}</p>)}</Fragment>;
       return <p className="mb-4 text-[15px] leading-[1.85]" key={i}>{inline(block.replace(/\n/g," "))}</p>;
     })}
   </div>;

@@ -1,3 +1,4 @@
+import { synopsisTitleLines } from "./title-page";
 import { Document,Packer,Paragraph,TextRun,HeadingLevel,Table,TableRow,TableCell,WidthType,Footer,PageNumber,NumberFormat,SectionType,TableOfContents,AlignmentType,ImageRun,ExternalHyperlink,TabStopType } from "docx";
 import { documentBlocks,documentLayoutFor,sectionText } from "./studio-formatting";
 import { referencedFigures } from "./scientific-figures";
@@ -27,7 +28,6 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
         result.push(new Paragraph({keepNext:custom?.captionPosition!=="above",children:[new ImageRun({type:"png",data:images.get(f.id)!,transformation:{width:imageWidth,height},altText:{title:f.title,description:f.caption,name:f.id}})]}));
         if(custom?.captionPosition!=="above")result.push(caption);
         if(f.explanation&&id!=="academic-report")result.push(paragraph(f.explanation));
-        result.push(paragraph(f.provenance));
       }else{
         const reference=references?parseExportReference(b.text):undefined;
         result.push(reference?new Paragraph({
@@ -43,7 +43,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
   const footer=new Footer({children:[new Paragraph({alignment:AlignmentType.CENTER,children:[new TextRun({children:[PageNumber.CURRENT]})]})]});
   const titleParagraphs=[
     new Paragraph({text:id==="stanford"?title.toUpperCase():title,heading:HeadingLevel.TITLE,alignment:id==="academic-report"?AlignmentType.LEFT:AlignmentType.CENTER,spacing:{before:id==="academic-report"?0:1440,after:id==="academic-report"?240:600}}),
-    ...(["journal","synopsis","thesis"].includes(row.kind)||l.thesis?[paragraph(d.author||"[Author name required]",true),paragraph(d.affiliation||"[Affiliation required]",true)]:d.author?[paragraph(d.author,true)]:[]),
+    ...(["journal","synopsis","thesis"].includes(row.kind)||l.thesis?[...(d.author?[paragraph(d.author,true)]:[]),...(d.affiliation?[paragraph(d.affiliation,true)]:[]),...(l.thesis?[]:synopsisTitleLines(row.kind,d).map(line=>paragraph(line,true)))]:d.author?[paragraph(d.author,true)]:[]),
     ...(l.thesis?[paragraph(`Submitted in partial fulfillment of the requirements for ${d.degree||"[degree required]"}`,true),paragraph(d.department||"[Department required]",true),paragraph(`Supervisor/advisor: ${d.supervisor||"[name required]"}`,true),...(d.studentId?[paragraph(`Student ID: ${d.studentId}`,true)]:[]),paragraph(d.year||"[Submission date required]",true)]:[]),
   ];
   const sections:any[]=[];
@@ -65,7 +65,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
       sections.push({properties:{page,column:{count:columns,space:360,equalWidth:true},type:SectionType.CONTINUOUS},footers:{default:footer},children:blocks(segment,columns)});
     }
   }
-  return Packer.toBuffer(new Document({title,creator:d.author||"Evidora",features:{updateFields:true},
+  return Packer.toBuffer(new Document({title,creator:d.author||"",features:{updateFields:true},
     styles:{default:{...(custom?{title:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading1:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading2:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading3:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}}}:{}),document:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman",size:l.fontSize*2,color:"000000"},paragraph:{spacing:{line:Math.round(l.lineSpacing*240)}}}}},
     sections}));
 }

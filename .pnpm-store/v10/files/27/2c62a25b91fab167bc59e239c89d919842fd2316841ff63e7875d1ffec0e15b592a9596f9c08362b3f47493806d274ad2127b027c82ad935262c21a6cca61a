@@ -1,0 +1,7 @@
+import { ClientError, Status } from 'nice-grpc-common';
+export declare const retryOptions: {
+    retry: boolean;
+    retryMaxAttempts: number;
+    retryableStatuses: Status[];
+    onRetryableError(error: ClientError, attempt: number, delayMs: number): void;
+};

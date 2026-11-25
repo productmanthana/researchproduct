@@ -1,0 +1,26 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.transportsFactory = void 0;
+const proto_1 = require("@weaviate/core/proto");
+const nice_grpc_1 = require("nice-grpc");
+const nice_grpc_client_middleware_retry_1 = require("nice-grpc-client-middleware-retry");
+const clientFactory = (0, nice_grpc_1.createClientFactory)().use(nice_grpc_client_middleware_retry_1.retryMiddleware);
+const transportsFactory = (params) => {
+    const channelOptions = {
+        'grpc.max_send_message_length': params.maxMessageLength,
+        'grpc.max_receive_message_length': params.maxMessageLength,
+    };
+    if (params.proxyUrl) {
+        // grpc.js does not use the value of grpc.http_proxy,
+        // only checks if it is set and uses the env var instead.
+        process.env.grpc_proxy = params.proxyUrl;
+        channelOptions['grpc.enabled_http_proxy'] = true;
+    }
+    const channel = (0, nice_grpc_1.createChannel)(params.address, params.secure ? nice_grpc_1.ChannelCredentials.createSsl() : nice_grpc_1.ChannelCredentials.createInsecure(), channelOptions);
+    return {
+        weaviate: clientFactory.create(proto_1.WeaviateDefinition, channel),
+        health: clientFactory.create(proto_1.HealthDefinition, channel),
+        close: () => channel.close(),
+    };
+};
+exports.transportsFactory = transportsFactory;

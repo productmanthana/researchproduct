@@ -1,0 +1,8 @@
+/* Typeset LaTeX inside manuscript prose (KaTeX). */
+.academic-math{max-width:100%}
+.academic-math .katex{font-size:1.03em;color:inherit}
+.academic-math.is-display{display:block;overflow-x:auto;overflow-y:hidden;margin:16px 0 18px;padding:2px 0 6px;text-align:center;scrollbar-width:thin}
+.academic-math.is-display .katex-display{margin:0}
+.academic-math.is-display .katex{font-size:1.16em}
+.academic-math.is-broken{font-family:'JetBrains Mono',monospace;font-size:.9em;color:hsl(var(--vermilion,8 64% 44%))}
+@media(max-width:640px){.academic-math.is-display .katex{font-size:1.05em}}

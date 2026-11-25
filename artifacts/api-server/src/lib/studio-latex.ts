@@ -1,0 +1,67 @@
+import { synopsisTitleLines } from "./title-page";
+import { documentBlocks, documentLayoutFor } from "./studio-formatting";
+import { referencedFigures } from "./scientific-figures";
+import { figurePng } from "./figure-renderer";
+import { parseExportReference, prepareExportReferences } from "./export-references";
+import { zipFiles } from "./zip-writer";
+
+const SYMBOLS: Record<string, string> = { "≥": "\\ensuremath{\\geq}", "≤": "\\ensuremath{\\leq}", "±": "\\ensuremath{\\pm}", "×": "\\ensuremath{\\times}", "°": "\\ensuremath{^\\circ}", "μ": "\\ensuremath{\\mu}", "→": "\\ensuremath{\\rightarrow}", "≈": "\\ensuremath{\\approx}" };
+export function latexEscape(text: string) {
+  return text
+    .replace(/[\\{}&%$#_~^]/g, (c) => ({ "\\": "\\textbackslash{}", "~": "\\textasciitilde{}", "^": "\\textasciicircum{}" } as Record<string, string>)[c] ?? `\\${c}`)
+    .replace(/[≥≤±×°μ→≈]/g, (c) => SYMBOLS[c]);
+}
+/** Escapes prose and turns numbered citations like [1] or [2, 5] into \cite keys. */
+export const latexProse = (text: string) => latexEscape(text).replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, (_m, n: string) => `\\cite{${n.split(",").map((x) => `ref${x.trim()}`).join(",")}}`);
+
+const REFERENCES = /^(References|Bibliography|Works cited|Reference list)\b/i;
+
+/** Renders a draft as a LaTeX bundle: main.tex plus figures/*.png. */
+export async function renderStudioLatex(row: any): Promise<Buffer> {
+  row = prepareExportReferences(row);
+  const l = documentLayoutFor(row), d = row.metadata?.documentDetails ?? {};
+  const figures = referencedFigures(row.content, row.metadata?.figures ?? []);
+  const blocks = documentBlocks(row.content).filter((b, i) => !(i === 0 && b.kind === "heading" && b.level === 1 && b.text === row.title));
+  const top = Math.min(3, ...blocks.filter((b) => b.kind === "heading").map((b: any) => b.level));
+  const commands = l.thesis ? ["chapter", "section", "subsection"] : ["section", "subsection", "subsubsection"];
+  const body: string[] = [], bibliography: string[] = [];
+  let section = "", abstract = false;
+  const close = () => { if (abstract) body.push("\\end{abstract}"); abstract = false; };
+  for (const b of blocks) {
+    if (b.kind === "heading") {
+      close(); section = b.text;
+      if (REFERENCES.test(b.text)) continue;
+      if (/^Author review$/i.test(b.text)) continue;
+      if (/^Abstract$/i.test(b.text)) { body.push("\\begin{abstract}"); abstract = true; continue; }
+      body.push(`\\${commands[Math.min(2, Math.max(0, b.level - top))]}{${latexEscape(b.text)}}`);
+    } else if (REFERENCES.test(section)) {
+      const ref = b.kind === "paragraph" ? parseExportReference(b.text) : undefined;
+      if (ref) bibliography.push(`\\bibitem{ref${ref.number}} ${latexEscape(ref.citation)}${ref.href ? ` \\url{${ref.href.replace(/[%#\\{}]/g, (c) => `\\${c}`)}}` : ""}`);
+    } else if (b.kind === "table") {
+      const cols = Math.max(...b.rows.map((r) => r.length));
+      body.push("\\begin{table}[htbp]\\centering\\small", `\\begin{tabular}{${"l".repeat(cols)}}`, "\\toprule",
+        ...b.rows.map((r, i) => `${r.map(latexProse).join(" & ")} \\\\${i === 0 ? " \\midrule" : ""}`), "\\bottomrule", "\\end{tabular}", "\\end{table}");
+    } else if (b.kind === "figure") {
+      const f = figures.find((x) => x.id === b.id);
+      if (f) body.push("\\begin{figure}[htbp]\\centering", `\\includegraphics[width=\\linewidth]{figures/${f.id}.png}`, `\\caption{${latexProse(`${f.title}. ${f.caption}`)}}`, `\\label{fig:${f.id}}`, "\\end{figure}");
+    } else body.push(latexProse(b.text));
+    body.push("");
+  }
+  close();
+  const pt = (n: number) => `${Math.round(n)}pt`;
+  const author = [d.author, d.affiliation, ...(l.thesis ? [] : synopsisTitleLines(row.kind, d))].filter(Boolean).map((s: string) => latexEscape(s)).join(" \\\\ ");
+  const tex = [
+    "% Compile with pdflatex, xelatex or lualatex.",
+    `\\documentclass[${l.fontSize >= 12 ? "12pt" : l.fontSize >= 11 ? "11pt" : "10pt"},${l.size === "A4" ? "a4paper" : "letterpaper"}${l.columns === 2 ? ",twocolumn" : ""}]{${l.thesis ? "report" : "article"}}`,
+    "\\usepackage[T1]{fontenc}", "\\usepackage[utf8]{inputenc}", "\\usepackage{lmodern}",
+    `\\usepackage[top=${pt(l.margins.top)},bottom=${pt(l.margins.bottom)},left=${pt(l.margins.left)},right=${pt(l.margins.right)}]{geometry}`,
+    "\\usepackage{setspace}", "\\usepackage{graphicx}", "\\usepackage{booktabs}", "\\usepackage{url}", "\\usepackage[hidelinks]{hyperref}",
+    `\\setstretch{${l.lineSpacing}}`,
+    `\\title{${latexEscape(row.title)}}`, `\\author{${author}}`, `\\date{${latexEscape(d.year || "")}}`,
+    "", "\\begin{document}", "\\maketitle", "", ...body,
+    ...(bibliography.length ? ["\\begin{thebibliography}{99}", ...bibliography, "\\end{thebibliography}"] : []),
+    "\\end{document}", "",
+  ].join("\n");
+  const images = await Promise.all(figures.map(async (f) => ({ name: `figures/${f.id}.png`, data: await figurePng(f) })));
+  return zipFiles([{ name: "main.tex", data: Buffer.from(tex, "utf8") }, ...images]);
+}
