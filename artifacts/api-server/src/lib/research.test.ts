@@ -449,6 +449,7 @@ test("Embedding cache is scoped, reused, and deleted with private documents; unc
   let calls=0;
   const vector=Array.from({length:3072},(_,i)=>i===0?1:0);
   const analysisId=randomUUID();
+  const hadProviderKey=Boolean(process.env.OPENAI_API_KEY);
   try {
     await pool.query("INSERT INTO research_accounts(id) VALUES($1),($2)",[owner,other]);
     for(const [id,account] of [[doc,owner],[otherDoc,other]])
@@ -458,6 +459,8 @@ test("Embedding cache is scoped, reused, and deleted with private documents; unc
       const body=JSON.parse(options!.body as string);
       return new Response(JSON.stringify({data:body.input.map((_:string,index:number)=>({index,embedding:vector})),usage:{prompt_tokens:10,total_tokens:10}}),{status:200,headers:{"content-type":"application/json"}});
     };
+    // This test stubs fetch completely; it must not require a real provider secret in CI.
+    if(!hadProviderKey)process.env.OPENAI_API_KEY="fixture-only-not-a-real-key";
     const run=()=>aiContext.run({owner,analysisId},()=>retrievalContext.run({},()=>selectEvidencePages(owner,doc,[{page:1,text:"Wind turbine efficiency was measured."}],"wind efficiency",2,doc)));
     assert.equal((await run())[0].page,1);
     assert.equal(calls,2); // document chunks + query
@@ -477,6 +480,7 @@ test("Embedding cache is scoped, reused, and deleted with private documents; unc
     await assert.rejects(aiContext.run({owner,analysisId},()=>paidOpenAI("embeddings",{model:EMBEDDING_MODEL,input:["test"]},2000000000)),/monthly AI budget limit/);
     assert.equal(calls,before);
   }finally{
+    if(!hadProviderKey)delete process.env.OPENAI_API_KEY;
     globalThis.fetch=originalFetch;
     await pool.query("DELETE FROM research_ai_spend WHERE owner_id=ANY($1::text[])",[[owner,other]]);
     await pool.query("DELETE FROM research_documents WHERE owner_id=ANY($1::text[])",[[owner,other]]);
