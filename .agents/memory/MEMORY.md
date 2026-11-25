@@ -10,3 +10,4 @@
 - [Bibliography versus evidence](bibliography-evidence.md) — one entry per paper, while retaining page-specific evidence and keeping citation remapping consistent.
 - [Submission requirements](submission-requirements.md) — selected journal/university rules and paper/patent comparisons belong together; preset layouts are not verification.
 - [Product brand](product-brand.md) — litvo.ai is the user-chosen public identity; visual rebranding must preserve saved data and researcher authorship.
+- [Database validation](continuous-validation.md) — schema commands can exit successfully after DDL errors; verify required tables in isolated CI databases.

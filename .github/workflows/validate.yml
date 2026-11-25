@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:17-alpine
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: fixture
           POSTGRES_PASSWORD: fixture
@@ -53,7 +53,11 @@ jobs:
       - name: Check workspace types
         run: pnpm run typecheck
       - name: Initialize the isolated test database
-        run: pnpm --filter @workspace/db run push
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector'
+          pnpm --filter @workspace/db run push
+          # drizzle-kit can report DDL errors without a nonzero exit status.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1 FROM research_studio_items LIMIT 1; SELECT 1 FROM research_evidence_chunks LIMIT 1;'
       - name: Run deterministic research and export tests
         run: pnpm --filter @workspace/api-server test
       - name: Build the API server

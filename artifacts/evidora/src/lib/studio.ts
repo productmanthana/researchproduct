@@ -2,6 +2,7 @@ import { isFigureRequest } from "./figures";
 import { visibleRevisions } from "./latest-revisions";
 import { chatDocumentIntent, type ChatContext } from "./chat-document";
 import { requestErrorMessage } from "./request-errors";
+import { studioDownloadName } from "./download-name";
 import { exportStudioDocument, type StudioItem, type DocumentDetails } from "@workspace/api-client-react";
 
 export type IdeaCard = { title: string; problem: string; question: string; method: string; feasibility: string };
@@ -47,7 +48,7 @@ export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">,
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${(item.title || "litvo").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "litvo"}.${format}`;
+  a.download = studioDownloadName(item.title, format);
   document.body.appendChild(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
