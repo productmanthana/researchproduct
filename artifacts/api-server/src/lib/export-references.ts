@@ -18,7 +18,8 @@ function identityUrl(value: string): string {
 }
 function linkLabel(href: string) {
   const url = new URL(href);
-  if (!/^(?:www\.)?doi\.org$/i.test(url.hostname)) return "View source";
+  // Print the address itself, as reference styles do; never a "View source" button label.
+  if (!/^(?:www\.)?doi\.org$/i.test(url.hostname)) return href;
   try { return `DOI: ${decodeURIComponent(url.pathname.slice(1))}`; } catch { return "View DOI"; }
 }
 export function parseExportReference(text: string): ExportReference | undefined {
@@ -27,7 +28,7 @@ export function parseExportReference(text: string): ExportReference | undefined 
   const raw = match[2].replace(/\s+Evidence:\s*[\s\S]*$/i, "").trim();
   const markdown = /\[([^\]]+)\]\((https?:\/\/\S+)\)\s*$/.exec(raw);
   // documentBlocks converts Markdown links to "label (URL)" for ordinary prose.
-  const wrapped = markdown ? undefined : /(?:View source|View DOI|DOI:\s*\S+)\s+\((https?:\/\/\S+)\)\s*$/i.exec(raw);
+  const wrapped = markdown ? undefined : /(?:View source|View DOI|DOI:\s*\S+|https?:\/\/\S+)\s+\((https?:\/\/\S+)\)\s*$/i.exec(raw);
   const plain = markdown || wrapped ? undefined : /https?:\/\/[^\s<>]+/i.exec(raw);
   const href = safeUrl(markdown?.[2] ?? wrapped?.[1] ?? plain?.[0].replace(/[.,;]+$/, ""));
   const citation = cleanTitle(markdown ? raw.slice(0, markdown.index) : wrapped ? raw.slice(0, wrapped.index) : plain ? raw.slice(0, plain.index) + raw.slice(plain.index + plain[0].length) : raw)

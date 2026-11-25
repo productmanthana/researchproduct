@@ -41,7 +41,9 @@ export function acceptableRevision(before: string, after: string, sourceCount: n
   return after.length >= before.length * 0.7 && figures(before) === figures(after) && citations(after).every((n) => n >= 1 && n <= sourceCount);
 }
 
-export async function peerReviewRevise({ content, kind, request, evidence, results, onRound }: {
+export async function peerReviewRevise({ content, kind, request, evidence, results, onRound, revise = true }: {
+  /** false: score only (a full thesis is too long to rewrite in one response). */
+  revise?: boolean;
   content: string; kind: string; request: string; evidence: unknown[]; results?: string;
   onRound?: (round: ReviewRound) => void | Promise<void>;
 }) {
@@ -53,7 +55,7 @@ export async function peerReviewRevise({ content, kind, request, evidence, resul
     catch (err) { logger.warn({ err }, "Peer review round failed"); break; }
     const entry: ReviewRound = { ...review, round, revised: false };
     rounds.push(entry);
-    if (review.overall >= ACCEPT_SCORE || !review.weaknesses.length) { await onRound?.(entry); break; }
+    if (!revise || review.overall >= ACCEPT_SCORE || !review.weaknesses.length) { await onRound?.(entry); break; }
     try {
       const revised = z.object({ content: z.string().min(1) }).parse((await longJsonCall(REVISER, [{ type: "text", text: JSON.stringify({ ...context, weaknesses: review.weaknesses, draft: content }) }], SCIENTIFIC_MODEL)).value).content.trim();
       if (acceptableRevision(content, revised, evidence.length)) { content = revised; entry.revised = true; }

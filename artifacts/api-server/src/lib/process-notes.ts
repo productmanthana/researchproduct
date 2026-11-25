@@ -4,10 +4,10 @@
  * snippets. Journals never print them, so they are removed from the body before export.
  */
 const PROCESS_NOTE = new RegExp([
-  String.raw`\b(?:abstract-based accounts?|publication (?:extracts?|excerpts?)|(?:internet[- ])?search (?:excerpts?|snippets?)|article(?:-page)? excerpts?|bibliography-only pages?|commercial search excerpts?)\b`,
+  String.raw`\b(?:abstract-based accounts?|abstract-level|publication (?:extracts?|excerpts?)|(?:internet[- ])?search[- ](?:excerpts?|snippets?)(?: access)?|the excerpt|the user'?s proposed|user-proposed|article(?:-page)? excerpts?|bibliography-only pages?|commercial search excerpts?)\b`,
   String.raw`\bindependently (?:read|verified|checked|authenticated)\b`,
   String.raw`\bnot independently (?:established|examined|inspected)\b`,
-  String.raw`\b(?:project (?:synopsis|documents?|files?|drafts?|material)|earlier project|prior project)\b`,
+  String.raw`\b(?:project (?:synopsis|documents?|files?|drafts?|material|literature|journal|thesis|report|answer|idea)|earlier project|prior project)\b`,
   String.raw`\bcitation (?:numbers?|numbering)\b[^.]*\b(?:used here|derive|come from|transferred)\b`,
   String.raw`\b(?:describes|reports|documents) no (?:systematic )?(?:database )?search\b`,
   String.raw`\bnor does it document a screening\b`,

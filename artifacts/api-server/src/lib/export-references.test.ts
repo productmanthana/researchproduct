@@ -22,7 +22,8 @@ test("export bibliography merges paper pages and remaps body and figure referenc
   const bibliography=prepared.content.split("## References")[1].split("## Author review")[0];
   assert.equal([...bibliography.matchAll(/^\[\d+\]/gm)].length,2);
   assert.doesNotMatch(bibliography,/Evidence:|— page|#page=/);
-  assert.match(bibliography,/\[View source\]\(https:\/\/ejurnal\.example\.org/);
+  assert.match(bibliography,/\[https:\/\/ejurnal\.example\.org\/article\/download\/30198\/10714\]\(https:\/\/ejurnal\.example\.org/);
+  assert.doesNotMatch(bibliography,/View source/);
   assert.match(bibliography,/\[DOI: 10\.1000\/example\]/);
   assert.equal(prepared.metadata.figures[0].caption,"Related work [1, 2]");
   assert.equal(prepared.metadata.figures[0].sourceQuote,row.metadata.figures[0].sourceQuote);
@@ -35,7 +36,7 @@ test("bibliography parser handles flattened Markdown links and never turns unsaf
   const block=documentBlocks(prepared.content).find(b=>b.kind==="paragraph"&&b.text.startsWith("[1]"));
   assert.ok(block&&block.kind==="paragraph");
   const entry=parseExportReference(block.text)!;
-  assert.equal(entry.linkLabel,"View source");
+  assert.equal(entry.linkLabel,"https://ejurnal.example.org/article/download/30198/10714");
   assert.doesNotMatch(entry.citation,/View source|https:|\(\)/);
   assert.equal(entry.href,"https://ejurnal.example.org/article/download/30198/10714");
   assert.equal(parseExportReference("[1] Paper. [View source](javascript:alert(1))")?.href,undefined);
@@ -51,7 +52,8 @@ test("PDF and Word reference lists have real hyperlinks and no retrieval-status 
   assert.doesNotMatch(pdf.toString("latin1"),/#page=/);
   const word=await renderStudioWord(exportRow),html=(await mammoth.convertToHtml({buffer:word})).value;
   assert.match(html,/<a href="https:\/\/doi.org\/10.1000\/example">DOI:/);
-  assert.match(html,/View source<\/a>/);
+  assert.match(html,/>https:\/\/ejurnal\.example\.org\/article\/download\/30198\/10714<\/a>/);
+  assert.doesNotMatch(html,/View source/);
   assert.doesNotMatch(html,/Evidence:|Retrieved PDF text|— page [34]/);
   assert.equal((html.match(/Nur Afni/g)??[]).length,1);
 });

@@ -57,9 +57,16 @@ export function referenceTitle(s: { title: string; url: string }) {
  * DOIs that encode a publication year (World Scientific "10.1142/S0219455428500988" → 2028) should not
  * point years past the recorded publication; such a reference needs checking before submission.
  */
-export function implausibleDoiYear(doi: string | undefined, year: number | undefined) {
+/** Publication year a DOI encodes (World Scientific "s…yy…", or a ".2026." / "preprints2026…" segment), if any. */
+export function doiYear(doi: string | undefined) {
   const yy = doi?.match(/^(?:https?:\/\/doi\.org\/)?10\.1142\/s\d{4}-?\d{3}[\dx](\d{2})\d/i)?.[1];
-  return !!yy && !!year && 2000 + Number(yy) > year + 1;
+  if (yy) return 2000 + Number(yy);
+  const full = doi?.match(/^(?:https?:\/\/doi\.org\/)?10\.\d+\/(?:[a-z]+\.)*?(?:[a-z]+\.|preprints)(20\d{2})(?=[.\d])/i)?.[1];
+  return full ? Number(full) : undefined;
+}
+export function implausibleDoiYear(doi: string | undefined, year: number | undefined) {
+  const y = doiYear(doi);
+  return !!y && !!year && y > year + 1;
 }
 
 const SMALL = new Set(["a","an","and","as","at","by","for","from","in","into","of","on","or","the","to","under","using","via","with","without"]);
