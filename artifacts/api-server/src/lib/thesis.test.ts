@@ -1,15 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { splitChapters, thesisContents, THESIS_PARTS } from "./thesis-policy";
+import { splitChapters, thesisCheckUnits, thesisContents, thesisParts, THESIS_PART_WORDS } from "./thesis-policy";
 import { mapLimit } from "./thesis-writer";
 import { doiYear, implausibleDoiYear } from "./manuscript-references";
 import { stripProcessNotes } from "./process-notes";
 
-test("thesis is written in enough parts for 150+ pages and covers every required chapter", () => {
-  const words = THESIS_PARTS.reduce((n, p) => n + p.words, 0);
-  assert.ok(words >= 60000, `planned ${words} words`);
-  for (const ch of ["ch1", "ch2a", "ch2b", "ch3", "ch4", "ch5", "ch6", "ch7", "ch8", "appendix", "front"]) assert.ok(THESIS_PARTS.some(p => p.id === ch));
-  assert.ok(THESIS_PARTS.every(p => p.words <= 8000), "each part fits one response");
+test("thesis is planned as eight chapters written in section groups long enough for 150+ pages", () => {
+  const chapters = Array.from({ length: 8 }, (_, i) => ({ number: i + 1, title: `Title ${i + 1}`, sections: Array.from({ length: i === 1 ? 12 : 8 }, (_, k) => `${i + 1}.${k + 1} Section ${k + 1}`) }));
+  const parts = thesisParts(chapters);
+  const words = parts.reduce((n, p) => n + p.words, 0);
+  assert.ok(words >= 70000, `planned ${words} words`);
+  assert.ok(parts.length >= 20, `${parts.length} parts`);
+  assert.ok(parts.every(p => p.words <= THESIS_PART_WORDS + 500), "each part fits one response");
+  assert.equal(parts[0].id, "front");
+  assert.equal(parts.at(-1)!.id, "appendix");
+  const ch2 = parts.filter(p => p.id.startsWith("ch2-"));
+  assert.ok(ch2.length >= 4);
+  assert.match(ch2[0].brief, /Start with "# Chapter 2: Title 2"/);
+  assert.match(ch2[1].brief, /Do NOT repeat the chapter heading/);
+  assert.match(ch2.at(-1)!.brief, /## 2\.13 Chapter Summary/);
+  // every section is written exactly once
+  for (const ch of chapters) for (const s of ch.sections) assert.equal(parts.filter(p => p.brief.includes(`these sections, in order, each with its "## " heading and "### " subsections as needed:`) && p.brief.split("Other parts")[0].includes(s)).length, 1, s);
+  assert.doesNotMatch(parts.find(p => p.id.startsWith("ch8-"))!.brief, /Close the chapter/);
 });
 
 test("table of contents lists chapters and sections, chapters split for per-chapter checks", () => {
@@ -18,6 +30,24 @@ test("table of contents lists chapters and sections, chapters split for per-chap
   assert.match(toc, /- Chapter 1: Introduction\n  - 1\.1 Background/);
   assert.doesNotMatch(toc, /Declaration/);
   assert.equal(splitChapters(doc).length, 4);
+});
+
+test("contents adds lists of figures and tables from captions only", () => {
+  const doc = "# Chapter 3: Model\n\n**Table 3.1.** Parameters of the case study\n\nTable 3.1 shows the values.\n\nFigure 3.2. Single-line diagram";
+  const toc = thesisContents(doc);
+  assert.match(toc, /# List of Tables\n\n- Table 3\.1: Parameters of the case study$/m);
+  assert.match(toc, /# List of Figures\n\n- Figure 3\.2: Single-line diagram/);
+  assert.doesNotMatch(toc, /shows the values/);
+});
+
+test("long chapters are checked in section-sized units", () => {
+  const para = "word ".repeat(1500);
+  const doc = `# Chapter 2: Review\n\n## 2.1 A\n${para}\n## 2.2 B\n${para}\n## 2.3 C\n${para}\n\n# Chapter 3: Model\n\nshort`;
+  const units = thesisCheckUnits(doc);
+  assert.equal(units.length, 3);
+  assert.ok(units[0].startsWith("# Chapter 2"));
+  assert.ok(units[1].startsWith("## 2.3"));
+  assert.equal(units.join("\n").replace(/\s+/g, " "), doc.replace(/\s+/g, " "));
 });
 
 test("mapLimit keeps order and bounds concurrency", async () => {

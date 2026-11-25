@@ -2,7 +2,7 @@ import { z } from "zod";
 import { jsonCall, longJsonCall } from "./ai-json";
 import { SCIENTIFIC_MODEL } from "./ai-budget";
 import { logger } from "./logger";
-import { THESIS_PARTS, THESIS_PLAN_TASK, thesisContents, thesisPartTask } from "./thesis-policy";
+import { THESIS_PLAN_TASK, thesisContents, thesisPartTask, thesisParts } from "./thesis-policy";
 
 /** Runs fn over items with at most `limit` in flight, keeping input order in the result. */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>) {
@@ -14,22 +14,25 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, in
   return out;
 }
 
-const Plan = z.object({ title: z.string().min(1).max(300), blueprint: z.string().min(200) });
+const Chapter = z.object({ number: z.coerce.number().int(), title: z.string().min(1).max(200), sections: z.array(z.string().min(1)).min(3).max(16) });
+const Plan = z.object({ title: z.string().min(1).max(300), blueprint: z.string().min(200), chapters: z.array(Chapter).length(8) });
 const Part = z.object({ content: z.string().min(200) });
 
 /**
- * Plans the thesis once, then writes each part against that blueprint (three at a time).
+ * Plans the thesis once (blueprint and section outline of eight chapters), then writes it in about twenty
+ * parts of at most 4,000 words (four at a time), so each chapter reaches its full length.
  * A part that overruns one response is retried once at a shorter target before the job fails.
  */
 export async function writeThesis({ prompt, body, onPart }: {
   prompt: string; body: any[];
   onPart?: (done: number, total: number, heading: string, draft: string) => void | Promise<void>;
 }) {
-  const plan = Plan.parse((await jsonCall(`${prompt}\n${THESIS_PLAN_TASK}`, body, SCIENTIFIC_MODEL, false, 8192)).value);
-  const written: (string | undefined)[] = THESIS_PARTS.map(() => undefined);
+  const plan = Plan.parse((await jsonCall(`${prompt}\n${THESIS_PLAN_TASK}`, body, SCIENTIFIC_MODEL, false, 16384)).value);
+  const parts = thesisParts(plan.chapters.map((c, i) => ({ ...c, number: i + 1 })));
+  const written: (string | undefined)[] = parts.map(() => undefined);
   let done = 0;
-  await mapLimit(THESIS_PARTS, 3, async (part, i) => {
-    const input = [...body, { type: "text", text: JSON.stringify({ thesisTitle: plan.title, blueprint: plan.blueprint }) }];
+  await mapLimit(parts, 4, async (part, i) => {
+    const input = [...body, { type: "text", text: JSON.stringify({ thesisTitle: plan.title, blueprint: plan.blueprint, chapterOutline: plan.chapters }) }];
     let content: string;
     try { content = Part.parse((await longJsonCall(`${prompt}\n${thesisPartTask(part)}`, input, SCIENTIFIC_MODEL)).value).content; }
     catch (err) {
@@ -38,7 +41,7 @@ export async function writeThesis({ prompt, body, onPart }: {
     }
     written[i] = content.trim();
     done++;
-    await onPart?.(done, THESIS_PARTS.length, part.heading, written.filter(Boolean).join("\n\n"));
+    await onPart?.(done, parts.length, part.heading, written.filter(Boolean).join("\n\n"));
   });
   let content = written.join("\n\n");
   const contents = thesisContents(content);

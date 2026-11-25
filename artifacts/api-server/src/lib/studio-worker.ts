@@ -42,7 +42,7 @@ import { SYNOPSIS_INSTRUCTIONS } from "./synopsis-policy";
 import { LITERATURE_SURVEY_INSTRUCTIONS, SURVEY_MIN_CITED, SURVEY_PAPERS } from "./literature-survey-policy";
 import { HEDGE_RATE_LIMIT, hedgeRate, isJournalReview, JOURNAL_REVIEW_INSTRUCTIONS, JOURNAL_REVIEW_MIN_CITED } from "./journal-review-policy";
 import { unsuitableVenue } from "./venue-quality";
-import { splitChapters, THESIS_INSTRUCTIONS, THESIS_MIN_CITED, THESIS_PAPERS, THESIS_SOURCES } from "./thesis-policy";
+import { thesisCheckUnits, THESIS_INSTRUCTIONS, THESIS_MIN_CITED, THESIS_PAPERS, THESIS_SOURCES } from "./thesis-policy";
 import { mapLimit, writeThesis } from "./thesis-writer";
 
 const AUTHOR_RESULTS_RULE="authorResults, when present, is the author's own experimental data and logs. Build the Results section from it, report its numbers exactly as given, describe them as the authors' results, and add no result it does not contain.";
@@ -103,7 +103,7 @@ async function generate(row:any) {
   // Long-form scholarly drafts need a committee-level literature base (25–40 works), not a short answer's handful.
   const deepLiterature=!figureOnly&&["literature","synopsis","thesis","journal"].includes(request.kind);
   // A survey covers one focus in depth: 50–80 works, read more briefly each.
-  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard",deepLiterature,surveyDepth:surveyDepth||thesisDepth,pagesPerPaper:surveyDepth?2:deepLiterature?3:undefined}};
+  const job={id:row.id,owner_id:owner,kind:"answer",question,input:{autoDiscover:request.evidenceMode!=="project",webSearchAllowed:request.evidenceMode!=="project"&&!figureOnly,paperIds:[] as string[],documentIds,inspectFigures:!initialIdeas,abstractOnly:initialIdeas,discoveryProfile:initialIdeas?"ideation":"standard",deepLiterature,surveyDepth:surveyDepth||thesisDepth,thesis:thesisDepth,pagesPerPaper:surveyDepth?2:deepLiterature?3:undefined}};
   if(request.evidenceMode!=="project"){
     await pool.query("UPDATE research_studio_items SET metadata=metadata||$2::jsonb WHERE id=$1",[row.id,JSON.stringify({stage:"Literature Survey Agent · finding relevant evidence"})]);
     const step=trace.start("Searching scholarly catalogues");
@@ -295,7 +295,7 @@ Do not add a References section; it will be assembled from actual sources. Prese
   // A thesis is checked chapter by chapter: the whole document does not fit one response.
   const checked=figureOnly?{value:{content:parentRow.content,issues:[]}}
     :thesisDepth?{value:await (async()=>{
-      const parts=await mapLimit(splitChapters(draft.content),3,async part=>{
+      const parts=await mapLimit(thesisCheckUnits(draft.content),4,async part=>{
         try{const v=z.object({content:z.string().min(1),issues:z.array(z.string())}).parse(await checkPart(part));return v.content.length>=part.length*0.6?v:{content:part,issues:[]};}
         catch(err){logger.warn({err},"Thesis chapter check failed");return {content:part,issues:[]};}
       });
