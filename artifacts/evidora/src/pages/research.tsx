@@ -235,7 +235,7 @@ function Composer({ onCreated, initialQuestion = "" }: { onCreated: (id: string)
           <div>
             <label htmlFor="input-pages" className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">PDF pages to read (optional, up to 3)</label>
             <input id="input-pages" value={pagesText} onChange={(e) => setPagesText(e.target.value)} placeholder="e.g. 4, 7" className="mt-1.5 block w-full rounded-md border bg-background px-3 py-2 font-mono text-sm sm:w-56" data-testid="input-page-numbers" />
-            <p className="mt-1 text-xs text-muted-foreground">Leave blank to let Evidora pick up to 3 relevant pages. Ignored for screenshots.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Leave blank to let litvo.ai pick up to 3 relevant pages. Ignored for screenshots.</p>
           </div>
         )}
 

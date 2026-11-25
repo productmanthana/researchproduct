@@ -8,6 +8,15 @@ import { chatDocumentIntent, chatDocumentPrompt } from "./chat-document";
 import { requestErrorMessage, itemLoadFailure, isTemporaryRequestFailure, studioItemRefreshInterval } from "./request-errors";
 import { showProgressPopup, streamHasStarted } from "./progress-visibility";
 import { instructionsReviewed } from "./template-guidance";
+import { studioDownloadName } from "./download-name";
+
+test("blob downloads keep the litvo brand, safe title and requested document format",()=>{
+  assert.equal(studioDownloadName("Solar PV research","pdf"),"litvo-Solar PV research.pdf");
+  assert.equal(studioDownloadName("Solar PV research","docx"),"litvo-Solar PV research.docx");
+  assert.equal(studioDownloadName(' ../" : \n ',"pdf"),"litvo-document.pdf");
+  assert.equal(studioDownloadName("ஆய்வு","docx"),"litvo-ஆய்வு.docx");
+  assert.equal(studioDownloadName("x".repeat(200),"pdf").length,90);
+});
 
 test("Journal instruction badges recognise recorded reviews without treating rankings or dates alone as verification", () => {
   assert.equal(instructionsReviewed({status:"Official guidance reviewed; supported layout rules applied. Not a publisher/university approval.",verifiedAt:"2026-11-08"}),true);

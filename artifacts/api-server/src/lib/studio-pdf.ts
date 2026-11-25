@@ -13,7 +13,7 @@ export async function renderStudioPdf(row:any):Promise<Buffer>{
   const images=new Map(await Promise.all(figures.map(async f=>[f.id,await figurePng(f)] as const)));
   return new Promise((resolve,reject)=>{
     const id=row.metadata?.templateId,l=documentLayoutFor(row),d=row.metadata?.documentDetails??{};
-    const pdf=new PDFDocument({size:l.size,margins:l.margins,bufferPages:true,info:{Title:row.title,Author:d.author||"Evidora research workspace"}});
+    const pdf=new PDFDocument({size:l.size,margins:l.margins,bufferPages:true,info:{Title:row.title,Author:d.author||"litvo.ai research workspace"}});
     const chunks:Buffer[]=[];pdf.on("data",c=>chunks.push(c));pdf.on("end",()=>resolve(Buffer.concat(chunks)));pdf.on("error",reject);
     try{
       // Works in the production bundle and the package-root test bundle.

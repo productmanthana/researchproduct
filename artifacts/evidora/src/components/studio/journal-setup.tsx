@@ -99,7 +99,7 @@ export function JournalSetupForm({ value, onChange, showDetails = true }: { valu
         {value.target === "custom" && <CustomFields f={value.customFormat} onChange={f => set("customFormat", f)} />}
       </Step>
       {showDetails && <Step n={++n} title="Title page (optional)">
-        <DocumentDetailsFields kind="journal" value={value.details} onChange={d => set("details", d)} note="Leave blank to add later. Evidora never invents author names or affiliations." />
+        <DocumentDetailsFields kind="journal" value={value.details} onChange={d => set("details", d)} note="Leave blank to add later. litvo.ai never invents author names or affiliations." />
       </Step>}
       <Step n={++n} title="Target length">
         <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Target length">
@@ -112,7 +112,7 @@ export function JournalSetupForm({ value, onChange, showDetails = true }: { valu
             </button>;
           })}
         </div>
-        <p className="text-[11px] text-muted-foreground">A target, not a guarantee. Page counts depend on layout, and Evidora writes less rather than padding with unsupported claims.</p>
+        <p className="text-[11px] text-muted-foreground">A target, not a guarantee. Page counts depend on layout, and litvo.ai writes less rather than padding with unsupported claims.</p>
       </Step>
       <Step n={++n} title="Diagrams">
         <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-[hsl(52_40%_98%)] p-3" data-testid="toggle-setup-figures">
@@ -140,7 +140,7 @@ export function JournalSetupDialog({ open, topic, initial, pending, onCancel, on
           <DialogHeader className="border-b px-5 pb-3 pt-5 text-left">
             <p className="sx-eyebrow">Before writing</p>
             <DialogTitle className="sx-title text-2xl">Set up your journal draft</DialogTitle>
-            <DialogDescription className="text-xs">One step, then Evidora writes an evidence-grounded draft for review. It is a working manuscript, not a submission-ready paper; you can change the format again after it is written.</DialogDescription>
+            <DialogDescription className="text-xs">One step, then litvo.ai writes an evidence-grounded draft for review. It is a working manuscript, not a submission-ready paper; you can change the format again after it is written.</DialogDescription>
             {topic && <p className="mt-2 line-clamp-2 rounded-md border-l-4 border-l-[hsl(var(--teal))] bg-[hsl(52_40%_98%)] px-3 py-2 text-[13px]" data-testid="text-setup-topic">{topic}</p>}
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4"><JournalSetupForm value={s} onChange={setS} /></div>

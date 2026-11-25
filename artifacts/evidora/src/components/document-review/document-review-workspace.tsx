@@ -276,7 +276,7 @@ function SuggestionCard({ s, open, onToggle, sources, figure, proposed, itemId, 
         {src.text && <blockquote>{src.text.length > 320 ? `${src.text.slice(0, 320)}...` : src.text}</blockquote>}
       </li>)}</ol></div>}
       {s.sourceIds.length > 0 && sources.length === 0 && <p className="dr-note">The cited sources were not returned with this review.</p>}
-      {pending && !s.canApply && <p className="dr-action-needed" role="note"><AlertTriangle />Action needed: Evidora cannot apply this change automatically. If you agree, edit your paper yourself and check it against the cited evidence, then dismiss this card. Following the guidance does not make the result scientifically guaranteed.</p>}
+      {pending && !s.canApply && <p className="dr-action-needed" role="note"><AlertTriangle />Action needed: litvo.ai cannot apply this change automatically. If you agree, edit your paper yourself and check it against the cited evidence, then dismiss this card. Following the guidance does not make the result scientifically guaranteed.</p>}
       {pending && <div className="dr-actions">
         {!confirming ? <>
           <button className="es-button es-primary dr-small" disabled={!s.canApply || locked} onClick={() => setConfirming(true)} data-testid={`button-approve-${s.id}`}><Check />Approve this change</button>

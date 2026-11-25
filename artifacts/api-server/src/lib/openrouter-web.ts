@@ -63,7 +63,7 @@ export async function requestWebSearch(query: string) {
     headers: {
       Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "X-Title": "Evidora Research",
+      "X-Title": "litvo.ai",
     },
     body: JSON.stringify(webSearchRequest(query)),
     signal: AbortSignal.timeout(60000),
