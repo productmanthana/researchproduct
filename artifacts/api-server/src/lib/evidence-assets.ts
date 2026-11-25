@@ -14,6 +14,11 @@ export async function saveEvidenceAsset(key: string, bytes: Buffer, contentType:
   });
   return `/objects/evidence/${key}`;
 }
+/** PDF text extraction can emit NUL and other control characters; Postgres rejects \u0000 in text/JSON. */
+export const cleanPages = (pages: { page: number; text: string }[]) =>
+  pages.map(p => ({ ...p, text: p.text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, " ")
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, " ") }));
 export async function cachedFullText(paper: Paper) {
   const { rows } = await pool.query("SELECT * FROM research_paper_assets WHERE paper_id=$1 AND created_at>now()-interval '30 days'", [paper.id]);
   const cached = rows[0];
@@ -25,12 +30,16 @@ export async function cachedFullText(paper: Paper) {
   }
   const full = await retrieveFullText(paper);
   if (!full.pages || !full.bytes) return full;
+  full.pages = cleanPages(full.pages);
   const hash = digest(full.bytes.toString("base64"));
-  const path = await saveEvidenceAsset(`pdf/${hash}`, full.bytes, "application/pdf");
-  await pool.query(`INSERT INTO research_paper_assets(paper_id,object_path,source_url,license,pages,content_hash)
-    VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(paper_id) DO UPDATE SET object_path=excluded.object_path,
-    source_url=excluded.source_url,license=excluded.license,pages=excluded.pages,content_hash=excluded.content_hash,created_at=now()`,
-    [paper.id, path, full.url, full.license, JSON.stringify(full.pages), hash]);
+  // Caching is an optimisation: a storage or database hiccup must never fail the draft that needed this paper.
+  try {
+    const path = await saveEvidenceAsset(`pdf/${hash}`, full.bytes, "application/pdf");
+    await pool.query(`INSERT INTO research_paper_assets(paper_id,object_path,source_url,license,pages,content_hash)
+      VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(paper_id) DO UPDATE SET object_path=excluded.object_path,
+      source_url=excluded.source_url,license=excluded.license,pages=excluded.pages,content_hash=excluded.content_hash,created_at=now()`,
+      [paper.id, path, full.url, full.license, JSON.stringify(full.pages), hash]);
+  } catch { /* use the freshly retrieved text uncached */ }
   return full;
 }
 export async function retainPageImage(key: string, image: string, documentId?: string) {

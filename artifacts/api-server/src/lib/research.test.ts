@@ -1,4 +1,5 @@
 import "./manuscript-cleanup.test";
+import "./evidence-assets.test";
 import "./literature-survey.test";
 import "./watch.test";
 import "./figures.test";
