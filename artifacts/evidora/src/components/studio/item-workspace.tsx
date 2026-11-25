@@ -32,6 +32,7 @@ import { WatchPanel } from "@/components/research/watch-panel";
 import { proposeTopic, useWatches } from "@/lib/research-watch";
 import { useActiveProject } from "@/lib/active-project";
 import { CustomFormatBanner, CustomFormatDialog } from "./custom-format-dialog";
+import { SaveAsMenu } from "./save-as-menu";
 
 const GENERATABLE = new Set<string>(Object.values(StudioGenerationInputKind));
 const SAVABLE = new Set<string>(Object.values(StudioItemInputKind));
@@ -67,6 +68,7 @@ export function ExportButtons({ item, disabled }: { item: Pick<StudioItem, "id" 
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("pdf")} data-testid="button-export-pdf"><Download />{busy === "pdf" ? "Preparing..." : "PDF"}</button>
       <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("docx")} data-testid="button-export-docx"><FileText />{busy === "docx" ? "Preparing..." : "Word"}</button>
       {LATEX_KINDS.has(item.kind) && <button className="sx-btn" disabled={disabled || !!busy} onClick={() => void run("latex")} title="LaTeX source (.tex) with figure images, as a .zip" data-testid="button-export-latex"><FileCode />{busy === "latex" ? "Preparing..." : "LaTeX"}</button>}
+      <SaveAsMenu item={item} disabled={disabled || !!busy} latex={LATEX_KINDS.has(item.kind)} />
     </>
   );
 }

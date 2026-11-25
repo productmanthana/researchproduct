@@ -100,6 +100,19 @@ router.post("/studio/items",async(req,res)=>{
     throw e;
   }
 });
+// "Save as": a named copy of a finished document in any of the user's project folders, with figures, sources and checks.
+router.post("/studio/items/:id/copy",async(req,res)=>{
+  const owner=uid(req),b=z.object({projectId:z.string().min(1).max(100),title:z.string().trim().min(1).max(300)}).parse(req.body);
+  const source=await ownedStudio(routeId(req),owner);
+  await ownedStudioProject(b.projectId,owner);
+  if(source.status!=="completed")throw new HttpError(400,"Wait for the document to finish before saving a copy.");
+  const metadata={...source.metadata,copiedFrom:source.id};
+  delete metadata.pdfExport;delete metadata.docxExport;
+  const {rows}=await pool.query(`INSERT INTO research_studio_items(id,owner_id,project_id,kind,title,content,parent_id,revision,metadata)
+    VALUES($1,$2,$3,$4,$5,$6,NULL,1,$7) RETURNING *`,[randomUUID(),owner,b.projectId,source.kind,b.title,source.content,JSON.stringify(metadata)]);
+  void syncProjectItem(rows[0].id,owner).catch(()=>{});
+  res.json(studioView(rows[0]));
+});
 router.post("/studio/generate",async(req,res)=>{
   const b=GenerateStudioDocumentBody.parse(req.body),owner=uid(req);
   await ownedStudioProject(b.projectId,owner);
