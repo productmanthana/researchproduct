@@ -40,6 +40,8 @@ import { createTrace } from "./studio-trace";
 import { peerReviewRevise, type ReviewRound } from "./peer-review-loop";
 import { SYNOPSIS_INSTRUCTIONS } from "./synopsis-policy";
 import { LITERATURE_SURVEY_INSTRUCTIONS, SURVEY_MIN_CITED, SURVEY_PAPERS } from "./literature-survey-policy";
+import { HEDGE_RATE_LIMIT, hedgeRate, isJournalReview, JOURNAL_REVIEW_INSTRUCTIONS, JOURNAL_REVIEW_MIN_CITED } from "./journal-review-policy";
+import { unsuitableVenue } from "./venue-quality";
 
 const AUTHOR_RESULTS_RULE="authorResults, when present, is the author's own experimental data and logs. Build the Results section from it, report its numbers exactly as given, describe them as the authors' results, and add no result it does not contain.";
 
@@ -87,7 +89,9 @@ async function generate(row:any) {
   const question=studioSearchQuestion(request.prompt,project,selectedIdea,freshIdeaTopic);
   // A survey stays on its own focus: papers cited by other project drafts (on other topics) are not carried in;
   // only the draft being revised passes its sources on.
-  const surveyDepth=!figureOnly&&request.kind==="literature";
+  // A journal review needs the same depth as a survey (60+ works) and the same isolation from other drafts' sources.
+  const journalReview=!figureOnly&&isJournalReview(request.kind,request.experimentalResults);
+  const surveyDepth=!figureOnly&&(request.kind==="literature"||journalReview);
   const carriedItems=surveyDepth?(parentRow?[parentRow]:[]):items;
   const referencedPapers=request.evidenceMode==="discover"?[]:carriedItems.flatMap(i=>(i.metadata?.sources??[]).map((s:any)=>s.paperId).filter(Boolean));
   const savedPapers=request.evidenceMode==="discover"?[]:[...new Set([...(await pool.query("SELECT paper_id FROM research_library WHERE project_id=$1 AND owner_id=$2 ORDER BY created_at DESC LIMIT 20",[project.id,owner])).rows.map(p=>p.paper_id),...referencedPapers])];
@@ -163,6 +167,10 @@ async function generate(row:any) {
     const before=sources.length;
     sources=sources.filter(s=>{if(!s.paperId)return true;const p=papers.find(p=>p.id===s.paperId);return !!(p?.year&&(p.venue||p.doi));});
     if(sources.length<before)warnings.push(`${before-sources.length} evidence item${before-sources.length===1?"":"s"} without a publication year and venue were left out so every reference is complete.`);
+    // Predatory, hijacked or low-tier venues get a manuscript rejected; leave them out of the reference base.
+    const venueBefore=sources.length;
+    sources=sources.filter(s=>{if(!s.paperId)return true;const p=papers.find(p=>p.id===s.paperId);return !p||!unsuitableVenue(p);});
+    if(sources.length<venueBefore)warnings.push(`${venueBefore-sources.length} paper${venueBefore-sources.length===1?"":"s"} from low-tier or off-discipline venues were left out of the reference list.`);
   }
   sources=mergeSameTitle(sources);
   // Prior-art check: existing industry tools and studies the paper must position itself against.
@@ -205,6 +213,7 @@ Write natural, precise scholarly prose with developed paragraphs, analytical com
 The current request is the assignment. Project notes and earlier drafts are optional context, not a reason to change its topic. Ignore unrelated material rather than summarising it or adopting its subject. If supplied evidence does not address the current topic, state the evidence boundary briefly and develop clearly labelled proposals instead of claiming unrelated sources support them.
 The supplied conversation is the actual ordered dialogue in this chat. Use its earlier questions and replies to resolve follow-ups, choices and pronouns; do not treat unrelated project documents as messages from this conversation. Earlier assistant replies are context, NOT independent scientific evidence. Their citation numbers are local to those earlier replies: do not copy them into the new answer; use only the CURRENT evidence reference numbers. Answer the newest user question without unnecessarily rewriting the preceding conversation.
 ${instructions[request.kind]}
+${journalReview?JOURNAL_REVIEW_INSTRUCTIONS:""}
 ${["journal","thesis","literature","synopsis","report"].includes(request.kind)?PROFESSIONAL_ACADEMIC_STYLE+"\n"+SUBMISSION_VOICE:""}
 ${["journal","thesis","literature","synopsis","report","answer"].includes(request.kind)?HUMAN_AUTHORSHIP_STYLE:""}
 ${scholarly?"Evidence items carry condensed fact notes, not the sources' own sentences. Build every sentence yourself from those facts; never try to reconstruct a source's phrasing. If a source's exact words are indispensable, put them in quotation marks with the citation.":""}
@@ -281,7 +290,9 @@ Do not add a References section; it will be assembled from actual sources. Prese
   const cited=[...content.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1]));
   trace.count({cited:new Set(cited).size});
   reviewStep?.done(`Claims checked · ${new Set(cited).size} sources cited`);
-  if(surveyDepth&&new Set(cited).size<SURVEY_MIN_CITED)warnings.push(`This survey cites ${new Set(cited).size} works; reviewers usually expect 50 or more. Narrow the topic or ask for additional studies on its main methods, then regenerate.`);
+  if(journalReview&&new Set(cited).size<JOURNAL_REVIEW_MIN_CITED)warnings.push(`This review cites ${new Set(cited).size} works; journals usually expect 70 or more for a review (fewer for a Perspective). Ask for additional studies on the field's foundations and decision literature, then regenerate.`);
+  if(journalReview&&hedgeRate(content)>HEDGE_RATE_LIMIT)warnings.push("The draft repeats limitation phrases often; reviewers read this as unconfident. Ask to state findings more directly.");
+  if(surveyDepth&&!journalReview&&new Set(cited).size<SURVEY_MIN_CITED)warnings.push(`This survey cites ${new Set(cited).size} works; reviewers usually expect 50 or more. Narrow the topic or ask for additional studies on its main methods, then regenerate.`);
   if(!figureOnly&&cited.some(n=>n<1||n>sources.length))throw new HttpError(503,"The draft contained an invalid citation and was not saved. Please retry.");
   // Every generated paper is screened for machine-written style and, if needed,
   // rewritten once in human academic prose before figures and references are added.

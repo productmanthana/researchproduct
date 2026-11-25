@@ -80,6 +80,8 @@ export function readerFigureText(text:string){
   return text
     .replace(/\bsupplied (?:excerpts?|sources?|material|evidence|protocol)\b/gi,"the cited work")
     .replace(/\bthe (?:reviewed )?draft['’]s\b/gi,"this paper's").replace(/\bthe (?:reviewed )?draft\b/gi,"this paper")
+    // A caption is the authors' text: never "the user's proposed protocol".
+    .replace(/\b(?:the )?user['’]s\b/gi,"the")
     // Defensive disclaimers ("this schematic is not a measured geometry…") read as machine-written; provenance is kept separately.
     .replace(/;\s*this (?:[a-z-]+ ){0,3}(?:schematic|diagram|figure|chart|process|framework|sequence) (?:is not|does not|has not|is the author)[^.]*\./gi,".")
     .split(/(?<=[.!?])\s+/)

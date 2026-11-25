@@ -22,6 +22,7 @@ import "./human-authorship.test";
 import "./ai-style-metrics.test";
 import "./export-references.test";
 import "./submission-requirements.test";
+import "./journal-review.test";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { pool } from "@workspace/db";
