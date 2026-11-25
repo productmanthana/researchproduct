@@ -32,6 +32,8 @@ app.use(
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: false }));
+// A long thesis can exceed the ordinary API payload limit; keep the exception scoped.
+app.use("/api/studio/items", express.json({ limit: "2mb" }));
 app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(clerkMiddleware((req) => ({
@@ -49,9 +51,10 @@ app.use((req, res, next) => {
 
 app.use("/api", router);
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  const status = err instanceof HttpError ? err.status : err instanceof ZodError ? 400 : 500;
+  const tooLarge = typeof err === "object" && err !== null && "type" in err && err.type === "entity.too.large";
+  const status = tooLarge ? 413 : err instanceof HttpError ? err.status : err instanceof ZodError ? 400 : 500;
   req.log.error({ status, errorType: err instanceof Error ? err.name : "unknown" }, "Request failed");
-  res.status(status).json({ error: err instanceof HttpError ? err.message : status === 400 ? "Please check the supplied fields." : "The request could not be completed. Please try again." });
+  res.status(status).json({ error: tooLarge ? "This document is too large to save in one request." : err instanceof HttpError ? err.message : status === 400 ? "Please check the supplied fields." : "The request could not be completed. Please try again." });
 });
 
 export default app;

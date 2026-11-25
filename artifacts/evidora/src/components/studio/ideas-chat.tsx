@@ -125,7 +125,7 @@ function PriorChat({ root }: { root: StudioItem }) {
     </div>
     {shown.map((t, i) => <div key={i} className="space-y-2">
       {t.question && <Bubble who="You" testId={`prior-q-${i}`}><p className="whitespace-pre-wrap text-[15px] leading-relaxed">{t.question}</p></Bubble>}
-      {t.answer && <Bubble who="Evidora" testId={`prior-a-${i}`}><div className="max-h-[360px] overflow-y-auto text-[15px] leading-relaxed"><AcademicAnswer content={t.answer} inline={x => x} /></div></Bubble>}
+      {t.answer && <Bubble who="litvo.ai" testId={`prior-a-${i}`}><div className="max-h-[360px] overflow-y-auto text-[15px] leading-relaxed"><AcademicAnswer content={t.answer} inline={x => x} /></div></Bubble>}
     </div>)}
   </section>;
 }

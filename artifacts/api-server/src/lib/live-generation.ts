@@ -5,6 +5,11 @@ const context=new AsyncLocalStorage<{kind:LiveKind;id:string;previous?:string}>(
 export const liveKey=(kind:LiveKind,id:string)=>`generation-live:${kind}:${id}`;
 export const withLiveGeneration=<T>(kind:LiveKind,id:string,run:()=>Promise<T>)=>context.run({kind,id},run);
 export async function clearLive(kind:LiveKind,id:string){await pool.query("DELETE FROM research_search_cache WHERE key=$1",[liveKey(kind,id)]);}
+/** Already-renderable, ordered chapter text; parallel writers must not interleave raw JSON streams. */
+export async function publishLiveDraft(kind:LiveKind,id:string,draft:string) {
+  await pool.query("INSERT INTO research_search_cache(key,data,expires_at) VALUES($1,$2,now()+interval '1 hour') ON CONFLICT(key) DO UPDATE SET data=$2,expires_at=excluded.expires_at",
+    [liveKey(kind,id),JSON.stringify({draft:draft.slice(0,1000000),updatedAt:new Date().toISOString()})]);
+}
 
 /** Whitelisted user-facing JSON string fields only. Never exposes raw JSON, quotes or reasoning. */
 export function visibleDraft(json:string){

@@ -20,7 +20,7 @@ export async function downloadPublicPdf(address:string,redirects=0,deadline=Date
   return new Promise((resolve,reject)=>{
     const request=https.get(url,{
       family:4,
-      headers:{"User-Agent":"EvidoraResearch/1.0 (open-access evidence)","Accept":"application/pdf"},
+      headers:{"User-Agent":"LitvoResearch/1.0 (open-access evidence)","Accept":"application/pdf"},
       lookup:(hostname,options,callback)=>{
         dns.lookup(hostname,{family:4,all:true},(error,addresses)=>{
           if(error)return callback(error,"",4);

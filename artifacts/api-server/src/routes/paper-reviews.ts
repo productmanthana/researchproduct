@@ -68,7 +68,7 @@ router.get("/studio/items/:id/scorecard",async(req,res)=>{
   if(row.status!=="completed"||!row.metadata?.scorecard)throw new HttpError(409,"A completed Paper Review is required.");
   const bytes=await renderStudioPdf({title:`Manuscript Readiness Report: ${row.metadata.originalName??row.title}`,content:scorecardMarkdown(row.metadata),metadata:{templateId:"academic-report"}});
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",'attachment; filename="evidora-readiness-report.pdf"');
+  res.setHeader("Content-Disposition",'attachment; filename="litvo-readiness-report.pdf"');
   res.type("application/pdf").send(bytes);
 });
 export default router;

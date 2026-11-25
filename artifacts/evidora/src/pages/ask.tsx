@@ -420,7 +420,7 @@ function AskInner() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `evidora-answer.${format}`;
+      anchor.download = `litvo-answer.${format}`;
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1500);
     } catch (error) {
@@ -431,7 +431,7 @@ function AskInner() {
     if (!editor) return;
     const url = URL.createObjectURL(new Blob([editor.content], { type: "text/markdown" }));
     const anchor = document.createElement("a");
-    anchor.href = url; anchor.download = "evidora-working-draft.md"; anchor.click();
+    anchor.href = url; anchor.download = "litvo-working-draft.md"; anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const handleEvidenceSelect = (analysis: Analysis, id: string) => {
@@ -478,7 +478,7 @@ function AskInner() {
       <div className="es-workspace">
         <section className="es-conversation" aria-label="Research conversation">
           <div className="es-thread" ref={threadScroll}><div className="es-thread-inner">
-            {!threadId && !list.isLoading && !list.isError && <div className="es-welcome"><div className="es-assistant-head"><span><Wind /></span>Evidora</div><div className="es-prose"><h2>Let’s find a question you care about.</h2><p>Start with a rough idea, a writing question, or a specific scientific question. We can clarify first—or look for scholarly evidence when the question is ready.</p><p className="es-choice-note">Guidance is conversational and separate from evidence-backed research answers.</p></div></div>}
+            {!threadId && !list.isLoading && !list.isError && <div className="es-welcome"><div className="es-assistant-head"><span><Wind /></span>litvo.ai</div><div className="es-prose"><h2>Let’s find a question you care about.</h2><p>Start with a rough idea, a writing question, or a specific scientific question. We can clarify first—or look for scholarly evidence when the question is ready.</p><p className="es-choice-note">Guidance is conversational and separate from evidence-backed research answers.</p></div></div>}
             {list.isLoading && <RowSkeleton rows={2} />}
             {list.isError && <ErrorState error={list.error} onRetry={() => list.refetch()} title="Couldn't load your conversations" />}
             {threadId && !list.isLoading && !thread && <EmptyState icon={<BookOpen />} title="Conversation not found" body="It may belong to another account. Start a new conversation." />}
@@ -526,7 +526,7 @@ function AskInner() {
           {copied && <p className="es-copy-status" role="status">{copied}</p>}
           <div className="es-composer-wrap">{!attached && intent && (ideaAsk && !activeProject && !ideaAsk.own ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas in a new project, keeping this conversation above them.</p> : ideaAsk && activeProject ? <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-ideas">Sending will suggest five structured research ideas{ideaAsk.own ? <> from project <b>{activeProject.name}</b></> : <> in project <b>{activeProject.name}</b></>}, keeping this conversation above them.</p> : <p className="es-small" role="status" style={{ marginBottom: 8 }} data-testid="notice-project-aware">{activeProject
             ? intent.figure
-              ? <>Sending will build this figure from project <b>{activeProject.name}</b> and open the result. To add it to an existing draft, name that draft (or say &ldquo;my latest draft&rdquo;); Evidora writes a new revision and asks you to choose if more than one draft matches. Otherwise it opens as a new {intent.kind === "answer" ? "project answer" : `${intent.kind} draft`}. Include table data with a header row, or an equation; Evidora will ask for missing data rather than invent values. You can also open a draft and use <i>Add or revise a figure</i>.</>
+              ? <>Sending will build this figure from project <b>{activeProject.name}</b> and open the result. To add it to an existing draft, name that draft (or say &ldquo;my latest draft&rdquo;); litvo.ai writes a new revision and asks you to choose if more than one draft matches. Otherwise it opens as a new {intent.kind === "answer" ? "project answer" : `${intent.kind} draft`}. Include table data with a header row, or an equation; litvo.ai will ask for missing data rather than invent values. You can also open a draft and use <i>Add or revise a figure</i>.</>
               : <>Sending will {intent.kind === "answer" ? "answer" : `draft a ${intent.kind === "ideas" ? "set of five ideas" : intent.kind}`} from your project <b>{activeProject.name}</b> only, and open it.</>
             : intent.figure ? <>Figures are generated from a project&rsquo;s own data, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project-figure">Choose a project</Link> first.</>
             : <>You asked to use your own material, but no project is selected. <Link href="/my-library" onClick={guardNavigation} style={{ color: "var(--teal)", textDecoration: "underline" }} data-testid="link-ask-choose-project">Choose a project</Link> first.</>}</p>)}
@@ -543,7 +543,7 @@ function AskInner() {
             {isPdf && <span id="dr-pages-help" className="es-small" role="status">{pageParse.error ?? (pageParse.pages?.length ? `Pages ${pageParse.pages.join(", ")}` : "Leave blank to select up to 12 visual pages, prioritising figure mentions; exact coverage is shown with the results.")}</span>}
           </div>}
           <form className="es-composer" onSubmit={submit}>
-            <textarea ref={composer} aria-label="Message Evidora" placeholder={attached ? "What should Evidora check? e.g. Check my diagrams and claims against related papers and patents." : "A question, an idea, a half-formed thought…"} value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onComposerKey} rows={2} maxLength={2000} data-testid="input-ask-question" />
+            <textarea ref={composer} aria-label="Message litvo.ai" placeholder={attached ? "What should litvo.ai check? e.g. Check my diagrams and claims against related papers and patents." : "A question, an idea, a half-formed thought…"} value={question} onChange={event => setQuestion(event.target.value)} onKeyDown={onComposerKey} rows={2} maxLength={2000} data-testid="input-ask-question" />
             <div className="es-composer-bottom">
               <ChatAttachments disabled={!!attached || !!ownActive || createReview.isPending} onStartUpload={() => setPickOpen(false)}
                 onChooseExisting={() => setPickOpen(value => !value)}

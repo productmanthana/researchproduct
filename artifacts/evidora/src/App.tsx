@@ -119,7 +119,7 @@ function AuthFrame({ children }: { children: ReactNode }) {
         <Link href="/" data-testid="link-auth-home"><Wordmark light /></Link>
         <div>
           <p className="font-display text-4xl leading-tight">&ldquo;Show me the page it says that on.&rdquo;</p>
-          <p className="mt-4 max-w-sm text-sm text-[hsl(40_20%_78%)]">Every Evidora answer carries its quotes and sources, so your guide, your reviewer and you can check it.</p>
+          <p className="mt-4 max-w-sm text-sm text-[hsl(40_20%_78%)]">Every litvo.ai answer carries its quotes and sources, so your guide, your reviewer and you can check it.</p>
         </div>
         <p className="font-mono text-[11px] uppercase tracking-widest text-turmeric">Trial: 3 answers &middot; 1 review &middot; 2 figure readings</p>
       </div>
@@ -230,8 +230,8 @@ function ClerkProviderWithRoutes() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
-        signIn: { start: { title: "Back to your evidence desk", subtitle: "Sign in to Evidora" } },
-        signUp: { start: { title: "Create your Evidora account", subtitle: "Starts with a free trial allowance" } },
+        signIn: { start: { title: "Back to your evidence desk", subtitle: "Sign in to litvo.ai" } },
+        signUp: { start: { title: "Create your litvo.ai account", subtitle: "Starts with a free trial allowance" } },
       }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}

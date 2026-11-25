@@ -49,7 +49,7 @@ export default function Home() {
             point to a <span className="italic text-turmeric">page</span>.
           </h1>
           <p className="rise mt-6 max-w-2xl text-base leading-relaxed text-[hsl(40_20%_80%)] md:text-lg" style={{ animationDelay: "160ms" }}>
-            Evidora searches open scholarly indexes, keeps your papers and PDFs in one private desk, and writes answers that quote the source they came from. When the evidence is thin, it says so.
+            litvo.ai searches open scholarly indexes, keeps your papers and PDFs in one private desk, and writes answers that quote the source they came from. When the evidence is thin, it says so.
           </p>
           <form
             onSubmit={(e) => {
@@ -122,7 +122,7 @@ export default function Home() {
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-vermilion">How an answer is built</p>
             <h2 className="mt-3 text-3xl font-semibold leading-tight md:text-4xl">A claim is only as good as the quote behind it.</h2>
             <p className="mt-4 leading-relaxed text-muted-foreground">
-              You choose the papers or upload your own PDFs. Evidora reads only those, then returns each claim with the exact passage and page it rests on. Unsupported statements are flagged rather than smoothed over.
+              You choose the papers or upload your own PDFs. litvo.ai reads only those, then returns each claim with the exact passage and page it rests on. Unsupported statements are flagged rather than smoothed over.
             </p>
           </div>
           <div className="rounded-lg border bg-card p-6 shadow-lg">

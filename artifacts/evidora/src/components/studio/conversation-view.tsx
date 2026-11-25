@@ -38,7 +38,7 @@ function PastAnswer({ item, allItems, onOpen, onRetry }: { item: StudioItem; all
   return (
     <article className="sx-card px-5 py-5 md:px-8" data-testid={`turn-answer-${item.id}`}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Evidora &middot; {KIND_LABEL[item.kind] ?? item.kind}{item.revision > 1 ? ` · rev ${item.revision}` : ""} &middot; {ago(item.createdAt)}</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">litvo.ai &middot; {KIND_LABEL[item.kind] ?? item.kind}{item.revision > 1 ? ` · rev ${item.revision}` : ""} &middot; {ago(item.createdAt)}</p>
         <button className="sx-btn ml-auto" onClick={() => setTools(true)} data-testid={`button-open-turn-tools-${item.id}`}><PenLine />Edit, versions, export</button>
       </div>
       <h3 className="sx-title text-2xl leading-tight">{item.title}</h3>

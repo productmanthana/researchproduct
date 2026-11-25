@@ -15,7 +15,7 @@ export interface StudioItemInput {
      * @maxLength 300
      */
   title: string;
-  /** @maxLength 500000 */
+  /** @maxLength 1000000 */
   content: string;
   parentId?: string;
   /** Completed idea set in this project from which this selected idea was confirmed. Links conversation context without creating a document revision. */

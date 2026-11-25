@@ -47,7 +47,7 @@ export async function downloadStudioItem(item: Pick<StudioItem, "id" | "title">,
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `${(item.title || "evidora").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "evidora"}.${format}`;
+  a.download = `${(item.title || "litvo").replace(/[^\w\- ]+/g, "").slice(0, 80).trim() || "litvo"}.${format}`;
   document.body.appendChild(a); a.click(); a.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }

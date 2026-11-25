@@ -138,10 +138,10 @@ export function WatchPanel({ projectId, projectName, watch, proposal, proposalSo
         )}
         {watch?.status === "partial" && <p className="text-xs text-muted-foreground">The last completed check had partial coverage: some sources did not respond. See notices above.</p>}
         <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-muted-foreground" data-testid="text-watch-terms">
-          <li>Checks run about once a day while the Evidora server is running and catch up after a restart. A manual check is allowed once per hour per project.</li>
+          <li>Checks run about once a day while the litvo.ai server is running and catch up after a restart. A manual check is allowed once per hour per project.</li>
           <li>Up to 10 active watches per account. Each check is a bounded search, not an exhaustive one.</li>
           <li>Keywords from your saved topic are sent to scholarly search providers. Your project context is processed by our AI service to judge how each result relates. Matching uses titles and abstracts only, not full texts.</li>
-          <li>Updates appear in the bell inside Evidora only. Email alerts are not enabled.</li>
+          <li>Updates appear in the bell inside litvo.ai only. Email alerts are not enabled.</li>
         </ul>
         <div className="flex flex-wrap items-center gap-2 border-t pt-4">
           {watch ? <>

@@ -19,7 +19,7 @@ export async function downloadOfficialRules(address: string, redirects = 0, dead
     || (isIP(url.hostname) && !publicIPv4(url.hostname))) return Promise.reject(new Error("Unsafe or expired official-source request"));
   return new Promise((resolve, reject) => {
     const request = https.get(url, {
-      family: 4, headers: { "User-Agent": "EvidoraResearch/1.0 (submission instructions)", Accept: "text/html,application/pdf,text/plain" },
+      family: 4, headers: { "User-Agent": "LitvoResearch/1.0 (submission instructions)", Accept: "text/html,application/pdf,text/plain" },
       lookup: (hostname, options, callback) => dns.lookup(hostname, { family: 4, all: true }, (error, addresses) => {
         if (error) return callback(error, "", 4);
         if (!addresses.length || addresses.some(a => !publicIPv4(a.address))) return callback(new Error("Private address rejected"), "", 4);

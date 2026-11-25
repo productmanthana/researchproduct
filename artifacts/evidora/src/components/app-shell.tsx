@@ -3,10 +3,11 @@ import { Link, useLocation } from "wouter";
 import { useClerk, useUser } from "@clerk/react";
 import { useGetUsage, getGetUsageQueryKey, useGetAccount, getGetAccountQueryKey } from "@workspace/api-client-react";
 import {
-  BellRing, BookMarked, BookOpenText, Compass, FlaskConical, FolderKanban, GraduationCap, Leaf, Library, LineChart, LogOut, Menu,
+  BellRing, BookMarked, BookOpenText, Compass, FlaskConical, FolderKanban, GraduationCap, Library, LineChart, LogOut, Menu,
   MessageSquareText, Newspaper, Plug, Receipt, ScanSearch, ScrollText, Stamp, X,
   ClipboardCheck,
 } from "lucide-react";
+import { LogoMark } from "@/components/brand";
 import { AlertBell } from "@/components/research/alert-bell";
 import { UsageMeters } from "@/components/usage-meters";
 import { ProjectSwitcher } from "@/components/studio/project-switcher";
@@ -47,7 +48,7 @@ const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const guard = (e: MouseEvent) => { if (!confirmLeave()) e.preventDefault(); };
 
 function Brand() {
-  return <span className="sx-brand"><span className="mark"><Leaf className="h-4 w-4" /></span>evidora<b>.</b></span>;
+  return <span className="sx-brand" aria-label="litvo.ai home"><LogoMark className="h-8 w-8 shrink-0" /><span aria-hidden="true">litvo<b>.ai</b></span></span>;
 }
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {

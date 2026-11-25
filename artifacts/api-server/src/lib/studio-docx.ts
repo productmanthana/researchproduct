@@ -65,7 +65,7 @@ export async function renderStudioWord(row:any):Promise<Buffer>{
       sections.push({properties:{page,column:{count:columns,space:360,equalWidth:true},type:SectionType.CONTINUOUS},footers:{default:footer},children:blocks(segment,columns)});
     }
   }
-  return Packer.toBuffer(new Document({title,creator:d.author||"Evidora",features:{updateFields:true},
+  return Packer.toBuffer(new Document({title,creator:d.author||"litvo.ai",features:{updateFields:true},
     styles:{default:{...(custom?{title:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading1:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading2:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}},heading3:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman"}}}:{}),document:{run:{font:l.fontFamily==="sans"?"Arial":"Times New Roman",size:l.fontSize*2,color:"000000"},paragraph:{spacing:{line:Math.round(l.lineSpacing*240)}}}}},
     sections}));
 }

@@ -158,7 +158,7 @@ router.get("/studio/items/:id/export",async(req,res)=>{
   if(row.status!=="completed")throw new HttpError(409,"Wait for the document to finish before exporting.");
   const bytes=await exportStudioFile(row,format);
   res.setHeader("Cache-Control","private, no-store");
-  res.setHeader("Content-Disposition",`attachment; filename="evidora-${row.kind}-v${row.revision}.${format}"`);
+  res.setHeader("Content-Disposition",`attachment; filename="litvo-${row.kind}-v${row.revision}.${format}"`);
   res.type(format==="pdf"?"application/pdf":"application/vnd.openxmlformats-officedocument.wordprocessingml.document").send(bytes);
 });
 router.post("/studio/items/:id/check",async(req,res)=>{

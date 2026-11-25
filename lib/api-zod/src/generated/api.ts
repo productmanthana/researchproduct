@@ -812,7 +812,7 @@ export const ListStudioItemsResponse = zod.array(ListStudioItemsResponseItem)
 
 export const saveStudioItemBodyTitleMax = 300;
 
-export const saveStudioItemBodyContentMax = 500000;
+export const saveStudioItemBodyContentMax = 1000000;
 
 export const saveStudioItemBodyDocumentDetailsAuthorMax = 500;
 

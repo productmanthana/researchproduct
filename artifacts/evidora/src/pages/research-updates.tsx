@@ -21,7 +21,7 @@ function Inner() {
       <header className="rise mb-7 border-b border-[hsl(90_14%_84%)] pb-6">
         <p className="sx-eyebrow">Research updates</p>
         <h1 className="sx-title mt-1.5 text-4xl md:text-5xl">Keep an eye on your topic.</h1>
-        <p className="mt-3 max-w-2xl text-[15px] text-muted-foreground">One watch per project. Evidora searches open sources about once a day and lists new matches here and in the bell. Email alerts are not enabled.</p>
+        <p className="mt-3 max-w-2xl text-[15px] text-muted-foreground">One watch per project. litvo.ai searches open sources about once a day and lists new matches here and in the bell. Email alerts are not enabled.</p>
       </header>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <div className="space-y-4">

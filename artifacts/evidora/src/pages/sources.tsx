@@ -15,7 +15,7 @@ export default function Sources() {
     <>
       <PageHeader kicker="Transparency" title="Sources and licences" />
       <p className="mb-8 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        Evidora queries these public scholarly services live. We do not hold a full local copy of the literature. When a connector is degraded, searches still run but may return fewer results, and you will see a warning.
+        litvo.ai queries these public scholarly services live. We do not hold a full local copy of the literature. When a connector is degraded, searches still run but may return fewer results, and you will see a warning.
       </p>
       {s.isLoading ? <RowSkeleton rows={4} /> : s.isError ? <ErrorState error={s.error} onRetry={() => s.refetch()} /> : (
         <div className="divide-y overflow-hidden rounded-md border bg-card">

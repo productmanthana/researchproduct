@@ -16,6 +16,7 @@ out-tsc
 
 # dependencies
 node_modules
+/.pnpm-store/
 
 # IDEs and editors
 /.idea

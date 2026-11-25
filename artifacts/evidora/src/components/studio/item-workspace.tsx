@@ -243,7 +243,7 @@ export function ItemWorkspace({ item, allItems, onOpen, onRetry, extra, presenta
             <button className="sx-btn ml-auto" disabled={dirty} title={dirty ? "Save or discard your edits first" : undefined} onClick={() => setFigOpen(true)} data-testid="button-open-add-figure"><LineChart />Add or revise a figure</button>
           </div> : <div className="space-y-2">
             <p className="sx-eyebrow">Add or revise a figure</p>
-            <p className="text-xs text-muted-foreground">Describe the figure. Paste table data or an equation, or point to a project source. Without data, Evidora will say what is needed rather than invent values. A new revision is created; this one is never overwritten.</p>
+            <p className="text-xs text-muted-foreground">Describe the figure. Paste table data or an equation, or point to a project source. Without data, litvo.ai will say what is needed rather than invent values. A new revision is created; this one is never overwritten.</p>
             <textarea className="sx-input min-h-[90px]" value={figPrompt} maxLength={4000} onChange={e => setFigPrompt(e.target.value)} placeholder={"e.g. Line graph of yield vs. nitrogen dose:\n0, 2.1\n40, 3.4\n80, 4.0"} aria-label="Figure instructions" data-testid="input-figure-prompt" />
             {figLimit && <p className="text-xs text-vermilion" role="status">{figLimit}</p>}
             <div className="flex gap-2">
