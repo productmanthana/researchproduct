@@ -27,7 +27,12 @@ export async function writeThesis({ prompt, body, onPart }: {
   prompt: string; body: any[];
   onPart?: (done: number, total: number, heading: string, draft: string) => void | Promise<void>;
 }) {
-  const plan = Plan.parse((await jsonCall(`${prompt}\n${THESIS_PLAN_TASK}`, body, SCIENTIFIC_MODEL, false, 16384)).value);
+  const planOnce = async (extra = "") => Plan.parse((await jsonCall(`${prompt}\n${THESIS_PLAN_TASK}${extra}`, body, SCIENTIFIC_MODEL, false, 16384)).value);
+  // A blueprint that overruns one response is retried once in compact form before the job fails.
+  const plan = await planOnce().catch(err => {
+    logger.warn({ err }, "Thesis blueprint overran; retrying compact");
+    return planOnce(" Keep the blueprint under 2,500 words: short bullet points, evidence numbers as ranges.");
+  });
   const parts = thesisParts(plan.chapters.map((c, i) => ({ ...c, number: i + 1 })));
   const written: (string | undefined)[] = parts.map(() => undefined);
   let done = 0;
